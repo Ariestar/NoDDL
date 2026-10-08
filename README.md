@@ -1,5 +1,8 @@
 # NoDDL (Not Only DDL) 🚀
 
+[![Install with Tampermonkey](https://img.shields.io/badge/Install_with-Tampermonkey-00485B?style=for-the-badge&logo=tampermonkey&logoColor=white)](https://raw.githubusercontent.com/Ariestar/NoDDL/main/dist/nodd-l.user.js)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
 > **武汉大学人工智能学院一体化专业课平台 (http://115.156.107.145/) 工具包与油猴脚本**  
 > 一套 TypeScript 代码，公用底层逻辑：既是**浏览器油猴脚本 (Tampermonkey)**，又是可直接打包进 **ailuo 包管理器** 的通用工具包。
 
@@ -79,12 +82,18 @@ ailuo-pm pack . dist
 
 ## 💻 1. 油猴脚本功能说明
 
-安装 `dist/nodd-l.user.js` 后访问 `http://115.156.107.145/`：
+### 一键安装
+直接点击上方 **`Install with Tampermonkey`** 徽章，浏览器扩展将自动拦截并弹出安装确认界面。
+
+### 主要功能
+访问 `http://115.156.107.145/` 后自动启用：
 * **死线倒计时横幅**：顶部常驻显示最近截止作业倒计时，支持展开未完成列表。
 * **测试用例复制**：在题目页所有 `<pre>` 样例右上角注入「📋 复制样例」按钮。
 * **代码自动暂存**：编辑框输入自动保存到本地，误关网页可一键「💾 恢复自动暂存代码」。
 * **推送配置**：横幅右上角点击「⚙️ 推送设置」，填入 PushPlus Token 或 Bark URL。
 * **凭据复制**：点击「📋 复制会话凭据」，自动复制当前 Cookie。
+
+*(本地开发调试构建产物位于 `dist/nodd-l.user.js`)*
 
 ---
 
