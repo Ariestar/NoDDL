@@ -73,9 +73,9 @@ function formatRemainingTime(remainingHours) {
   if (remainingHours <= 0) {
     const passedHours = Math.abs(remainingHours);
     if (passedHours < 24) {
-      return `\u5DF2\u622A\u6B62 ${Math.max(1, Math.round(passedHours))} \u5C0F\u65F6`;
+      return `\u5DF2\u8D85 DDL ${Math.max(1, Math.round(passedHours))} \u5C0F\u65F6`;
     }
-    return `\u5DF2\u622A\u6B62 ${Math.floor(passedHours / 24)} \u5929`;
+    return `\u5DF2\u8D85 DDL ${Math.floor(passedHours / 24)} \u5929`;
   }
   if (remainingHours < 1) {
     const mins = Math.max(1, Math.round(remainingHours * 60));
@@ -84,61 +84,55 @@ function formatRemainingTime(remainingHours) {
   if (remainingHours < 24) {
     const hrs2 = Math.floor(remainingHours);
     const mins = Math.round((remainingHours - hrs2) * 60);
-    return mins > 0 ? `\u5269\u4F59 ${hrs2} \u5C0F\u65F6 ${mins} \u5206` : `\u5269\u4F59 ${hrs2} \u5C0F\u65F6`;
+    return mins > 0 ? `\u5269 ${hrs2} \u5C0F\u65F6 ${mins} \u5206` : `\u5269 ${hrs2} \u5C0F\u65F6`;
   }
   const days = Math.floor(remainingHours / 24);
   const hrs = Math.round(remainingHours % 24);
-  return hrs > 0 ? `\u5269\u4F59 ${days} \u5929 ${hrs} \u5C0F\u65F6` : `\u5269\u4F59 ${days} \u5929`;
+  return hrs > 0 ? `\u5269 ${days} \u5929 ${hrs} \u5C0F\u65F6` : `\u5269 ${days} \u5929`;
 }
-function parseDeadlineBeijing(rawDeadlineStr, nowMs = Date.now()) {
-  const raw = rawDeadlineStr.trim();
+function extractDeadlineFromText(text) {
+  if (!text) return "";
+  const range = text.split(/\s*(?:至|到|~|-{2,})\s*/);
+  if (range.length > 1) {
+    return range[range.length - 1].trim();
+  }
+  const kw = text.match(/(?:截止|结束)(?:时间|日期)?[:：\s]*([^\n<]+)/i);
+  if (kw) return kw[1].trim();
+  const cleaned = text.replace(/[年月日]/g, (m) => m === "\u65E5" ? " " : "-");
+  const dates = cleaned.match(/\d{1,4}[-/.]\d{1,2}(?:[-/.]\d{1,2})?(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?/g);
+  return dates ? dates[dates.length - 1].trim() : text.trim();
+}
+function parseDeadlineBeijing(rawInput, nowMs = Date.now()) {
+  const raw = rawInput.trim();
   if (!raw) {
-    return createEmptyDeadline("\u672A\u6807\u6CE8\u622A\u6B62\u65F6\u95F4");
+    return emptyDeadline("\u672A\u6807\u6CE8\u622A\u6B62\u65F6\u95F4");
   }
-  let cleaned = raw.replace(/[年月]/g, "-").replace(/[日号]/g, " ").replace(/\./g, "-").replace(/\//g, "-").replace(/\s+/g, " ").trim();
-  const fullMatch = cleaned.match(/(?:截止[：:\s]*)?(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
-  const noYearMatch = cleaned.match(/(?:截止[：:\s]*)?(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
-  let year;
-  let month;
-  let day;
-  let hour = 23;
-  let minute = 59;
-  let second = 0;
-  const currentYear = new Date(nowMs).getFullYear();
-  if (fullMatch && fullMatch[1]) {
-    year = parseInt(fullMatch[1], 10);
-    month = parseInt(fullMatch[2], 10);
-    day = parseInt(fullMatch[3], 10);
-    if (fullMatch[4] !== void 0) hour = parseInt(fullMatch[4], 10);
-    if (fullMatch[5] !== void 0) minute = parseInt(fullMatch[5], 10);
-    if (fullMatch[6] !== void 0) second = parseInt(fullMatch[6], 10);
-  } else if (noYearMatch && noYearMatch[1]) {
-    year = currentYear;
-    month = parseInt(noYearMatch[1], 10);
-    day = parseInt(noYearMatch[2], 10);
-    if (noYearMatch[3] !== void 0) hour = parseInt(noYearMatch[3], 10);
-    if (noYearMatch[4] !== void 0) minute = parseInt(noYearMatch[4], 10);
-    if (noYearMatch[5] !== void 0) second = parseInt(noYearMatch[5], 10);
-  } else {
-    return createEmptyDeadline(raw);
+  const target = extractDeadlineFromText(raw);
+  const clean = target.replace(/[年月]/g, "-").replace(/[日号]/g, " ").replace(/[./]/g, "-").replace(/\s+/g, " ").trim();
+  const m = clean.match(/(?:(\d{4})-)?(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  if (!m) {
+    return emptyDeadline(raw);
   }
-  const beijingTimestamp = Date.UTC(year, month - 1, day, hour, minute, second) - 8 * 3600 * 1e3;
-  const diffMs = beijingTimestamp - nowMs;
-  const remainingHours = Number((diffMs / (1e3 * 60 * 60)).toFixed(1));
-  const remainingText = formatRemainingTime(remainingHours);
-  const urgency = calculateUrgency(remainingHours);
+  const curYear = new Date(nowMs).getFullYear();
+  const y = m[1] ? parseInt(m[1], 10) : curYear;
+  const mo = parseInt(m[2], 10);
+  const d = parseInt(m[3], 10);
+  const h = m[4] !== void 0 ? parseInt(m[4], 10) : 23;
+  const min = m[5] !== void 0 ? parseInt(m[5], 10) : 59;
+  const s = m[6] !== void 0 ? parseInt(m[6], 10) : 0;
+  const ts = Date.UTC(y, mo - 1, d, h, min, s) - 8 * 3600 * 1e3;
+  const remHrs = Number(((ts - nowMs) / 36e5).toFixed(1));
   const pad = (n) => String(n).padStart(2, "0");
-  const normalized = `${year}-${pad(month)}-${pad(day)} ${pad(hour)}:${pad(minute)}:${pad(second)}`;
   return {
     raw,
-    normalized,
-    timestamp: beijingTimestamp,
-    remainingHours,
-    remainingText,
-    urgency
+    normalized: `${y}-${pad(mo)}-${pad(d)} ${pad(h)}:${pad(min)}:${pad(s)}`,
+    timestamp: ts,
+    remainingHours: remHrs,
+    remainingText: formatRemainingTime(remHrs),
+    urgency: calculateUrgency(remHrs)
   };
 }
-function createEmptyDeadline(rawText) {
+function emptyDeadline(rawText) {
   return {
     raw: rawText,
     normalized: rawText,
@@ -151,138 +145,96 @@ function createEmptyDeadline(rawText) {
 
 // src/core/parsers.ts
 function parseCourseListHtml(html) {
-  const courses = [];
-  const seenIds = /* @__PURE__ */ new Set();
-  const linkRegex = /<a[^>]*href=["'][^"']*courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-  let match;
-  while ((match = linkRegex.exec(html)) !== null) {
-    const id = match[1];
-    const name = match[2].replace(/<[^>]+>/g, "").trim();
-    if (id && name && !seenIds.has(id)) {
-      seenIds.add(id);
-      courses.push({ id, name });
+  const list = [];
+  const seen = /* @__PURE__ */ new Set();
+  const linkRe = /<a[^>]*href=["'][^"']*courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m;
+  while ((m = linkRe.exec(html)) !== null) {
+    const id = m[1];
+    const name = m[2].replace(/<[^>]+>/g, "").trim();
+    if (id && name && !seen.has(id)) {
+      seen.add(id);
+      list.push({ id, name });
     }
   }
-  const spanRegex = /<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/span>/gi;
-  while ((match = spanRegex.exec(html)) !== null) {
-    const id = match[1];
-    const name = match[2].replace(/<[^>]+>/g, "").trim();
-    if (id && name && !seenIds.has(id)) {
-      seenIds.add(id);
-      courses.push({ id, name });
+  const spanRe = /<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/span>/gi;
+  while ((m = spanRe.exec(html)) !== null) {
+    const id = m[1];
+    const name = m[2].replace(/<[^>]+>/g, "").trim();
+    if (id && name && !seen.has(id)) {
+      seen.add(id);
+      list.push({ id, name });
     }
   }
-  return courses;
+  return list;
 }
 function parseActiveAssignmentsHtml(html, courseName = "\u4E13\u4E1A\u8BFE\u7A0B", nowMs = Date.now()) {
-  const assignments = [];
-  const seenIds = /* @__PURE__ */ new Set();
-  const blockRegex = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
-  let blockMatch;
-  while ((blockMatch = blockRegex.exec(html)) !== null) {
-    const block = blockMatch[1];
-    const linkMatch = block.match(/href=["'][^"']*assignID=([a-zA-Z0-9_-]+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
-    if (!linkMatch) continue;
-    const id = linkMatch[1];
-    if (seenIds.has(id)) continue;
-    seenIds.add(id);
-    const title = linkMatch[2].replace(/<[^>]+>/g, "").trim() || `\u4F5C\u4E1A ${id}`;
-    const dateMatch = block.match(/(?:截止[：:\s]*)?(\d{4}[-/年.]\d{1,2}[-/月.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/) || block.match(/(?:截止[：:\s]*)?(\d{1,2}[-/月.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/);
-    const rawDeadline = dateMatch ? dateMatch[1] : "";
-    const parsed = parseDeadlineBeijing(rawDeadline, nowMs);
+  const list = [];
+  const seen = /* @__PURE__ */ new Set();
+  const blockRe = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+  let m;
+  while ((m = blockRe.exec(html)) !== null) {
+    const block = m[1];
+    const linkM = block.match(/href=["'][^"']*assignID=([a-zA-Z0-9_-]+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
+    if (!linkM) continue;
+    const id = linkM[1];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const title = linkM[2].replace(/<[^>]+>/g, "").trim() || `\u4F5C\u4E1A ${id}`;
+    const ddl = parseDeadlineBeijing(block, nowMs);
     let status = "pending";
     if (/已打分|得分|满分/i.test(block)) status = "graded";
     else if (/已提交|评测中/i.test(block)) status = "submitted";
-    assignments.push({
+    list.push({
       id,
       courseName,
       title,
-      deadline: rawDeadline ? parsed.normalized : "\u8BF7\u67E5\u770B\u8BE6\u60C5",
-      deadlineTimestamp: parsed.timestamp,
-      remainingHours: parsed.remainingHours,
-      remainingText: parsed.remainingText,
+      deadline: ddl.timestamp > 0 ? ddl.normalized : "\u8BF7\u67E5\u770B\u8BE6\u60C5",
+      deadlineTimestamp: ddl.timestamp,
+      remainingHours: ddl.remainingHours,
+      remainingText: ddl.remainingText,
       status,
-      urgency: parsed.urgency,
+      urgency: ddl.urgency,
       url: `/assignment/index.jsp?assignID=${id}`
     });
   }
-  if (assignments.length === 0) {
-    const directLinkRegex = /<a[^>]*href=["'][^"']*assignID=([a-zA-Z0-9_-]+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi;
-    let linkM;
-    while ((linkM = directLinkRegex.exec(html)) !== null) {
-      const id = linkM[1];
-      if (seenIds.has(id)) continue;
-      seenIds.add(id);
-      const title = linkM[2].replace(/<[^>]+>/g, "").trim();
-      if (!title || title.includes("\u8BE6\u7EC6") || title.includes("\u63D0\u4EA4")) continue;
-      assignments.push({
-        id,
-        courseName,
-        title,
-        deadline: "\u8BF7\u67E5\u770B\u8BE6\u60C5",
-        deadlineTimestamp: 0,
-        remainingHours: 9999,
-        remainingText: "\u5F85\u5B9A",
-        status: "pending",
-        urgency: "normal",
-        url: `/assignment/index.jsp?assignID=${id}`
-      });
-    }
-  }
-  return assignments;
+  return list;
 }
 function parseAssignmentDetailHtml(html, nowMs = Date.now()) {
-  const dateMatch = html.match(/截止时间[：:\s]*([\d\-/年. :]+)/i) || html.match(/(\d{4}[-/年.]\d{1,2}[-/月.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/);
-  const rawDeadline = dateMatch ? dateMatch[1].trim() : "";
-  const parsed = parseDeadlineBeijing(rawDeadline, nowMs);
-  const titleMatch = html.match(/<b>([\s\S]*?)<\/b>/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
-  const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : void 0;
+  const ddl = parseDeadlineBeijing(html, nowMs);
+  const titleM = html.match(/<b>([\s\S]*?)<\/b>/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
+  const title = titleM ? titleM[1].replace(/<[^>]+>/g, "").trim() : void 0;
   return {
     title,
-    deadline: rawDeadline ? parsed.normalized : void 0,
-    deadlineTimestamp: parsed.timestamp,
-    remainingHours: parsed.remainingHours,
-    remainingText: parsed.remainingText
+    deadline: ddl.timestamp > 0 ? ddl.normalized : void 0,
+    deadlineTimestamp: ddl.timestamp,
+    remainingHours: ddl.remainingHours,
+    remainingText: ddl.remainingText
   };
 }
 function parseTestCases(html) {
-  const testCases = [];
-  const sampleRegex = /(?:样例输入|输入样例|Sample Input)[\s\S]*?<pre[^>]*>([\s\S]*?)<\/pre>[\s\S]*?(?:样例输出|输出样例|Sample Output)[\s\S]*?<pre[^>]*>([\s\S]*?)<\/pre>/gi;
-  let match;
+  const cases = [];
+  const re = /(?:样例输入|输入样例|Sample Input)[\s\S]*?<pre[^>]*>([\s\S]*?)<\/pre>[\s\S]*?(?:样例输出|输出样例|Sample Output)[\s\S]*?<pre[^>]*>([\s\S]*?)<\/pre>/gi;
+  let m;
   let idx = 1;
-  while ((match = sampleRegex.exec(html)) !== null) {
-    testCases.push({
+  while ((m = re.exec(html)) !== null) {
+    cases.push({
       index: idx++,
-      input: cleanCodeBlock(match[1]),
-      output: cleanCodeBlock(match[2])
+      input: cleanCode(m[1]),
+      output: cleanCode(m[2])
     });
   }
-  if (testCases.length === 0) {
-    const preRegex = /<pre[^>]*>([\s\S]*?)<\/pre>/gi;
-    const blocks = [];
-    let preMatch;
-    while ((preMatch = preRegex.exec(html)) !== null) {
-      blocks.push(cleanCodeBlock(preMatch[1]));
-    }
-    for (let i = 0; i < blocks.length - 1; i += 2) {
-      testCases.push({
-        index: i / 2 + 1,
-        input: blocks[i],
-        output: blocks[i + 1]
-      });
-    }
-  }
-  return testCases;
+  return cases;
 }
-function cleanCodeBlock(raw) {
-  return raw.replace(/<br\s*\/?>/gi, "\n").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+function cleanCode(s) {
+  return s.replace(/<br\s*\/?>/gi, "\n").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
 }
 function parseProblemDetailHtml(problemId, html) {
-  const contentMatch = html.match(/<div[^>]*class=["'][^"']*cgProblemContentClass[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) || html.match(/<div[^>]*id=["']cgpreviewmarkdown["'][^>]*>([\s\S]*?)<\/div>/i);
-  const descHtml = contentMatch ? contentMatch[1] : html;
+  const contentM = html.match(/<div[^>]*class=["'][^"']*cgProblemContentClass[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) || html.match(/<div[^>]*id=["']cgpreviewmarkdown["'][^>]*>([\s\S]*?)<\/div>/i);
+  const descHtml = contentM ? contentM[1] : html;
   const descText = descHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  const codeMatch = html.match(/<textarea[^>]*id=["']cgsoucecode["'][^>]*>([\s\S]*?)<\/textarea>/i);
-  const currentCode = codeMatch ? codeMatch[1].trim() : void 0;
+  const codeM = html.match(/<textarea[^>]*id=["']cgsoucecode["'][^>]*>([\s\S]*?)<\/textarea>/i);
+  const currentCode = codeM ? codeM[1].trim() : void 0;
   return {
     id: problemId,
     title: `\u9898\u76EE ${problemId}`,
@@ -293,22 +245,14 @@ function parseProblemDetailHtml(problemId, html) {
   };
 }
 function parseSubmissionsHtml(html) {
-  const results = [];
-  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let trMatch;
-  while ((trMatch = trRegex.exec(html)) !== null) {
-    const row = trMatch[1];
+  const list = [];
+  const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let m;
+  while ((m = trRe.exec(html)) !== null) {
+    const row = m[1];
     if (/<th/i.test(row)) continue;
-    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-    const tds = [];
-    let tdMatch;
-    while ((tdMatch = tdRegex.exec(row)) !== null) {
-      tds.push(tdMatch[1].replace(/<[^>]+>/g, "").trim());
-    }
+    const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((t) => t[1].replace(/<[^>]+>/g, "").trim());
     if (tds.length >= 6) {
-      const runId = tds[0];
-      const submitTime = tds[1];
-      const problemTitle = tds[3];
       const rawStatus = tds[5];
       let status = "Unknown";
       if (/Accepted|正确|通过|AC/i.test(rawStatus)) status = "Accepted";
@@ -317,16 +261,16 @@ function parseSubmissionsHtml(html) {
       else if (/Memory Limit|超内存|MLE/i.test(rawStatus)) status = "Memory Limit Exceeded";
       else if (/Compile Error|编译错误|CE/i.test(rawStatus)) status = "Compile Error";
       else if (/Judging|Running|评测中|排队/i.test(rawStatus)) status = "Judging";
-      results.push({
-        id: runId,
-        problemId: problemTitle,
-        problemTitle,
+      list.push({
+        id: tds[0],
+        problemId: tds[3],
+        problemTitle: tds[3],
         status,
-        submitTime
+        submitTime: tds[1]
       });
     }
   }
-  return results;
+  return list;
 }
 
 // src/core/client.ts
@@ -391,6 +335,7 @@ var CourseGradingClient = class {
   }
   /**
    * 汇聚所有课程中未完成的作业与实训
+   * 默认排序：未截止的按 DDL 紧迫度升序排在最前，已逾期的排在后面
    */
   async getPendingAssignments(hoursThreshold = 72) {
     const allAssignments = [];
@@ -446,7 +391,14 @@ var CourseGradingClient = class {
       } catch {
       }
     }
-    return allAssignments.filter((item) => item.status === "pending" && item.remainingHours <= hoursThreshold).sort((a, b) => a.deadlineTimestamp - b.deadlineTimestamp);
+    return allAssignments.filter((item) => item.status === "pending").sort((a, b) => {
+      if (a.remainingHours > 0 && b.remainingHours <= 0) return -1;
+      if (a.remainingHours <= 0 && b.remainingHours > 0) return 1;
+      if (a.remainingHours > 0 && b.remainingHours > 0) {
+        return a.deadlineTimestamp - b.deadlineTimestamp;
+      }
+      return b.deadlineTimestamp - a.deadlineTimestamp;
+    });
   }
   /**
    * 获取题目详情与测试用例
@@ -465,21 +417,21 @@ var CourseGradingClient = class {
     return parseSubmissionsHtml(html);
   }
   /**
-   * 触发死线告警推送
+   * 触发 DDL 告警推送
    */
   async triggerPushAlert(config) {
     const threshold = config.hoursThreshold ?? 48;
-    const pending = await this.getPendingAssignments(threshold);
-    if (pending.length === 0) {
+    const allPending = await this.getPendingAssignments(threshold);
+    const activeUrgent = allPending.filter((a) => a.remainingHours > 0 && a.remainingHours <= threshold);
+    if (activeUrgent.length === 0) {
       return { sent: false, count: 0 };
     }
-    const urgentCount = pending.filter((a) => a.urgency === "critical" || a.urgency === "urgent").length;
-    const title = `\u3010NoDDL \u9884\u8B66\u3011\u6709 ${pending.length} \u9879\u4F5C\u4E1A\u5F85\u63D0\u4EA4\uFF08${urgentCount} \u9879\u7D27\u6025\uFF09`;
+    const title = `\u3010NoDDL \u63D0\u9192\u3011\u6709 ${activeUrgent.length} \u9879\u4F5C\u4E1A\u5373\u5C06\u5230\u8FBE DDL`;
     const markdown = [
-      `### \u{1F514} NoDDL \u4F5C\u4E1A\u6B7B\u7EBF\u63D0\u9192`,
-      `\u5F53\u524D\u6709 **${pending.length}** \u9879\u672A\u4EA4\u4F5C\u4E1A\uFF1A`,
+      `### \u{1F514} NoDDL \u4F5C\u4E1A DDL \u63D0\u9192`,
+      `\u5F53\u524D\u6709 **${activeUrgent.length}** \u9879\u4F5C\u4E1A\u5373\u5C06\u622A\u6B62\uFF1A`,
       "",
-      ...pending.map((item, idx) => `${idx + 1}. [${item.courseName}] ${item.title} (\u622A\u6B62: ${item.deadline}, ${item.remainingText})`)
+      ...activeUrgent.map((item, idx) => `${idx + 1}. [${item.courseName}] ${item.title} (\u622A\u6B62: ${item.deadline}, ${item.remainingText})`)
     ].join("\n");
     try {
       if (config.pushplusToken) {
@@ -502,13 +454,13 @@ var CourseGradingClient = class {
 ${markdown}` }
         });
       }
-      return { sent: true, count: pending.length };
+      return { sent: true, count: activeUrgent.length };
     } catch (err) {
-      return { sent: false, count: pending.length, error: String(err) };
+      return { sent: false, count: activeUrgent.length, error: String(err) };
     }
   }
 };
 
-export { COURSE_GRADING_SECRET_KEY, CourseGradingClient, FetchHttpClient, calculateUrgency, decryptPassword, encryptPassword, formatRemainingTime, parseActiveAssignmentsHtml, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };
+export { COURSE_GRADING_SECRET_KEY, CourseGradingClient, FetchHttpClient, calculateUrgency, decryptPassword, encryptPassword, extractDeadlineFromText, formatRemainingTime, parseActiveAssignmentsHtml, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };
 //# sourceMappingURL=index.js.map
 //# sourceMappingURL=index.js.map

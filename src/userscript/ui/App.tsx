@@ -15,7 +15,7 @@ export function App({ client, storage, initialAssignments }: AppProps) {
   const [activeTab, setActiveTab] = useState<'homework' | 'settings' | 'toolbox' | 'eval'>('homework');
   const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'urgent'>('pending');
+  const [filter, setFilter] = useState<'active' | 'overdue' | 'all'>('active');
 
   // Push Config State
   const [pushplusToken, setPushplusToken] = useState('');
@@ -37,7 +37,6 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     setTimeout(() => setToast(null), 2500);
   };
 
-  // 初始化加载配置
   useEffect(() => {
     (async () => {
       const token = (await storage.get('nodd_pushplus_token')) || '';
@@ -49,13 +48,12 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     })();
   }, []);
 
-  // 刷新作业列表
   const refreshAssignments = async () => {
     setLoading(true);
     try {
       const list = await client.getPendingAssignments(threshold);
       setAssignments(list);
-      showToast(`已刷新：发现 ${list.length} 项待完成任务`);
+      showToast(`已刷新：发现 ${list.length} 项作业`);
     } catch {
       showToast('获取作业列表失败');
     } finally {
@@ -63,7 +61,6 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     }
   };
 
-  // 刷新评测记录
   const refreshSubmissions = async () => {
     setEvalLoading(true);
     try {
@@ -76,7 +73,6 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     }
   };
 
-  // 加载本地草稿历史
   const loadDrafts = () => {
     const list: { key: string; time: string; length: number; code: string }[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -98,7 +94,6 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     setDrafts(list);
   };
 
-  // 保存推送配置
   const savePushConfig = async () => {
     await storage.set('nodd_pushplus_token', pushplusToken.trim());
     await storage.set('nodd_bark_url', barkUrl.trim());
@@ -106,7 +101,6 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     showToast('推送配置已保存！');
   };
 
-  // 发送测试推送
   const testPush = async () => {
     if (!pushplusToken && !barkUrl) {
       showToast('请先配置 PushPlus Token 或 Bark URL');
@@ -119,13 +113,12 @@ export function App({ client, storage, initialAssignments }: AppProps) {
       hoursThreshold: threshold
     });
     if (res.sent) {
-      showToast(`测试推送成功！包含 ${res.count} 项作业`);
+      showToast(`测试推送成功！包含 ${res.count} 项即将到期作业`);
     } else {
-      showToast(`推送失败: ${res.error || '未知原因'}`);
+      showToast(`推送失败: ${res.error || '无即将截止作业或网络错误'}`);
     }
   };
 
-  // 复制 Cookie 凭据
   const copyCookie = () => {
     const cookie = document.cookie;
     if (typeof GM_setClipboard !== 'undefined') {
@@ -136,21 +129,26 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     showToast('平台 Cookie 凭据已复制到剪贴板！');
   };
 
-  // 过滤作业
+  const activeCount = assignments.filter((a) => a.remainingHours > 0).length;
+  const overdueCount = assignments.filter((a) => a.remainingHours <= 0).length;
+  const urgentCount = assignments.filter((a) => a.remainingHours > 0 && (a.urgency === 'critical' || a.urgency === 'urgent')).length;
+
   const filteredAssignments = assignments.filter((item) => {
-    if (filter === 'urgent') return item.urgency === 'critical' || item.urgency === 'urgent';
-    if (filter === 'pending') return item.status === 'pending';
+    if (filter === 'active') return item.remainingHours > 0;
+    if (filter === 'overdue') return item.remainingHours <= 0;
     return true;
   });
-
-  const urgentCount = assignments.filter((a) => a.urgency === 'critical' || a.urgency === 'urgent').length;
 
   return (
     <div>
       {/* 悬浮球 Trigger */}
       <div className="nodd-trigger" onClick={() => setIsOpen(!isOpen)}>
         <span className="logo-badge">NoDDL</span>
-        {urgentCount > 0 && <span className="counter">{urgentCount}</span>}
+        {urgentCount > 0 ? (
+          <span className="counter">{urgentCount}</span>
+        ) : activeCount > 0 ? (
+          <span className="counter" style="background:#3b82f6;">{activeCount}</span>
+        ) : null}
       </div>
 
       {/* 主控制面板 */}
@@ -187,7 +185,7 @@ export function App({ client, storage, initialAssignments }: AppProps) {
               className={`nodd-tab-item ${activeTab === 'homework' ? 'active' : ''}`}
               onClick={() => setActiveTab('homework')}
             >
-              📋 死线看板 ({assignments.length})
+              📋 DDL 看板 ({assignments.length})
             </div>
             <div
               className={`nodd-tab-item ${activeTab === 'settings' ? 'active' : ''}`}
@@ -217,27 +215,27 @@ export function App({ client, storage, initialAssignments }: AppProps) {
 
           {/* 内容区 */}
           <div className="nodd-content">
-            {/* Tab 1: 死线看板 */}
+            {/* Tab 1: DDL 看板 */}
             {activeTab === 'homework' && (
               <div>
                 <div style="display:flex;gap:6px;margin-bottom:12px;">
                   <button
-                    className={`btn btn-sm ${filter === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => setFilter('pending')}
+                    className={`btn btn-sm ${filter === 'active' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setFilter('active')}
                   >
-                    未提交 ({assignments.filter((a) => a.status === 'pending').length})
+                    进行中 ({activeCount})
                   </button>
                   <button
-                    className={`btn btn-sm ${filter === 'urgent' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => setFilter('urgent')}
+                    className={`btn btn-sm ${filter === 'overdue' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setFilter('overdue')}
                   >
-                    即将截止 ({urgentCount})
+                    已超期 ({overdueCount})
                   </button>
                   <button
                     className={`btn btn-sm ${filter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
                     onClick={() => setFilter('all')}
                   >
-                    全部
+                    全部 ({assignments.length})
                   </button>
                 </div>
 
@@ -246,13 +244,15 @@ export function App({ client, storage, initialAssignments }: AppProps) {
                 ) : filteredAssignments.length === 0 ? (
                   <div className="empty-state">
                     <span style="font-size:24px;">🎉</span>
-                    <span>当前筛选条件下没有待完成的作业</span>
+                    <span>当前分类下没有作业</span>
                   </div>
                 ) : (
                   <div style="display:flex;flex-direction:column;gap:8px;">
                     {filteredAssignments.map((hw) => {
                       const badgeClass =
-                        hw.urgency === 'critical'
+                        hw.remainingHours <= 0
+                          ? 'badge-critical'
+                          : hw.urgency === 'critical'
                           ? 'badge-critical'
                           : hw.urgency === 'urgent'
                           ? 'badge-urgent'
@@ -271,7 +271,7 @@ export function App({ client, storage, initialAssignments }: AppProps) {
                           </div>
                           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
                             <span style="font-size:12px;color:var(--text-sub);">
-                              截止：{hw.deadline}
+                              DDL: {hw.deadline}
                             </span>
                             {hw.url && (
                               <a
@@ -316,7 +316,7 @@ export function App({ client, storage, initialAssignments }: AppProps) {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">死线提醒阈值</label>
+                  <label className="form-label">DDL 提醒阈值</label>
                   <select
                     className="form-input"
                     value={threshold}

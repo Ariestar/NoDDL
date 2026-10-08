@@ -10,7 +10,7 @@ export interface ParsedDeadline {
 }
 
 /**
- * 评估截止时间紧急度等级
+ * 评估截止时间紧迫度等级
  */
 export function calculateUrgency(remainingHours: number): UrgencyLevel {
   if (remainingHours <= 0) return 'passed';
@@ -21,15 +21,15 @@ export function calculateUrgency(remainingHours: number): UrgencyLevel {
 }
 
 /**
- * 格式化剩余时间为人性化中文倒计时
+ * 格式化剩余时间为人性化倒计时 / 逾期提示
  */
 export function formatRemainingTime(remainingHours: number): string {
   if (remainingHours <= 0) {
     const passedHours = Math.abs(remainingHours);
     if (passedHours < 24) {
-      return `已截止 ${Math.max(1, Math.round(passedHours))} 小时`;
+      return `已超 DDL ${Math.max(1, Math.round(passedHours))} 小时`;
     }
-    return `已截止 ${Math.floor(passedHours / 24)} 天`;
+    return `已超 DDL ${Math.floor(passedHours / 24)} 天`;
   }
 
   if (remainingHours < 1) {
@@ -40,90 +40,87 @@ export function formatRemainingTime(remainingHours: number): string {
   if (remainingHours < 24) {
     const hrs = Math.floor(remainingHours);
     const mins = Math.round((remainingHours - hrs) * 60);
-    return mins > 0 ? `剩余 ${hrs} 小时 ${mins} 分` : `剩余 ${hrs} 小时`;
+    return mins > 0 ? `剩 ${hrs} 小时 ${mins} 分` : `剩 ${hrs} 小时`;
   }
 
   const days = Math.floor(remainingHours / 24);
   const hrs = Math.round(remainingHours % 24);
-  return hrs > 0 ? `剩余 ${days} 天 ${hrs} 小时` : `剩余 ${days} 天`;
+  return hrs > 0 ? `剩 ${days} 天 ${hrs} 小时` : `剩 ${days} 天`;
 }
 
 /**
- * 健壮的北京时间 (UTC+8) 死线解析器
- * 1. 自动处理缺少年份（如 "10-15 23:59" 或 "10月15日 23:59"）
- * 2. 自动清洗中文字符（年月日、点分隔符、斜杠）
- * 3. 强制锚定北京时间 (UTC+8)，杜绝本机时区导致偏差 8 小时
+ * 从文本或时间范围中精确提取截止时间
+ * 核心逻辑：若存在 "开始时间 至 截止时间" 或 "~"，精准提取分隔符右侧的结束时间，杜绝误识别开始时间
  */
-export function parseDeadlineBeijing(rawDeadlineStr: string, nowMs = Date.now()): ParsedDeadline {
-  const raw = rawDeadlineStr.trim();
-  if (!raw) {
-    return createEmptyDeadline('未标注截止时间');
+export function extractDeadlineFromText(text: string): string {
+  if (!text) return '';
+
+  // 1. 若为 "开始 至 截止" 范围，直接取分隔符右侧的日期
+  const range = text.split(/\s*(?:至|到|~|-{2,})\s*/);
+  if (range.length > 1) {
+    return range[range.length - 1].trim();
   }
 
-  // 1. 中文日期标准化转换: "2026年10月15日 23:59" -> "2026-10-15 23:59"
-  let cleaned = raw
+  // 2. 若带有 "截止[时间]" 前缀
+  const kw = text.match(/(?:截止|结束)(?:时间|日期)?[:：\s]*([^\n<]+)/i);
+  if (kw) return kw[1].trim();
+
+  // 3. 将常见年月日字符替换为标准分隔符后提取日期，取最后一个
+  const cleaned = text.replace(/[年月日]/g, (m) => (m === '日' ? ' ' : '-'));
+  const dates = cleaned.match(/\d{1,4}[-/.]\d{1,2}(?:[-/.]\d{1,2})?(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?/g);
+  return dates ? dates[dates.length - 1].trim() : text.trim();
+}
+
+/**
+ * 北京时间 (UTC+8) DDL 解析器
+ * 1. 自动从范围或混合文本中提取真正的截止时间（忽略开始时间）
+ * 2. 自动处理缺少年份（如 "10-15 23:59" 或 "10月15日 23:59"）
+ * 3. 强制锚定北京时间 (UTC+8)，杜绝本机时区偏差
+ */
+export function parseDeadlineBeijing(rawInput: string, nowMs = Date.now()): ParsedDeadline {
+  const raw = rawInput.trim();
+  if (!raw) {
+    return emptyDeadline('未标注截止时间');
+  }
+
+  const target = extractDeadlineFromText(raw);
+
+  const clean = target
     .replace(/[年月]/g, '-')
     .replace(/[日号]/g, ' ')
-    .replace(/\./g, '-')
-    .replace(/\//g, '-')
+    .replace(/[./]/g, '-')
     .replace(/\s+/g, ' ')
     .trim();
 
-  // 2. 匹配完整格式: YYYY-MM-DD HH:mm(:ss)?
-  const fullMatch = cleaned.match(/(?:截止[：:\s]*)?(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
-
-  // 3. 匹配缺年格式: MM-DD HH:mm(:ss)?
-  const noYearMatch = cleaned.match(/(?:截止[：:\s]*)?(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
-
-  let year: number;
-  let month: number;
-  let day: number;
-  let hour = 23;
-  let minute = 59;
-  let second = 0;
-
-  const currentYear = new Date(nowMs).getFullYear();
-
-  if (fullMatch && fullMatch[1]) {
-    year = parseInt(fullMatch[1], 10);
-    month = parseInt(fullMatch[2], 10);
-    day = parseInt(fullMatch[3], 10);
-    if (fullMatch[4] !== undefined) hour = parseInt(fullMatch[4], 10);
-    if (fullMatch[5] !== undefined) minute = parseInt(fullMatch[5], 10);
-    if (fullMatch[6] !== undefined) second = parseInt(fullMatch[6], 10);
-  } else if (noYearMatch && noYearMatch[1]) {
-    year = currentYear;
-    month = parseInt(noYearMatch[1], 10);
-    day = parseInt(noYearMatch[2], 10);
-    if (noYearMatch[3] !== undefined) hour = parseInt(noYearMatch[3], 10);
-    if (noYearMatch[4] !== undefined) minute = parseInt(noYearMatch[4], 10);
-    if (noYearMatch[5] !== undefined) second = parseInt(noYearMatch[5], 10);
-  } else {
-    return createEmptyDeadline(raw);
+  const m = clean.match(/(?:(\d{4})-)?(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  if (!m) {
+    return emptyDeadline(raw);
   }
 
-  // 4. 强制按照东八区 (UTC+8) 计算绝对毫秒时间戳
-  const beijingTimestamp = Date.UTC(year, month - 1, day, hour, minute, second) - 8 * 3600 * 1000;
+  const curYear = new Date(nowMs).getFullYear();
+  const y = m[1] ? parseInt(m[1], 10) : curYear;
+  const mo = parseInt(m[2], 10);
+  const d = parseInt(m[3], 10);
+  const h = m[4] !== undefined ? parseInt(m[4], 10) : 23;
+  const min = m[5] !== undefined ? parseInt(m[5], 10) : 59;
+  const s = m[6] !== undefined ? parseInt(m[6], 10) : 0;
 
-  const diffMs = beijingTimestamp - nowMs;
-  const remainingHours = Number((diffMs / (1000 * 60 * 60)).toFixed(1));
-  const remainingText = formatRemainingTime(remainingHours);
-  const urgency = calculateUrgency(remainingHours);
-
+  // 强制按照东八区 (UTC+8) 计算绝对时间戳
+  const ts = Date.UTC(y, mo - 1, d, h, min, s) - 8 * 3600 * 1000;
+  const remHrs = Number(((ts - nowMs) / 3600000).toFixed(1));
   const pad = (n: number) => String(n).padStart(2, '0');
-  const normalized = `${year}-${pad(month)}-${pad(day)} ${pad(hour)}:${pad(minute)}:${pad(second)}`;
 
   return {
     raw,
-    normalized,
-    timestamp: beijingTimestamp,
-    remainingHours,
-    remainingText,
-    urgency
+    normalized: `${y}-${pad(mo)}-${pad(d)} ${pad(h)}:${pad(min)}:${pad(s)}`,
+    timestamp: ts,
+    remainingHours: remHrs,
+    remainingText: formatRemainingTime(remHrs),
+    urgency: calculateUrgency(remHrs)
   };
 }
 
-function createEmptyDeadline(rawText: string): ParsedDeadline {
+function emptyDeadline(rawText: string): ParsedDeadline {
   return {
     raw: rawText,
     normalized: rawText,

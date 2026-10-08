@@ -81,6 +81,7 @@ export class CourseGradingClient {
 
   /**
    * 汇聚所有课程中未完成的作业与实训
+   * 默认排序：未截止的按 DDL 紧迫度升序排在最前，已逾期的排在后面
    */
   async getPendingAssignments(hoursThreshold = 72): Promise<Assignment[]> {
     const allAssignments: Assignment[] = [];
@@ -102,7 +103,6 @@ export class CourseGradingClient {
             if (!seenIds.has(item.id)) {
               seenIds.add(item.id);
 
-              // 补齐详情页中的精确截止时间
               if (item.deadline === '请查看详情' || item.deadlineTimestamp === 0) {
                 try {
                   const detailHtml = await this.http.get(
@@ -141,8 +141,17 @@ export class CourseGradingClient {
     }
 
     return allAssignments
-      .filter(item => item.status === 'pending' && item.remainingHours <= hoursThreshold)
-      .sort((a, b) => a.deadlineTimestamp - b.deadlineTimestamp);
+      .filter(item => item.status === 'pending')
+      .sort((a, b) => {
+        // 进行中的排在最前（早截止的更靠前）
+        if (a.remainingHours > 0 && b.remainingHours <= 0) return -1;
+        if (a.remainingHours <= 0 && b.remainingHours > 0) return 1;
+        if (a.remainingHours > 0 && b.remainingHours > 0) {
+          return a.deadlineTimestamp - b.deadlineTimestamp;
+        }
+        // 都已逾期的排在后面（按最近逾期排）
+        return b.deadlineTimestamp - a.deadlineTimestamp;
+      });
   }
 
   /**
@@ -164,23 +173,24 @@ export class CourseGradingClient {
   }
 
   /**
-   * 触发死线告警推送
+   * 触发 DDL 告警推送
    */
   async triggerPushAlert(config: PushConfig): Promise<{ sent: boolean; count: number; error?: string }> {
     const threshold = config.hoursThreshold ?? 48;
-    const pending = await this.getPendingAssignments(threshold);
+    const allPending = await this.getPendingAssignments(threshold);
 
-    if (pending.length === 0) {
+    // 仅针对在阈值时间内的未截止作业或最新逾期作业发送
+    const activeUrgent = allPending.filter(a => a.remainingHours > 0 && a.remainingHours <= threshold);
+    if (activeUrgent.length === 0) {
       return { sent: false, count: 0 };
     }
 
-    const urgentCount = pending.filter(a => a.urgency === 'critical' || a.urgency === 'urgent').length;
-    const title = `【NoDDL 预警】有 ${pending.length} 项作业待提交（${urgentCount} 项紧急）`;
+    const title = `【NoDDL 提醒】有 ${activeUrgent.length} 项作业即将到达 DDL`;
     const markdown = [
-      `### 🔔 NoDDL 作业死线提醒`,
-      `当前有 **${pending.length}** 项未交作业：`,
+      `### 🔔 NoDDL 作业 DDL 提醒`,
+      `当前有 **${activeUrgent.length}** 项作业即将截止：`,
       '',
-      ...pending.map((item, idx) => `${idx + 1}. [${item.courseName}] ${item.title} (截止: ${item.deadline}, ${item.remainingText})`)
+      ...activeUrgent.map((item, idx) => `${idx + 1}. [${item.courseName}] ${item.title} (截止: ${item.deadline}, ${item.remainingText})`)
     ].join('\n');
 
     try {
@@ -205,9 +215,9 @@ export class CourseGradingClient {
         });
       }
 
-      return { sent: true, count: pending.length };
+      return { sent: true, count: activeUrgent.length };
     } catch (err) {
-      return { sent: false, count: pending.length, error: String(err) };
+      return { sent: false, count: activeUrgent.length, error: String(err) };
     }
   }
 }

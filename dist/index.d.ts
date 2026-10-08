@@ -85,34 +85,39 @@ interface ParsedDeadline {
     urgency: UrgencyLevel;
 }
 /**
- * 评估截止时间紧急度等级
+ * 评估截止时间紧迫度等级
  */
 declare function calculateUrgency(remainingHours: number): UrgencyLevel;
 /**
- * 格式化剩余时间为人性化中文倒计时
+ * 格式化剩余时间为人性化倒计时 / 逾期提示
  */
 declare function formatRemainingTime(remainingHours: number): string;
 /**
- * 健壮的北京时间 (UTC+8) 死线解析器
- * 1. 自动处理缺少年份（如 "10-15 23:59" 或 "10月15日 23:59"）
- * 2. 自动清洗中文字符（年月日、点分隔符、斜杠）
- * 3. 强制锚定北京时间 (UTC+8)，杜绝本机时区导致偏差 8 小时
+ * 从文本或时间范围中精确提取截止时间
+ * 核心逻辑：若存在 "开始时间 至 截止时间" 或 "~"，精准提取分隔符右侧的结束时间，杜绝误识别开始时间
  */
-declare function parseDeadlineBeijing(rawDeadlineStr: string, nowMs?: number): ParsedDeadline;
+declare function extractDeadlineFromText(text: string): string;
+/**
+ * 北京时间 (UTC+8) DDL 解析器
+ * 1. 自动从范围或混合文本中提取真正的截止时间（忽略开始时间）
+ * 2. 自动处理缺少年份（如 "10-15 23:59" 或 "10月15日 23:59"）
+ * 3. 强制锚定北京时间 (UTC+8)，杜绝本机时区偏差
+ */
+declare function parseDeadlineBeijing(rawInput: string, nowMs?: number): ParsedDeadline;
 
 /**
  * 解析 CourseGrading 课程列表
- * 来源：/courselist.jsp 或 /main.jsp
+ * 结构: a[href*="courselist.jsp?courseID="] 或 span.dropdown-item-course[value]
  */
 declare function parseCourseListHtml(html: string): Course[];
 /**
  * 解析 CourseGrading 活跃作业列表
- * 来源：/assignment/mainActiveAssigns.jsp 或当前页面中的 .main-zy 容器
+ * 结构: div.main-zy > a[href*="assignID="]
  */
 declare function parseActiveAssignmentsHtml(html: string, courseName?: string, nowMs?: number): Assignment[];
 /**
  * 解析 CourseGrading 作业详情页
- * 来源：/assignment/index.jsp?assignID={id}
+ * 结构: 包含截止时间与题目
  */
 declare function parseAssignmentDetailHtml(html: string, nowMs?: number): {
     title?: string;
@@ -123,17 +128,14 @@ declare function parseAssignmentDetailHtml(html: string, nowMs?: number): {
 };
 /**
  * 解析题目输入输出用例
- * 来源：/assignment/programList.jsp 或 /acm/submit.jsp
  */
 declare function parseTestCases(html: string): TestCase[];
 /**
- * 解析题目描述与代码
- * 来源：/assignment/programList.jsp
+ * 解析题目详情与代码
  */
 declare function parseProblemDetailHtml(problemId: string, html: string): ProblemDetail;
 /**
  * 解析评测记录表
- * 来源：/acm/problemset_stat.jsp
  */
 declare function parseSubmissionsHtml(html: string): SubmissionResult[];
 
@@ -162,6 +164,7 @@ declare class CourseGradingClient {
     enterCourse(courseId: string): Promise<void>;
     /**
      * 汇聚所有课程中未完成的作业与实训
+     * 默认排序：未截止的按 DDL 紧迫度升序排在最前，已逾期的排在后面
      */
     getPendingAssignments(hoursThreshold?: number): Promise<Assignment[]>;
     /**
@@ -173,7 +176,7 @@ declare class CourseGradingClient {
      */
     getLatestSubmissions(): Promise<SubmissionResult[]>;
     /**
-     * 触发死线告警推送
+     * 触发 DDL 告警推送
      */
     triggerPushAlert(config: PushConfig): Promise<{
         sent: boolean;
@@ -182,4 +185,4 @@ declare class CourseGradingClient {
     }>;
 }
 
-export { type Assignment, COURSE_GRADING_SECRET_KEY, type Course, CourseGradingClient, FetchHttpClient, type HttpClient, type ParsedDeadline, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, formatRemainingTime, parseActiveAssignmentsHtml, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };
+export { type Assignment, COURSE_GRADING_SECRET_KEY, type Course, CourseGradingClient, FetchHttpClient, type HttpClient, type ParsedDeadline, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, extractDeadlineFromText, formatRemainingTime, parseActiveAssignmentsHtml, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };
