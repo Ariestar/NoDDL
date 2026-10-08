@@ -52,18 +52,9 @@ export function App({ client, storage, initialAssignments }: AppProps) {
   const refreshAssignments = async () => {
     setLoading(true);
     try {
-      if (client.db) {
-        const cached = await client.db.getAllAssignments();
-        if (cached.length > 0) {
-          setAssignments(cached);
-          showToast(`已加载数据库缓存：共 ${cached.length} 项作业`);
-        }
-      }
       const list = await client.getPendingAssignments(threshold);
-      if (list.length > 0) {
-        setAssignments(list);
-        showToast(`已刷新：发现 ${list.length} 项作业`);
-      }
+      setAssignments(list);
+      showToast(`已刷新：发现 ${list.length} 项作业`);
     } catch {
       showToast('获取作业列表失败');
     } finally {
@@ -314,7 +305,9 @@ export function App({ client, storage, initialAssignments }: AppProps) {
                             </span>
                             {hw.url && (
                               <a
-                                href={hw.url}
+                                href={hw.url.startsWith('http') ? hw.url : `${window.location.origin}${hw.url.startsWith('/') ? '' : '/'}${hw.url}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 style="font-size:12px;color:var(--primary);text-decoration:none;font-weight:600;"
                               >
                                 前往作答 →

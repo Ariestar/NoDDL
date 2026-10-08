@@ -1,5 +1,6 @@
 import { CourseGradingClient } from '../core/client';
 import { parseActiveAssignmentsHtml, parseAssignmentDetailHtml, parseActiveCourseInfo } from '../core/parsers';
+import { calculateUrgency } from '../core/time';
 import { BrowserHttpClient, BrowserStorage } from './browser-adapter';
 import { mountNoDDLUI, setupTestCaseCopyButtons, setupCodeAutoSave } from './ui';
 import { PushConfig, Assignment } from '../core/types';
@@ -15,62 +16,66 @@ async function initNoDDL() {
   setupTestCaseCopyButtons();
   setupCodeAutoSave();
 
-  const seenIds = new Set<string>();
-  const pendingList: Assignment[] = [];
-
-  // 获取当前页面激活的课程名称（如 "离散数学"）
+  // 2. 识别当前页面激活课程
   const activeCourse = parseActiveCourseInfo(document.documentElement.innerHTML);
-  const currentCourseName = activeCourse.name || '当前课程';
+  const curUrlCourseM = window.location.search.match(/courseID=([a-zA-Z0-9_-]+)/i);
+  const currentCourseId = curUrlCourseM ? curUrlCourseM[1] : (activeCourse.id || '');
+  const currentCourseName = activeCourse.name || '';
 
-  // A. 从本地持久化数据库加载全部已缓存课程的作业（跨课程多维汇聚）
-  if (client.db) {
-    try {
-      const cached = await client.db.getAllAssignments();
-      for (const item of cached) {
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          pendingList.push(item);
-        }
-      }
-    } catch {}
+  if (client.db && currentCourseId && currentCourseName) {
+    await client.db.upsertCourse(currentCourseId, currentCourseName);
   }
 
-  // B. 当前页面 DOM 提取侧边栏当前进行中的作业（希冀原生结构: fas fa-clock 下的 list-group）
+  // 3. 提取侧边栏当前进行中的作业，并补齐精确 DDL
   try {
-    const domAssigns = parseActiveAssignmentsHtml(document.documentElement.innerHTML, currentCourseName);
+    const domAssigns = parseActiveAssignmentsHtml(
+      document.documentElement.innerHTML,
+      currentCourseName,
+      currentCourseId
+    );
     for (const item of domAssigns) {
+      if (item.deadlineTimestamp === 0) {
+        try {
+          const detailUrl = `${window.location.origin}${item.url}`;
+          const detailHtml = await http.get(detailUrl);
+          const detail = parseAssignmentDetailHtml(detailHtml);
+          if (detail.deadlineTimestamp > 0) {
+            item.deadline = detail.deadline!;
+            item.deadlineTimestamp = detail.deadlineTimestamp;
+            item.remainingHours = detail.remainingHours;
+            item.remainingText = detail.remainingText;
+            item.urgency = calculateUrgency(detail.remainingHours);
+          }
+        } catch {}
+      }
+
       if (client.db) {
         await client.db.upsertAssignment(item);
-      }
-      const existingIdx = pendingList.findIndex(a => a.id === item.id);
-      if (existingIdx !== -1) {
-        pendingList[existingIdx] = { ...pendingList[existingIdx], ...item };
-      } else {
-        pendingList.push(item);
-        seenIds.add(item.id);
       }
     }
   } catch {}
 
-  // C. 若当前处于作业/题目提交页（如 fileUploadList.jsp?proNum=1&assignID=3548 或 programList.jsp）
+  // 4. 若当前处于作业/题目提交页（如 fileUploadList.jsp 或 programList.jsp）
   try {
     const urlMatch = window.location.href.match(/assignID=([a-zA-Z0-9_-]+)/i);
     if (urlMatch) {
       const curAssignId = urlMatch[1];
       let curDetail = parseAssignmentDetailHtml(document.documentElement.innerHTML);
 
-      // 若当前题目页未带 DDL，通过同源只读请求拉取对应作业主页获取卡片时间 (index.jsp?assignID=xxx)
-      if (!curDetail.deadline) {
+      // 若当前页面未展示作业起止时间，抓取作业主卡片 (index.jsp?courseID=...&assignID=...)
+      if (curDetail.deadlineTimestamp === 0) {
         try {
-          const mainAssignHtml = await http.get(`${window.location.origin}/assignment/index.jsp?assignID=${curAssignId}`);
+          const mainUrl = currentCourseId
+            ? `${window.location.origin}/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}`
+            : `${window.location.origin}/assignment/index.jsp?assignID=${curAssignId}`;
+          const mainAssignHtml = await http.get(mainUrl);
           const fetchedDetail = parseAssignmentDetailHtml(mainAssignHtml);
-          if (fetchedDetail.deadline) {
+          if (fetchedDetail.deadlineTimestamp > 0) {
             curDetail = fetchedDetail;
           }
         } catch {}
       }
 
-      // 提取标题：优先面包屑首项、卡片 h4、或标题
       let title = curDetail.title;
       if (!title) {
         const bc = document.querySelector('.breadcrumb li a, .breadcrumb li:first-child');
@@ -78,8 +83,13 @@ async function initNoDDL() {
       }
       title = title || `作业 ${curAssignId}`;
 
+      const finalUrl = currentCourseId
+        ? `/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}`
+        : `/assignment/index.jsp?assignID=${curAssignId}`;
+
       const item: Assignment = {
         id: curAssignId,
+        courseId: currentCourseId,
         courseName: currentCourseName,
         title,
         deadline: curDetail.deadline || '未设截止时间',
@@ -87,38 +97,31 @@ async function initNoDDL() {
         remainingHours: curDetail.remainingHours,
         remainingText: curDetail.remainingText,
         status: 'pending',
-        urgency: curDetail.remainingHours <= 6 ? 'critical' : curDetail.remainingHours <= 24 ? 'urgent' : 'normal',
-        url: window.location.pathname + window.location.search
+        urgency: calculateUrgency(curDetail.remainingHours),
+        url: finalUrl
       };
 
       if (client.db) {
         await client.db.upsertAssignment(item);
       }
-
-      const existingIdx = pendingList.findIndex(a => a.id === curAssignId);
-      if (existingIdx !== -1) {
-        pendingList[existingIdx] = { ...pendingList[existingIdx], ...item };
-      } else {
-        pendingList.unshift(item);
-        seenIds.add(curAssignId);
-      }
     }
   } catch {}
 
-  // 3. 挂载右下角独立悬浮控制面板 (Shadow DOM 隔离，绝对不触碰原生页面结构与会话)
-  mountNoDDLUI(client, storage, pendingList);
+  // 5. 从归一化数据库读取全部作业（统一去重与排序）
+  const allAssignments = client.db ? await client.db.getAllAssignments() : [];
 
-  // 4. 针对即将到期作业进行通知
-  if (pendingList.length > 0) {
-    const mostUrgent = pendingList.find(a => a.remainingHours > 0);
-    if (mostUrgent && (mostUrgent.urgency === 'critical' || mostUrgent.urgency === 'urgent')) {
-      if (typeof GM_notification !== 'undefined') {
-        GM_notification({
-          title: '🚨 NoDDL DDL 提醒',
-          text: `【${mostUrgent.courseName}】${mostUrgent.title} ${mostUrgent.remainingText}，请尽快完成！`,
-          timeout: 8000
-        });
-      }
+  // 6. 挂载右下角独立悬浮控制面板 (Shadow DOM 隔离)
+  mountNoDDLUI(client, storage, allAssignments);
+
+  // 7. 针对即将到期作业进行通知
+  if (allAssignments.length > 0) {
+    const mostUrgent = allAssignments.find(a => a.remainingHours > 0 && (a.urgency === 'critical' || a.urgency === 'urgent'));
+    if (mostUrgent && typeof GM_notification !== 'undefined') {
+      GM_notification({
+        title: '🚨 NoDDL DDL 提醒',
+        text: `【${mostUrgent.courseName}】${mostUrgent.title} ${mostUrgent.remainingText}，请尽快完成！`,
+        timeout: 8000
+      });
     }
 
     const pushplusToken = (await storage.get('nodd_pushplus_token')) || '';

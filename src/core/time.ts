@@ -62,8 +62,8 @@ export function extractDeadlineFromText(text: string): string {
     return tagRangeMatch[1].trim();
   }
 
-  // 3. 纯文本范围: "开始时间 至 截止时间"
-  const rangeParts = text.split(/\s*(?:至|到|~|-{2,})\s*/);
+  // 3. 时间范围（如 "2026-09-09 12:50:00 至 2026-10-15 00:00:00"），严格取结束时间
+  const rangeParts = text.split(/\s*(?:至|到|~)\s*/);
   if (rangeParts.length > 1) {
     const candidate = rangeParts[rangeParts.length - 1].trim();
     const dateM = candidate.match(/\b(?:\d{4}[-/.年])?\d{1,2}[-/.月]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\b/);
@@ -76,10 +76,13 @@ export function extractDeadlineFromText(text: string): string {
     return kwMatch[1].trim();
   }
 
-  // 5. 提取所有标准日期，取最后一个
-  const cleaned = text.replace(/[年月日]/g, (m) => (m === '日' ? ' ' : '-'));
-  const allDates = cleaned.match(/\b(?:\d{4}[-/.])?\d{1,2}[-/.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\b/g);
-  return allDates ? allDates[allDates.length - 1].trim() : '';
+  // 5. 独立标准日期字符串
+  const exactDateMatch = text.trim().match(/^(\d{4}[-/.年]\d{1,2}[-/.月]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)$/);
+  if (exactDateMatch && exactDateMatch[1]) {
+    return exactDateMatch[1].trim();
+  }
+
+  return '';
 }
 
 /**

@@ -6,6 +6,7 @@ interface Course {
 }
 interface Assignment {
     id: string;
+    courseId?: string;
     courseName: string;
     title: string;
     deadline: string;
@@ -122,7 +123,7 @@ declare function parseCourseListHtml(html: string): Course[];
  * <span class="text-muted"><strong><i class="fas fa-history"></i> 历史作业</strong></span>
  * <div class="list-group list-group-flush">...</div>
  */
-declare function parseActiveAssignmentsHtml(html: string, courseName?: string, nowMs?: number): Assignment[];
+declare function parseActiveAssignmentsHtml(html: string, courseName?: string, defaultCourseId?: string): Assignment[];
 /**
  * 解析希冀平台作业主卡片（包含作业标题、作业时间与满分）
  * 真实结构:
@@ -151,31 +152,54 @@ declare function parseProblemDetailHtml(problemId: string, html: string): Proble
  */
 declare function parseSubmissionsHtml(html: string): SubmissionResult[];
 
-interface CachedCourse {
+interface CourseRecord {
     id: string;
     name: string;
     updatedAt: number;
-    assignments: Assignment[];
 }
-interface HomeworkDBData {
+interface AssignmentRecord {
+    id: string;
+    courseId: string;
+    courseName: string;
+    title: string;
+    deadline: string;
+    deadlineTimestamp: number;
+    remainingHours: number;
+    remainingText: string;
+    status: 'pending' | 'submitted' | 'graded';
+    urgency: UrgencyLevel;
+    url: string;
+    updatedAt: number;
+}
+interface NormalizedStoreData {
+    version: number;
     lastSync: number;
-    courses: Record<string, CachedCourse>;
+    courses: Record<string, CourseRecord>;
+    assignments: Record<string, AssignmentRecord>;
 }
 declare class HomeworkDB {
     private storage;
     constructor(storage: StorageAdapter);
-    load(): Promise<HomeworkDBData>;
-    save(data: HomeworkDBData): Promise<void>;
+    load(): Promise<NormalizedStoreData>;
+    save(data: NormalizedStoreData): Promise<void>;
     /**
-     * 更新或插入某个课程的作业列表
+     * 注册或更新课程元数据（按 courseId 唯一索引，绝无重复课程）
      */
-    upsertCourse(courseId: string, courseName: string, items: Assignment[]): Promise<void>;
+    upsertCourse(id: string, name: string): Promise<void>;
     /**
-     * 单个作业更新（例如用户打开 fileUploadList.jsp 时从页面提取到的单条作业）
+     * 归一化插入或更新单项作业（以 assignId 为唯一主键）
      */
     upsertAssignment(item: Assignment): Promise<void>;
     /**
-     * 获取本地数据库中全部课程的所有未完成作业，并按 DDL 智能排序
+     * 批量归一化更新作业
+     */
+    batchUpsertAssignments(items: Assignment[]): Promise<void>;
+    /**
+     * 获取结构化数据库中全部聚合作业列表，并进行最佳实践排序
+     * 排序逻辑：
+     * 1. 距离 DDL 越近的进行中作业排在最前
+     * 2. 已超期的作业沉底展示
+     * 3. 课程名称实时关联 courses 表，保证展示统一规范
      */
     getAllAssignments(): Promise<Assignment[]>;
 }
@@ -231,4 +255,4 @@ declare class CourseGradingClient {
     }>;
 }
 
-export { type Assignment, COURSE_GRADING_SECRET_KEY, type CachedCourse, type Course, CourseGradingClient, FetchHttpClient, HomeworkDB, type HomeworkDBData, type HttpClient, type ParsedDeadline, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, extractDeadlineFromText, formatRemainingTime, parseActiveAssignmentsHtml, parseActiveCourseInfo, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };
+export { type Assignment, type AssignmentRecord, COURSE_GRADING_SECRET_KEY, type Course, CourseGradingClient, type CourseRecord, FetchHttpClient, HomeworkDB, type HttpClient, type NormalizedStoreData, type ParsedDeadline, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, extractDeadlineFromText, formatRemainingTime, parseActiveAssignmentsHtml, parseActiveCourseInfo, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };

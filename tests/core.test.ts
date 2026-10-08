@@ -9,6 +9,15 @@ import {
   parseActiveCourseInfo,
   parseTestCases
 } from '../src/core/parsers';
+import { HomeworkDB } from '../src/core/db';
+import { StorageAdapter, Assignment } from '../src/core/types';
+
+class MemoryStorage implements StorageAdapter {
+  private map = new Map<string, string>();
+  async get(k: string) { return this.map.get(k) || null; }
+  async set(k: string, v: string) { this.map.set(k, v); }
+  async remove(k: string) { this.map.delete(k); }
+}
 
 test('AES-ECB 密码加密与解密一致性', () => {
   const password = 'mypassword123';
@@ -119,4 +128,68 @@ test('时间引擎：标准格式解析与东八区校准', () => {
   assert.strictEqual(d1.normalized, '2026-10-15 20:00:00');
   assert.strictEqual(d1.remainingHours, 8);
   assert.strictEqual(d1.remainingText, '剩 8 小时');
+});
+
+test('归一化结构存储：彻底杜绝重复课程，规范解析与排序', async () => {
+  const db = new HomeworkDB(new MemoryStorage());
+
+  // 1. 先插入一个临时占位课程 "当前课程"
+  await db.upsertCourse('184', '当前课程');
+  // 随后识别出规范课程名称 "离散数学" 并更新
+  await db.upsertCourse('184', '离散数学');
+
+  // 2. 插入未包含 DDL 的侧边栏作业
+  await db.upsertAssignment({
+    id: '3548',
+    courseId: '184',
+    courseName: '当前课程',
+    title: '第四周作业',
+    deadline: '请查看详情',
+    deadlineTimestamp: 0,
+    remainingHours: 9999,
+    remainingText: '待定',
+    status: 'pending',
+    urgency: 'normal',
+    url: '/assignment/index.jsp?assignID=3548'
+  });
+
+  // 3. 抓取到详情后补齐精确 DDL
+  const ts = Date.UTC(2026, 9, 11, 23, 59, 0) - 8 * 3600 * 1000;
+  await db.upsertAssignment({
+    id: '3548',
+    courseId: '184',
+    courseName: '离散数学',
+    title: '第四周作业',
+    deadline: '2026-10-11 23:59:00',
+    deadlineTimestamp: ts,
+    remainingHours: 72,
+    remainingText: '剩 3 天',
+    status: 'pending',
+    urgency: 'warning',
+    url: '/assignment/index.jsp?courseID=184&assignID=3548'
+  });
+
+  // 4. 重复插入同一作业不应生成重复条目
+  await db.upsertAssignment({
+    id: '3548',
+    courseId: '184',
+    courseName: '当前课程',
+    title: '第四周作业',
+    deadline: '请查看详情',
+    deadlineTimestamp: 0,
+    remainingHours: 9999,
+    remainingText: '待定',
+    status: 'pending',
+    urgency: 'normal',
+    url: '/assignment/index.jsp?assignID=3548'
+  });
+
+  const list = await db.getAllAssignments();
+  // 必须仅有一项
+  assert.strictEqual(list.length, 1);
+  const item = list[0];
+  assert.strictEqual(item.id, '3548');
+  assert.strictEqual(item.courseName, '离散数学'); // 课程名称必须关联为规范名称
+  assert.strictEqual(item.deadline, '2026-10-11 23:59:00'); // 合法 DDL 得到保留
+  assert.strictEqual(item.url, '/assignment/index.jsp?courseID=184&assignID=3548'); // 链接必须带有 courseID
 });

@@ -14,15 +14,6 @@ export function parseActiveCourseInfo(html: string): { id?: string; name?: strin
     };
   }
 
-  // 备用：任意课程项
-  const anyCourseM = html.match(/<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([^"']+)["'][^>]*>([\s\S]*?)<\/span>/i);
-  if (anyCourseM) {
-    return {
-      id: anyCourseM[1],
-      name: anyCourseM[2].replace(/<[^>]+>/g, '').trim()
-    };
-  }
-
   return {};
 }
 
@@ -69,11 +60,11 @@ export function parseCourseListHtml(html: string): Course[] {
  * <span class="text-muted"><strong><i class="fas fa-history"></i> 历史作业</strong></span>
  * <div class="list-group list-group-flush">...</div>
  */
-export function parseActiveAssignmentsHtml(html: string, courseName = '当前课程', nowMs = Date.now()): Assignment[] {
+export function parseActiveAssignmentsHtml(html: string, courseName = '', defaultCourseId = ''): Assignment[] {
   const list: Assignment[] = [];
   const seen = new Set<string>();
 
-  // 1. 尝试按希冀平台原生物理锚点切分（仅提取 "当前作业" 区域，截断于 "历史作业"）
+  // 1. 按希冀平台原生结构截取侧边栏 "当前作业" 区域，在 "历史作业" 处截止
   let activeSection = html;
   const historyIdx = html.search(/fas\s+fa-history|历史作业/i);
   if (historyIdx !== -1) {
@@ -100,22 +91,26 @@ export function parseActiveAssignmentsHtml(html: string, courseName = '当前课
 
     seen.add(id);
 
-    // 尝试提取同级/就近结构中的日期（通常在 assignment/index.jsp 详情中才有，侧边栏一般不含）
-    const matchPos = m.index;
-    const ctx = activeSection.slice(Math.max(0, matchPos - 200), Math.min(activeSection.length, matchPos + 350));
-    const ddl = parseDeadlineBeijing(ctx, nowMs);
+    const courseIdM = rawUrl.match(/courseID=([a-zA-Z0-9_-]+)/i);
+    const courseId = courseIdM ? courseIdM[1] : defaultCourseId;
+
+    // 格式化为根路径可直接点击的作业入口 URL
+    const finalUrl = courseId
+      ? `/assignment/index.jsp?courseID=${courseId}&assignID=${id}`
+      : `/assignment/index.jsp?assignID=${id}`;
 
     list.push({
       id,
+      courseId,
       courseName,
       title,
-      deadline: ddl.timestamp > 0 ? ddl.normalized : '请查看详情',
-      deadlineTimestamp: ddl.timestamp,
-      remainingHours: ddl.remainingHours,
-      remainingText: ddl.remainingText,
+      deadline: '请查看详情',
+      deadlineTimestamp: 0,
+      remainingHours: 9999,
+      remainingText: '待定',
       status: 'pending',
-      urgency: ddl.urgency,
-      url: rawUrl.startsWith('/') ? rawUrl : `/assignment/${rawUrl}`
+      urgency: 'normal',
+      url: finalUrl
     });
   }
 

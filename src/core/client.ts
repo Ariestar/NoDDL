@@ -5,10 +5,12 @@ import { HomeworkDB } from './db';
 import {
   parseActiveAssignmentsHtml,
   parseAssignmentDetailHtml,
+  parseActiveCourseInfo,
   parseCourseListHtml,
   parseProblemDetailHtml,
   parseSubmissionsHtml
 } from './parsers';
+import { calculateUrgency } from './time';
 
 export class CourseGradingClient {
   private baseUrl: string;
@@ -91,13 +93,20 @@ export class CourseGradingClient {
     const allAssignments: Assignment[] = [];
     const seenIds = new Set<string>();
 
-    // 1. 只读读取当前课程作业主页
     try {
       const indexHtml = await this.http.get(
         `${this.baseUrl}/assignment/index.jsp`,
         this.getAuthHeaders()
       );
-      const list = parseActiveAssignmentsHtml(indexHtml, '当前课程');
+      const activeCourse = parseActiveCourseInfo(indexHtml);
+      const courseId = activeCourse.id || '';
+      const courseName = activeCourse.name || '';
+
+      if (this.db && courseId && courseName) {
+        await this.db.upsertCourse(courseId, courseName);
+      }
+
+      const list = parseActiveAssignmentsHtml(indexHtml, courseName, courseId);
       for (const item of list) {
         if (!seenIds.has(item.id)) {
           seenIds.add(item.id);
@@ -106,23 +115,32 @@ export class CourseGradingClient {
       }
     } catch {}
 
-    // 2. 补齐详情页精确截止时间
+    // 补齐详情页精确截止时间（真实卡片作业时间）
     for (const item of allAssignments) {
       if (item.deadline === '请查看详情' || item.deadlineTimestamp === 0) {
         try {
-          const detailHtml = await this.http.get(
-            `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`,
-            this.getAuthHeaders()
-          );
+          const detailUrl = item.courseId
+            ? `${this.baseUrl}/assignment/index.jsp?courseID=${item.courseId}&assignID=${item.id}`
+            : `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`;
+          const detailHtml = await this.http.get(detailUrl, this.getAuthHeaders());
           const detail = parseAssignmentDetailHtml(detailHtml);
-          if (detail.deadline) {
-            item.deadline = detail.deadline;
+          if (detail.deadlineTimestamp > 0) {
+            item.deadline = detail.deadline!;
             item.deadlineTimestamp = detail.deadlineTimestamp;
             item.remainingHours = detail.remainingHours;
             item.remainingText = detail.remainingText;
+            item.urgency = calculateUrgency(detail.remainingHours);
           }
         } catch {}
       }
+
+      if (this.db) {
+        await this.db.upsertAssignment(item);
+      }
+    }
+
+    if (this.db) {
+      return this.db.getAllAssignments();
     }
 
     return allAssignments
@@ -144,39 +162,45 @@ export class CourseGradingClient {
   async safeSyncAllCourses(currentCourseId?: string, onProgress?: (msg: string) => void): Promise<Assignment[]> {
     const courses = await this.getCourses();
     if (courses.length === 0) {
-      const assigns = await this.getPendingAssignments();
-      if (this.db) {
-        await this.db.upsertCourse('default', '当前课程', assigns);
-      }
-      return assigns;
+      return this.getPendingAssignments();
     }
 
     for (let i = 0; i < courses.length; i++) {
       const c = courses[i];
       if (onProgress) onProgress(`正在同步 [${i + 1}/${courses.length}] 《${c.name}》...`);
       try {
+        if (this.db) {
+          await this.db.upsertCourse(c.id, c.name);
+        }
         await this.enterCourse(c.id);
         const indexHtml = await this.http.get(`${this.baseUrl}/assignment/index.jsp`, this.getAuthHeaders());
-        const list = parseActiveAssignmentsHtml(indexHtml, c.name);
+        const list = parseActiveAssignmentsHtml(indexHtml, c.name, c.id);
 
-        // 针对缺日期的作业定向只读请求详情补齐真实 DDL
         for (const item of list) {
-          if (item.deadline === '请查看详情' || item.deadlineTimestamp === 0) {
+          item.courseId = c.id;
+          item.courseName = c.name;
+          item.url = `/assignment/index.jsp?courseID=${c.id}&assignID=${item.id}`;
+
+          if (item.deadlineTimestamp === 0) {
             try {
-              const detailHtml = await this.http.get(`${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`, this.getAuthHeaders());
+              const detailHtml = await this.http.get(
+                `${this.baseUrl}/assignment/index.jsp?courseID=${c.id}&assignID=${item.id}`,
+                this.getAuthHeaders()
+              );
               const detail = parseAssignmentDetailHtml(detailHtml);
-              if (detail.deadline) {
-                item.deadline = detail.deadline;
+              if (detail.deadlineTimestamp > 0) {
+                item.deadline = detail.deadline!;
                 item.deadlineTimestamp = detail.deadlineTimestamp;
                 item.remainingHours = detail.remainingHours;
                 item.remainingText = detail.remainingText;
+                item.urgency = calculateUrgency(detail.remainingHours);
               }
             } catch {}
           }
-        }
 
-        if (this.db) {
-          await this.db.upsertCourse(c.id, c.name, list);
+          if (this.db) {
+            await this.db.upsertAssignment(item);
+          }
         }
       } catch {}
     }
