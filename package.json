@@ -42,7 +42,9 @@
   "author": "projectluojia",
   "license": "MIT",
   "dependencies": {
-    "crypto-js": "^4.2.0"
+    "@preact/preset-vite": "^2.10.6",
+    "crypto-js": "^4.2.0",
+    "preact": "^11.0.1"
   },
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",

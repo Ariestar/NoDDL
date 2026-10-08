@@ -1,9 +1,9 @@
-import { Assignment } from '../core/types';
+import { Assignment } from '../../core/types';
 
 /**
- * 顶部常驻死线倒计时横幅
+ * 顶部常驻死线倒计时横幅（极简轻量版，点击可呼出完整面板）
  */
-export function renderUrgentBanner(assignments: Assignment[], onConfigClick: () => void) {
+export function renderUrgentBanner(assignments: Assignment[], onBannerClick: () => void) {
   const existing = document.getElementById('nodd-banner-container');
   if (existing) existing.remove();
 
@@ -20,7 +20,7 @@ export function renderUrgentBanner(assignments: Assignment[], onConfigClick: () 
     top: 0;
     left: 0;
     width: 100%;
-    z-index: 99999;
+    z-index: 99998;
     background: ${bgColor};
     color: #ffffff;
     box-shadow: 0 2px 10px rgba(0,0,0,0.2);
@@ -34,7 +34,7 @@ export function renderUrgentBanner(assignments: Assignment[], onConfigClick: () 
   `;
 
   const leftSpan = document.createElement('div');
-  leftSpan.style.cssText = 'display:flex;align-items:center;gap:8px;font-weight:600;';
+  leftSpan.style.cssText = 'display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;';
   leftSpan.innerHTML = `
     <span>${isCritical ? '🚨' : '⏳'} [NoDDL]</span>
     <span>【${mostUrgent.courseName}】${mostUrgent.title}</span>
@@ -43,35 +43,22 @@ export function renderUrgentBanner(assignments: Assignment[], onConfigClick: () 
     </span>
     ${assignments.length > 1 ? `<span style="font-size:12px;opacity:0.9;">等共 ${assignments.length} 项未交</span>` : ''}
   `;
+  leftSpan.onclick = onBannerClick;
 
   const rightActions = document.createElement('div');
   rightActions.style.cssText = 'display:flex;align-items:center;gap:8px;';
 
-  const btnCopyCookie = document.createElement('button');
-  btnCopyCookie.innerText = '📋 复制会话凭据';
-  btnCopyCookie.style.cssText = 'background:#ffffff;color:#2d3748;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;';
-  btnCopyCookie.onclick = () => {
-    const cookie = document.cookie;
-    if (typeof GM_setClipboard !== 'undefined') {
-      GM_setClipboard(cookie);
-    } else {
-      navigator.clipboard.writeText(cookie);
-    }
-    alert('已复制平台会话凭据 (Cookie) 到剪贴板！');
-  };
-
-  const btnSettings = document.createElement('button');
-  btnSettings.innerText = '⚙️ 推送设置';
-  btnSettings.style.cssText = 'background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;';
-  btnSettings.onclick = onConfigClick;
+  const btnOpenPanel = document.createElement('button');
+  btnOpenPanel.innerText = '📊 展开控制面板';
+  btnOpenPanel.style.cssText = 'background:#ffffff;color:#2d3748;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;';
+  btnOpenPanel.onclick = onBannerClick;
 
   const btnClose = document.createElement('button');
   btnClose.innerText = '✕';
   btnClose.style.cssText = 'background:none;border:none;color:#fff;font-size:16px;cursor:pointer;opacity:0.8;margin-left:8px;';
   btnClose.onclick = () => container.remove();
 
-  rightActions.appendChild(btnCopyCookie);
-  rightActions.appendChild(btnSettings);
+  rightActions.appendChild(btnOpenPanel);
   rightActions.appendChild(btnClose);
 
   container.appendChild(leftSpan);

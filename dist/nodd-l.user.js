@@ -62,32 +62,32 @@
     }
   }
   var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
-  function getDefaultExportFromCjs(x) {
-    return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, "default") ? x["default"] : x;
+  function getDefaultExportFromCjs(x2) {
+    return x2 && x2.__esModule && Object.prototype.hasOwnProperty.call(x2, "default") ? x2["default"] : x2;
   }
-  function getAugmentedNamespace(n) {
-    if (n.__esModule) return n;
-    var f = n.default;
-    if (typeof f == "function") {
-      var a = function a2() {
-        if (this instanceof a2) {
-          return Reflect.construct(f, arguments, this.constructor);
+  function getAugmentedNamespace(n2) {
+    if (n2.__esModule) return n2;
+    var f2 = n2.default;
+    if (typeof f2 == "function") {
+      var a2 = function a3() {
+        if (this instanceof a3) {
+          return Reflect.construct(f2, arguments, this.constructor);
         }
-        return f.apply(this, arguments);
+        return f2.apply(this, arguments);
       };
-      a.prototype = f.prototype;
-    } else a = {};
-    Object.defineProperty(a, "__esModule", { value: true });
-    Object.keys(n).forEach(function(k) {
-      var d = Object.getOwnPropertyDescriptor(n, k);
-      Object.defineProperty(a, k, d.get ? d : {
+      a2.prototype = f2.prototype;
+    } else a2 = {};
+    Object.defineProperty(a2, "__esModule", { value: true });
+    Object.keys(n2).forEach(function(k2) {
+      var d2 = Object.getOwnPropertyDescriptor(n2, k2);
+      Object.defineProperty(a2, k2, d2.get ? d2 : {
         enumerable: true,
         get: function() {
-          return n[k];
+          return n2[k2];
         }
       });
     });
-    return a;
+    return a2;
   }
   var cryptoJs = { exports: {} };
   function commonjsRequire(path) {
@@ -151,18 +151,18 @@
             throw new Error("Native crypto module could not be used to get secure random number.");
           };
           var create = Object.create || /* @__PURE__ */ function() {
-            function F() {
+            function F2() {
             }
             return function(obj) {
               var subtype;
-              F.prototype = obj;
-              subtype = new F();
-              F.prototype = null;
+              F2.prototype = obj;
+              subtype = new F2();
+              F2.prototype = null;
               return subtype;
             };
           }();
-          var C = {};
-          var C_lib = C.lib = {};
+          var C2 = {};
+          var C_lib = C2.lib = {};
           var Base = C_lib.Base = /* @__PURE__ */ function() {
             return {
               /**
@@ -318,13 +318,13 @@
               var thatSigBytes = wordArray.sigBytes;
               this.clamp();
               if (thisSigBytes % 4) {
-                for (var i = 0; i < thatSigBytes; i++) {
-                  var thatByte = thatWords[i >>> 2] >>> 24 - i % 4 * 8 & 255;
-                  thisWords[thisSigBytes + i >>> 2] |= thatByte << 24 - (thisSigBytes + i) % 4 * 8;
+                for (var i2 = 0; i2 < thatSigBytes; i2++) {
+                  var thatByte = thatWords[i2 >>> 2] >>> 24 - i2 % 4 * 8 & 255;
+                  thisWords[thisSigBytes + i2 >>> 2] |= thatByte << 24 - (thisSigBytes + i2) % 4 * 8;
                 }
               } else {
-                for (var j = 0; j < thatSigBytes; j += 4) {
-                  thisWords[thisSigBytes + j >>> 2] = thatWords[j >>> 2];
+                for (var j2 = 0; j2 < thatSigBytes; j2 += 4) {
+                  thisWords[thisSigBytes + j2 >>> 2] = thatWords[j2 >>> 2];
                 }
               }
               this.sigBytes += thatSigBytes;
@@ -372,13 +372,13 @@
              */
             random: function(nBytes) {
               var words = [];
-              for (var i = 0; i < nBytes; i += 4) {
+              for (var i2 = 0; i2 < nBytes; i2 += 4) {
                 words.push(cryptoSecureRandomInt());
               }
               return new WordArray.init(words, nBytes);
             }
           });
-          var C_enc = C.enc = {};
+          var C_enc = C2.enc = {};
           var Hex = C_enc.Hex = {
             /**
              * Converts a word array to a hex string.
@@ -397,8 +397,8 @@
               var words = wordArray.words;
               var sigBytes = wordArray.sigBytes;
               var hexChars = [];
-              for (var i = 0; i < sigBytes; i++) {
-                var bite = words[i >>> 2] >>> 24 - i % 4 * 8 & 255;
+              for (var i2 = 0; i2 < sigBytes; i2++) {
+                var bite = words[i2 >>> 2] >>> 24 - i2 % 4 * 8 & 255;
                 hexChars.push((bite >>> 4).toString(16));
                 hexChars.push((bite & 15).toString(16));
               }
@@ -420,8 +420,8 @@
             parse: function(hexStr) {
               var hexStrLength = hexStr.length;
               var words = [];
-              for (var i = 0; i < hexStrLength; i += 2) {
-                words[i >>> 3] |= parseInt(hexStr.substr(i, 2), 16) << 24 - i % 8 * 4;
+              for (var i2 = 0; i2 < hexStrLength; i2 += 2) {
+                words[i2 >>> 3] |= parseInt(hexStr.substr(i2, 2), 16) << 24 - i2 % 8 * 4;
               }
               return new WordArray.init(words, hexStrLength / 2);
             }
@@ -444,8 +444,8 @@
               var words = wordArray.words;
               var sigBytes = wordArray.sigBytes;
               var latin1Chars = [];
-              for (var i = 0; i < sigBytes; i++) {
-                var bite = words[i >>> 2] >>> 24 - i % 4 * 8 & 255;
+              for (var i2 = 0; i2 < sigBytes; i2++) {
+                var bite = words[i2 >>> 2] >>> 24 - i2 % 4 * 8 & 255;
                 latin1Chars.push(String.fromCharCode(bite));
               }
               return latin1Chars.join("");
@@ -466,8 +466,8 @@
             parse: function(latin1Str) {
               var latin1StrLength = latin1Str.length;
               var words = [];
-              for (var i = 0; i < latin1StrLength; i++) {
-                words[i >>> 2] |= (latin1Str.charCodeAt(i) & 255) << 24 - i % 4 * 8;
+              for (var i2 = 0; i2 < latin1StrLength; i2++) {
+                words[i2 >>> 2] |= (latin1Str.charCodeAt(i2) & 255) << 24 - i2 % 4 * 8;
               }
               return new WordArray.init(words, latin1StrLength);
             }
@@ -489,7 +489,7 @@
             stringify: function(wordArray) {
               try {
                 return decodeURIComponent(escape(Latin1.stringify(wordArray)));
-              } catch (e) {
+              } catch (e2) {
                 throw new Error("Malformed UTF-8 data");
               }
             },
@@ -698,8 +698,8 @@
               };
             }
           });
-          var C_algo = C.algo = {};
-          return C;
+          var C_algo = C2.algo = {};
+          return C2;
         }(Math);
         return CryptoJS2;
       });
@@ -718,11 +718,11 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function(undefined$1) {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var Base = C_lib.Base;
           var X32WordArray = C_lib.WordArray;
-          var C_x64 = C.x64 = {};
+          var C_x64 = C2.x64 = {};
           C_x64.Word = Base.extend({
             /**
              * Initializes a newly created 64-bit word.
@@ -930,8 +930,8 @@
               var x64Words = this.words;
               var x64WordsLength = x64Words.length;
               var x32Words = [];
-              for (var i = 0; i < x64WordsLength; i++) {
-                var x64Word = x64Words[i];
+              for (var i2 = 0; i2 < x64WordsLength; i2++) {
+                var x64Word = x64Words[i2];
                 x32Words.push(x64Word.high);
                 x32Words.push(x64Word.low);
               }
@@ -950,8 +950,8 @@
               var clone = Base.clone.call(this);
               var words = clone.words = this.words.slice(0);
               var wordsLength = words.length;
-              for (var i = 0; i < wordsLength; i++) {
-                words[i] = words[i].clone();
+              for (var i2 = 0; i2 < wordsLength; i2++) {
+                words[i2] = words[i2].clone();
               }
               return clone;
             }
@@ -977,8 +977,8 @@
           if (typeof ArrayBuffer != "function") {
             return;
           }
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var WordArray = C_lib.WordArray;
           var superInit = WordArray.init;
           var subInit = WordArray.init = function(typedArray) {
@@ -991,8 +991,8 @@
             if (typedArray instanceof Uint8Array) {
               var typedArrayByteLength = typedArray.byteLength;
               var words = [];
-              for (var i = 0; i < typedArrayByteLength; i++) {
-                words[i >>> 2] |= typedArray[i] << 24 - i % 4 * 8;
+              for (var i2 = 0; i2 < typedArrayByteLength; i2++) {
+                words[i2 >>> 2] |= typedArray[i2] << 24 - i2 % 4 * 8;
               }
               superInit.call(this, words, typedArrayByteLength);
             } else {
@@ -1018,10 +1018,10 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var WordArray = C_lib.WordArray;
-          var C_enc = C.enc;
+          var C_enc = C2.enc;
           C_enc.Utf16 = C_enc.Utf16BE = {
             /**
              * Converts a word array to a UTF-16 BE string.
@@ -1040,8 +1040,8 @@
               var words = wordArray.words;
               var sigBytes = wordArray.sigBytes;
               var utf16Chars = [];
-              for (var i = 0; i < sigBytes; i += 2) {
-                var codePoint = words[i >>> 2] >>> 16 - i % 4 * 8 & 65535;
+              for (var i2 = 0; i2 < sigBytes; i2 += 2) {
+                var codePoint = words[i2 >>> 2] >>> 16 - i2 % 4 * 8 & 65535;
                 utf16Chars.push(String.fromCharCode(codePoint));
               }
               return utf16Chars.join("");
@@ -1062,8 +1062,8 @@
             parse: function(utf16Str) {
               var utf16StrLength = utf16Str.length;
               var words = [];
-              for (var i = 0; i < utf16StrLength; i++) {
-                words[i >>> 1] |= utf16Str.charCodeAt(i) << 16 - i % 2 * 16;
+              for (var i2 = 0; i2 < utf16StrLength; i2++) {
+                words[i2 >>> 1] |= utf16Str.charCodeAt(i2) << 16 - i2 % 2 * 16;
               }
               return WordArray.create(words, utf16StrLength * 2);
             }
@@ -1086,8 +1086,8 @@
               var words = wordArray.words;
               var sigBytes = wordArray.sigBytes;
               var utf16Chars = [];
-              for (var i = 0; i < sigBytes; i += 2) {
-                var codePoint = swapEndian(words[i >>> 2] >>> 16 - i % 4 * 8 & 65535);
+              for (var i2 = 0; i2 < sigBytes; i2 += 2) {
+                var codePoint = swapEndian(words[i2 >>> 2] >>> 16 - i2 % 4 * 8 & 65535);
                 utf16Chars.push(String.fromCharCode(codePoint));
               }
               return utf16Chars.join("");
@@ -1108,8 +1108,8 @@
             parse: function(utf16Str) {
               var utf16StrLength = utf16Str.length;
               var words = [];
-              for (var i = 0; i < utf16StrLength; i++) {
-                words[i >>> 1] |= swapEndian(utf16Str.charCodeAt(i) << 16 - i % 2 * 16);
+              for (var i2 = 0; i2 < utf16StrLength; i2++) {
+                words[i2 >>> 1] |= swapEndian(utf16Str.charCodeAt(i2) << 16 - i2 % 2 * 16);
               }
               return WordArray.create(words, utf16StrLength * 2);
             }
@@ -1135,10 +1135,10 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var WordArray = C_lib.WordArray;
-          var C_enc = C.enc;
+          var C_enc = C2.enc;
           C_enc.Base64 = {
             /**
              * Converts a word array to a Base64 string.
@@ -1159,13 +1159,13 @@
               var map = this._map;
               wordArray.clamp();
               var base64Chars = [];
-              for (var i = 0; i < sigBytes; i += 3) {
-                var byte1 = words[i >>> 2] >>> 24 - i % 4 * 8 & 255;
-                var byte2 = words[i + 1 >>> 2] >>> 24 - (i + 1) % 4 * 8 & 255;
-                var byte3 = words[i + 2 >>> 2] >>> 24 - (i + 2) % 4 * 8 & 255;
+              for (var i2 = 0; i2 < sigBytes; i2 += 3) {
+                var byte1 = words[i2 >>> 2] >>> 24 - i2 % 4 * 8 & 255;
+                var byte2 = words[i2 + 1 >>> 2] >>> 24 - (i2 + 1) % 4 * 8 & 255;
+                var byte3 = words[i2 + 2 >>> 2] >>> 24 - (i2 + 2) % 4 * 8 & 255;
                 var triplet = byte1 << 16 | byte2 << 8 | byte3;
-                for (var j = 0; j < 4 && i + j * 0.75 < sigBytes; j++) {
-                  base64Chars.push(map.charAt(triplet >>> 6 * (3 - j) & 63));
+                for (var j2 = 0; j2 < 4 && i2 + j2 * 0.75 < sigBytes; j2++) {
+                  base64Chars.push(map.charAt(triplet >>> 6 * (3 - j2) & 63));
                 }
               }
               var paddingChar = map.charAt(64);
@@ -1195,8 +1195,8 @@
               var reverseMap = this._reverseMap;
               if (!reverseMap) {
                 reverseMap = this._reverseMap = [];
-                for (var j = 0; j < map.length; j++) {
-                  reverseMap[map.charCodeAt(j)] = j;
+                for (var j2 = 0; j2 < map.length; j2++) {
+                  reverseMap[map.charCodeAt(j2)] = j2;
                 }
               }
               var paddingChar = map.charAt(64);
@@ -1213,10 +1213,10 @@
           function parseLoop(base64Str, base64StrLength, reverseMap) {
             var words = [];
             var nBytes = 0;
-            for (var i = 0; i < base64StrLength; i++) {
-              if (i % 4) {
-                var bits1 = reverseMap[base64Str.charCodeAt(i - 1)] << i % 4 * 2;
-                var bits2 = reverseMap[base64Str.charCodeAt(i)] >>> 6 - i % 4 * 2;
+            for (var i2 = 0; i2 < base64StrLength; i2++) {
+              if (i2 % 4) {
+                var bits1 = reverseMap[base64Str.charCodeAt(i2 - 1)] << i2 % 4 * 2;
+                var bits2 = reverseMap[base64Str.charCodeAt(i2)] >>> 6 - i2 % 4 * 2;
                 var bitsCombined = bits1 | bits2;
                 words[nBytes >>> 2] |= bitsCombined << 24 - nBytes % 4 * 8;
                 nBytes++;
@@ -1242,10 +1242,10 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var WordArray = C_lib.WordArray;
-          var C_enc = C.enc;
+          var C_enc = C2.enc;
           C_enc.Base64url = {
             /**
              * Converts a word array to a Base64url string.
@@ -1271,13 +1271,13 @@
               var map = urlSafe ? this._safe_map : this._map;
               wordArray.clamp();
               var base64Chars = [];
-              for (var i = 0; i < sigBytes; i += 3) {
-                var byte1 = words[i >>> 2] >>> 24 - i % 4 * 8 & 255;
-                var byte2 = words[i + 1 >>> 2] >>> 24 - (i + 1) % 4 * 8 & 255;
-                var byte3 = words[i + 2 >>> 2] >>> 24 - (i + 2) % 4 * 8 & 255;
+              for (var i2 = 0; i2 < sigBytes; i2 += 3) {
+                var byte1 = words[i2 >>> 2] >>> 24 - i2 % 4 * 8 & 255;
+                var byte2 = words[i2 + 1 >>> 2] >>> 24 - (i2 + 1) % 4 * 8 & 255;
+                var byte3 = words[i2 + 2 >>> 2] >>> 24 - (i2 + 2) % 4 * 8 & 255;
                 var triplet = byte1 << 16 | byte2 << 8 | byte3;
-                for (var j = 0; j < 4 && i + j * 0.75 < sigBytes; j++) {
-                  base64Chars.push(map.charAt(triplet >>> 6 * (3 - j) & 63));
+                for (var j2 = 0; j2 < 4 && i2 + j2 * 0.75 < sigBytes; j2++) {
+                  base64Chars.push(map.charAt(triplet >>> 6 * (3 - j2) & 63));
                 }
               }
               var paddingChar = map.charAt(64);
@@ -1312,8 +1312,8 @@
               var reverseMap = this._reverseMap;
               if (!reverseMap) {
                 reverseMap = this._reverseMap = [];
-                for (var j = 0; j < map.length; j++) {
-                  reverseMap[map.charCodeAt(j)] = j;
+                for (var j2 = 0; j2 < map.length; j2++) {
+                  reverseMap[map.charCodeAt(j2)] = j2;
                 }
               }
               var paddingChar = map.charAt(64);
@@ -1331,10 +1331,10 @@
           function parseLoop(base64Str, base64StrLength, reverseMap) {
             var words = [];
             var nBytes = 0;
-            for (var i = 0; i < base64StrLength; i++) {
-              if (i % 4) {
-                var bits1 = reverseMap[base64Str.charCodeAt(i - 1)] << i % 4 * 2;
-                var bits2 = reverseMap[base64Str.charCodeAt(i)] >>> 6 - i % 4 * 2;
+            for (var i2 = 0; i2 < base64StrLength; i2++) {
+              if (i2 % 4) {
+                var bits1 = reverseMap[base64Str.charCodeAt(i2 - 1)] << i2 % 4 * 2;
+                var bits2 = reverseMap[base64Str.charCodeAt(i2)] >>> 6 - i2 % 4 * 2;
                 var bitsCombined = bits1 | bits2;
                 words[nBytes >>> 2] |= bitsCombined << 24 - nBytes % 4 * 8;
                 nBytes++;
@@ -1360,15 +1360,15 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function(Math2) {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var WordArray = C_lib.WordArray;
           var Hasher = C_lib.Hasher;
-          var C_algo = C.algo;
-          var T = [];
+          var C_algo = C2.algo;
+          var T2 = [];
           (function() {
-            for (var i = 0; i < 64; i++) {
-              T[i] = Math2.abs(Math2.sin(i + 1)) * 4294967296 | 0;
+            for (var i2 = 0; i2 < 64; i2++) {
+              T2[i2] = Math2.abs(Math2.sin(i2 + 1)) * 4294967296 | 0;
             }
           })();
           var MD5 = C_algo.MD5 = Hasher.extend({
@@ -1380,101 +1380,101 @@
                 271733878
               ]);
             },
-            _doProcessBlock: function(M, offset) {
-              for (var i = 0; i < 16; i++) {
-                var offset_i = offset + i;
-                var M_offset_i = M[offset_i];
-                M[offset_i] = (M_offset_i << 8 | M_offset_i >>> 24) & 16711935 | (M_offset_i << 24 | M_offset_i >>> 8) & 4278255360;
+            _doProcessBlock: function(M2, offset) {
+              for (var i2 = 0; i2 < 16; i2++) {
+                var offset_i = offset + i2;
+                var M_offset_i = M2[offset_i];
+                M2[offset_i] = (M_offset_i << 8 | M_offset_i >>> 24) & 16711935 | (M_offset_i << 24 | M_offset_i >>> 8) & 4278255360;
               }
-              var H = this._hash.words;
-              var M_offset_0 = M[offset + 0];
-              var M_offset_1 = M[offset + 1];
-              var M_offset_2 = M[offset + 2];
-              var M_offset_3 = M[offset + 3];
-              var M_offset_4 = M[offset + 4];
-              var M_offset_5 = M[offset + 5];
-              var M_offset_6 = M[offset + 6];
-              var M_offset_7 = M[offset + 7];
-              var M_offset_8 = M[offset + 8];
-              var M_offset_9 = M[offset + 9];
-              var M_offset_10 = M[offset + 10];
-              var M_offset_11 = M[offset + 11];
-              var M_offset_12 = M[offset + 12];
-              var M_offset_13 = M[offset + 13];
-              var M_offset_14 = M[offset + 14];
-              var M_offset_15 = M[offset + 15];
-              var a = H[0];
-              var b = H[1];
-              var c = H[2];
-              var d = H[3];
-              a = FF(a, b, c, d, M_offset_0, 7, T[0]);
-              d = FF(d, a, b, c, M_offset_1, 12, T[1]);
-              c = FF(c, d, a, b, M_offset_2, 17, T[2]);
-              b = FF(b, c, d, a, M_offset_3, 22, T[3]);
-              a = FF(a, b, c, d, M_offset_4, 7, T[4]);
-              d = FF(d, a, b, c, M_offset_5, 12, T[5]);
-              c = FF(c, d, a, b, M_offset_6, 17, T[6]);
-              b = FF(b, c, d, a, M_offset_7, 22, T[7]);
-              a = FF(a, b, c, d, M_offset_8, 7, T[8]);
-              d = FF(d, a, b, c, M_offset_9, 12, T[9]);
-              c = FF(c, d, a, b, M_offset_10, 17, T[10]);
-              b = FF(b, c, d, a, M_offset_11, 22, T[11]);
-              a = FF(a, b, c, d, M_offset_12, 7, T[12]);
-              d = FF(d, a, b, c, M_offset_13, 12, T[13]);
-              c = FF(c, d, a, b, M_offset_14, 17, T[14]);
-              b = FF(b, c, d, a, M_offset_15, 22, T[15]);
-              a = GG(a, b, c, d, M_offset_1, 5, T[16]);
-              d = GG(d, a, b, c, M_offset_6, 9, T[17]);
-              c = GG(c, d, a, b, M_offset_11, 14, T[18]);
-              b = GG(b, c, d, a, M_offset_0, 20, T[19]);
-              a = GG(a, b, c, d, M_offset_5, 5, T[20]);
-              d = GG(d, a, b, c, M_offset_10, 9, T[21]);
-              c = GG(c, d, a, b, M_offset_15, 14, T[22]);
-              b = GG(b, c, d, a, M_offset_4, 20, T[23]);
-              a = GG(a, b, c, d, M_offset_9, 5, T[24]);
-              d = GG(d, a, b, c, M_offset_14, 9, T[25]);
-              c = GG(c, d, a, b, M_offset_3, 14, T[26]);
-              b = GG(b, c, d, a, M_offset_8, 20, T[27]);
-              a = GG(a, b, c, d, M_offset_13, 5, T[28]);
-              d = GG(d, a, b, c, M_offset_2, 9, T[29]);
-              c = GG(c, d, a, b, M_offset_7, 14, T[30]);
-              b = GG(b, c, d, a, M_offset_12, 20, T[31]);
-              a = HH(a, b, c, d, M_offset_5, 4, T[32]);
-              d = HH(d, a, b, c, M_offset_8, 11, T[33]);
-              c = HH(c, d, a, b, M_offset_11, 16, T[34]);
-              b = HH(b, c, d, a, M_offset_14, 23, T[35]);
-              a = HH(a, b, c, d, M_offset_1, 4, T[36]);
-              d = HH(d, a, b, c, M_offset_4, 11, T[37]);
-              c = HH(c, d, a, b, M_offset_7, 16, T[38]);
-              b = HH(b, c, d, a, M_offset_10, 23, T[39]);
-              a = HH(a, b, c, d, M_offset_13, 4, T[40]);
-              d = HH(d, a, b, c, M_offset_0, 11, T[41]);
-              c = HH(c, d, a, b, M_offset_3, 16, T[42]);
-              b = HH(b, c, d, a, M_offset_6, 23, T[43]);
-              a = HH(a, b, c, d, M_offset_9, 4, T[44]);
-              d = HH(d, a, b, c, M_offset_12, 11, T[45]);
-              c = HH(c, d, a, b, M_offset_15, 16, T[46]);
-              b = HH(b, c, d, a, M_offset_2, 23, T[47]);
-              a = II(a, b, c, d, M_offset_0, 6, T[48]);
-              d = II(d, a, b, c, M_offset_7, 10, T[49]);
-              c = II(c, d, a, b, M_offset_14, 15, T[50]);
-              b = II(b, c, d, a, M_offset_5, 21, T[51]);
-              a = II(a, b, c, d, M_offset_12, 6, T[52]);
-              d = II(d, a, b, c, M_offset_3, 10, T[53]);
-              c = II(c, d, a, b, M_offset_10, 15, T[54]);
-              b = II(b, c, d, a, M_offset_1, 21, T[55]);
-              a = II(a, b, c, d, M_offset_8, 6, T[56]);
-              d = II(d, a, b, c, M_offset_15, 10, T[57]);
-              c = II(c, d, a, b, M_offset_6, 15, T[58]);
-              b = II(b, c, d, a, M_offset_13, 21, T[59]);
-              a = II(a, b, c, d, M_offset_4, 6, T[60]);
-              d = II(d, a, b, c, M_offset_11, 10, T[61]);
-              c = II(c, d, a, b, M_offset_2, 15, T[62]);
-              b = II(b, c, d, a, M_offset_9, 21, T[63]);
-              H[0] = H[0] + a | 0;
-              H[1] = H[1] + b | 0;
-              H[2] = H[2] + c | 0;
-              H[3] = H[3] + d | 0;
+              var H2 = this._hash.words;
+              var M_offset_0 = M2[offset + 0];
+              var M_offset_1 = M2[offset + 1];
+              var M_offset_2 = M2[offset + 2];
+              var M_offset_3 = M2[offset + 3];
+              var M_offset_4 = M2[offset + 4];
+              var M_offset_5 = M2[offset + 5];
+              var M_offset_6 = M2[offset + 6];
+              var M_offset_7 = M2[offset + 7];
+              var M_offset_8 = M2[offset + 8];
+              var M_offset_9 = M2[offset + 9];
+              var M_offset_10 = M2[offset + 10];
+              var M_offset_11 = M2[offset + 11];
+              var M_offset_12 = M2[offset + 12];
+              var M_offset_13 = M2[offset + 13];
+              var M_offset_14 = M2[offset + 14];
+              var M_offset_15 = M2[offset + 15];
+              var a2 = H2[0];
+              var b2 = H2[1];
+              var c2 = H2[2];
+              var d2 = H2[3];
+              a2 = FF(a2, b2, c2, d2, M_offset_0, 7, T2[0]);
+              d2 = FF(d2, a2, b2, c2, M_offset_1, 12, T2[1]);
+              c2 = FF(c2, d2, a2, b2, M_offset_2, 17, T2[2]);
+              b2 = FF(b2, c2, d2, a2, M_offset_3, 22, T2[3]);
+              a2 = FF(a2, b2, c2, d2, M_offset_4, 7, T2[4]);
+              d2 = FF(d2, a2, b2, c2, M_offset_5, 12, T2[5]);
+              c2 = FF(c2, d2, a2, b2, M_offset_6, 17, T2[6]);
+              b2 = FF(b2, c2, d2, a2, M_offset_7, 22, T2[7]);
+              a2 = FF(a2, b2, c2, d2, M_offset_8, 7, T2[8]);
+              d2 = FF(d2, a2, b2, c2, M_offset_9, 12, T2[9]);
+              c2 = FF(c2, d2, a2, b2, M_offset_10, 17, T2[10]);
+              b2 = FF(b2, c2, d2, a2, M_offset_11, 22, T2[11]);
+              a2 = FF(a2, b2, c2, d2, M_offset_12, 7, T2[12]);
+              d2 = FF(d2, a2, b2, c2, M_offset_13, 12, T2[13]);
+              c2 = FF(c2, d2, a2, b2, M_offset_14, 17, T2[14]);
+              b2 = FF(b2, c2, d2, a2, M_offset_15, 22, T2[15]);
+              a2 = GG(a2, b2, c2, d2, M_offset_1, 5, T2[16]);
+              d2 = GG(d2, a2, b2, c2, M_offset_6, 9, T2[17]);
+              c2 = GG(c2, d2, a2, b2, M_offset_11, 14, T2[18]);
+              b2 = GG(b2, c2, d2, a2, M_offset_0, 20, T2[19]);
+              a2 = GG(a2, b2, c2, d2, M_offset_5, 5, T2[20]);
+              d2 = GG(d2, a2, b2, c2, M_offset_10, 9, T2[21]);
+              c2 = GG(c2, d2, a2, b2, M_offset_15, 14, T2[22]);
+              b2 = GG(b2, c2, d2, a2, M_offset_4, 20, T2[23]);
+              a2 = GG(a2, b2, c2, d2, M_offset_9, 5, T2[24]);
+              d2 = GG(d2, a2, b2, c2, M_offset_14, 9, T2[25]);
+              c2 = GG(c2, d2, a2, b2, M_offset_3, 14, T2[26]);
+              b2 = GG(b2, c2, d2, a2, M_offset_8, 20, T2[27]);
+              a2 = GG(a2, b2, c2, d2, M_offset_13, 5, T2[28]);
+              d2 = GG(d2, a2, b2, c2, M_offset_2, 9, T2[29]);
+              c2 = GG(c2, d2, a2, b2, M_offset_7, 14, T2[30]);
+              b2 = GG(b2, c2, d2, a2, M_offset_12, 20, T2[31]);
+              a2 = HH(a2, b2, c2, d2, M_offset_5, 4, T2[32]);
+              d2 = HH(d2, a2, b2, c2, M_offset_8, 11, T2[33]);
+              c2 = HH(c2, d2, a2, b2, M_offset_11, 16, T2[34]);
+              b2 = HH(b2, c2, d2, a2, M_offset_14, 23, T2[35]);
+              a2 = HH(a2, b2, c2, d2, M_offset_1, 4, T2[36]);
+              d2 = HH(d2, a2, b2, c2, M_offset_4, 11, T2[37]);
+              c2 = HH(c2, d2, a2, b2, M_offset_7, 16, T2[38]);
+              b2 = HH(b2, c2, d2, a2, M_offset_10, 23, T2[39]);
+              a2 = HH(a2, b2, c2, d2, M_offset_13, 4, T2[40]);
+              d2 = HH(d2, a2, b2, c2, M_offset_0, 11, T2[41]);
+              c2 = HH(c2, d2, a2, b2, M_offset_3, 16, T2[42]);
+              b2 = HH(b2, c2, d2, a2, M_offset_6, 23, T2[43]);
+              a2 = HH(a2, b2, c2, d2, M_offset_9, 4, T2[44]);
+              d2 = HH(d2, a2, b2, c2, M_offset_12, 11, T2[45]);
+              c2 = HH(c2, d2, a2, b2, M_offset_15, 16, T2[46]);
+              b2 = HH(b2, c2, d2, a2, M_offset_2, 23, T2[47]);
+              a2 = II(a2, b2, c2, d2, M_offset_0, 6, T2[48]);
+              d2 = II(d2, a2, b2, c2, M_offset_7, 10, T2[49]);
+              c2 = II(c2, d2, a2, b2, M_offset_14, 15, T2[50]);
+              b2 = II(b2, c2, d2, a2, M_offset_5, 21, T2[51]);
+              a2 = II(a2, b2, c2, d2, M_offset_12, 6, T2[52]);
+              d2 = II(d2, a2, b2, c2, M_offset_3, 10, T2[53]);
+              c2 = II(c2, d2, a2, b2, M_offset_10, 15, T2[54]);
+              b2 = II(b2, c2, d2, a2, M_offset_1, 21, T2[55]);
+              a2 = II(a2, b2, c2, d2, M_offset_8, 6, T2[56]);
+              d2 = II(d2, a2, b2, c2, M_offset_15, 10, T2[57]);
+              c2 = II(c2, d2, a2, b2, M_offset_6, 15, T2[58]);
+              b2 = II(b2, c2, d2, a2, M_offset_13, 21, T2[59]);
+              a2 = II(a2, b2, c2, d2, M_offset_4, 6, T2[60]);
+              d2 = II(d2, a2, b2, c2, M_offset_11, 10, T2[61]);
+              c2 = II(c2, d2, a2, b2, M_offset_2, 15, T2[62]);
+              b2 = II(b2, c2, d2, a2, M_offset_9, 21, T2[63]);
+              H2[0] = H2[0] + a2 | 0;
+              H2[1] = H2[1] + b2 | 0;
+              H2[2] = H2[2] + c2 | 0;
+              H2[3] = H2[3] + d2 | 0;
             },
             _doFinalize: function() {
               var data = this._data;
@@ -1489,10 +1489,10 @@
               data.sigBytes = (dataWords.length + 1) * 4;
               this._process();
               var hash = this._hash;
-              var H = hash.words;
-              for (var i = 0; i < 4; i++) {
-                var H_i = H[i];
-                H[i] = (H_i << 8 | H_i >>> 24) & 16711935 | (H_i << 24 | H_i >>> 8) & 4278255360;
+              var H2 = hash.words;
+              for (var i2 = 0; i2 < 4; i2++) {
+                var H_i = H2[i2];
+                H2[i2] = (H_i << 8 | H_i >>> 24) & 16711935 | (H_i << 24 | H_i >>> 8) & 4278255360;
               }
               return hash;
             },
@@ -1502,24 +1502,24 @@
               return clone;
             }
           });
-          function FF(a, b, c, d, x, s, t) {
-            var n = a + (b & c | ~b & d) + x + t;
-            return (n << s | n >>> 32 - s) + b;
+          function FF(a2, b2, c2, d2, x2, s2, t2) {
+            var n2 = a2 + (b2 & c2 | ~b2 & d2) + x2 + t2;
+            return (n2 << s2 | n2 >>> 32 - s2) + b2;
           }
-          function GG(a, b, c, d, x, s, t) {
-            var n = a + (b & d | c & ~d) + x + t;
-            return (n << s | n >>> 32 - s) + b;
+          function GG(a2, b2, c2, d2, x2, s2, t2) {
+            var n2 = a2 + (b2 & d2 | c2 & ~d2) + x2 + t2;
+            return (n2 << s2 | n2 >>> 32 - s2) + b2;
           }
-          function HH(a, b, c, d, x, s, t) {
-            var n = a + (b ^ c ^ d) + x + t;
-            return (n << s | n >>> 32 - s) + b;
+          function HH(a2, b2, c2, d2, x2, s2, t2) {
+            var n2 = a2 + (b2 ^ c2 ^ d2) + x2 + t2;
+            return (n2 << s2 | n2 >>> 32 - s2) + b2;
           }
-          function II(a, b, c, d, x, s, t) {
-            var n = a + (c ^ (b | ~d)) + x + t;
-            return (n << s | n >>> 32 - s) + b;
+          function II(a2, b2, c2, d2, x2, s2, t2) {
+            var n2 = a2 + (c2 ^ (b2 | ~d2)) + x2 + t2;
+            return (n2 << s2 | n2 >>> 32 - s2) + b2;
           }
-          C.MD5 = Hasher._createHelper(MD5);
-          C.HmacMD5 = Hasher._createHmacHelper(MD5);
+          C2.MD5 = Hasher._createHelper(MD5);
+          C2.HmacMD5 = Hasher._createHmacHelper(MD5);
         })(Math);
         return CryptoJS2.MD5;
       });
@@ -1538,11 +1538,11 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var WordArray = C_lib.WordArray;
           var Hasher = C_lib.Hasher;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           var W = [];
           var SHA1 = C_algo.SHA1 = Hasher.extend({
             _doReset: function() {
@@ -1554,41 +1554,41 @@
                 3285377520
               ]);
             },
-            _doProcessBlock: function(M, offset) {
-              var H = this._hash.words;
-              var a = H[0];
-              var b = H[1];
-              var c = H[2];
-              var d = H[3];
-              var e = H[4];
-              for (var i = 0; i < 80; i++) {
-                if (i < 16) {
-                  W[i] = M[offset + i] | 0;
+            _doProcessBlock: function(M2, offset) {
+              var H2 = this._hash.words;
+              var a2 = H2[0];
+              var b2 = H2[1];
+              var c2 = H2[2];
+              var d2 = H2[3];
+              var e2 = H2[4];
+              for (var i2 = 0; i2 < 80; i2++) {
+                if (i2 < 16) {
+                  W[i2] = M2[offset + i2] | 0;
                 } else {
-                  var n = W[i - 3] ^ W[i - 8] ^ W[i - 14] ^ W[i - 16];
-                  W[i] = n << 1 | n >>> 31;
+                  var n2 = W[i2 - 3] ^ W[i2 - 8] ^ W[i2 - 14] ^ W[i2 - 16];
+                  W[i2] = n2 << 1 | n2 >>> 31;
                 }
-                var t = (a << 5 | a >>> 27) + e + W[i];
-                if (i < 20) {
-                  t += (b & c | ~b & d) + 1518500249;
-                } else if (i < 40) {
-                  t += (b ^ c ^ d) + 1859775393;
-                } else if (i < 60) {
-                  t += (b & c | b & d | c & d) - 1894007588;
+                var t2 = (a2 << 5 | a2 >>> 27) + e2 + W[i2];
+                if (i2 < 20) {
+                  t2 += (b2 & c2 | ~b2 & d2) + 1518500249;
+                } else if (i2 < 40) {
+                  t2 += (b2 ^ c2 ^ d2) + 1859775393;
+                } else if (i2 < 60) {
+                  t2 += (b2 & c2 | b2 & d2 | c2 & d2) - 1894007588;
                 } else {
-                  t += (b ^ c ^ d) - 899497514;
+                  t2 += (b2 ^ c2 ^ d2) - 899497514;
                 }
-                e = d;
-                d = c;
-                c = b << 30 | b >>> 2;
-                b = a;
-                a = t;
+                e2 = d2;
+                d2 = c2;
+                c2 = b2 << 30 | b2 >>> 2;
+                b2 = a2;
+                a2 = t2;
               }
-              H[0] = H[0] + a | 0;
-              H[1] = H[1] + b | 0;
-              H[2] = H[2] + c | 0;
-              H[3] = H[3] + d | 0;
-              H[4] = H[4] + e | 0;
+              H2[0] = H2[0] + a2 | 0;
+              H2[1] = H2[1] + b2 | 0;
+              H2[2] = H2[2] + c2 | 0;
+              H2[3] = H2[3] + d2 | 0;
+              H2[4] = H2[4] + e2 | 0;
             },
             _doFinalize: function() {
               var data = this._data;
@@ -1608,8 +1608,8 @@
               return clone;
             }
           });
-          C.SHA1 = Hasher._createHelper(SHA1);
-          C.HmacSHA1 = Hasher._createHmacHelper(SHA1);
+          C2.SHA1 = Hasher._createHelper(SHA1);
+          C2.HmacSHA1 = Hasher._createHmacHelper(SHA1);
         })();
         return CryptoJS2.SHA1;
       });
@@ -1628,87 +1628,87 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function(Math2) {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var WordArray = C_lib.WordArray;
           var Hasher = C_lib.Hasher;
-          var C_algo = C.algo;
-          var H = [];
+          var C_algo = C2.algo;
+          var H2 = [];
           var K = [];
           (function() {
-            function isPrime(n2) {
-              var sqrtN = Math2.sqrt(n2);
+            function isPrime(n3) {
+              var sqrtN = Math2.sqrt(n3);
               for (var factor = 2; factor <= sqrtN; factor++) {
-                if (!(n2 % factor)) {
+                if (!(n3 % factor)) {
                   return false;
                 }
               }
               return true;
             }
-            function getFractionalBits(n2) {
-              return (n2 - (n2 | 0)) * 4294967296 | 0;
+            function getFractionalBits(n3) {
+              return (n3 - (n3 | 0)) * 4294967296 | 0;
             }
-            var n = 2;
+            var n2 = 2;
             var nPrime = 0;
             while (nPrime < 64) {
-              if (isPrime(n)) {
+              if (isPrime(n2)) {
                 if (nPrime < 8) {
-                  H[nPrime] = getFractionalBits(Math2.pow(n, 1 / 2));
+                  H2[nPrime] = getFractionalBits(Math2.pow(n2, 1 / 2));
                 }
-                K[nPrime] = getFractionalBits(Math2.pow(n, 1 / 3));
+                K[nPrime] = getFractionalBits(Math2.pow(n2, 1 / 3));
                 nPrime++;
               }
-              n++;
+              n2++;
             }
           })();
           var W = [];
           var SHA256 = C_algo.SHA256 = Hasher.extend({
             _doReset: function() {
-              this._hash = new WordArray.init(H.slice(0));
+              this._hash = new WordArray.init(H2.slice(0));
             },
-            _doProcessBlock: function(M, offset) {
-              var H2 = this._hash.words;
-              var a = H2[0];
-              var b = H2[1];
-              var c = H2[2];
-              var d = H2[3];
-              var e = H2[4];
-              var f = H2[5];
-              var g = H2[6];
-              var h = H2[7];
-              for (var i = 0; i < 64; i++) {
-                if (i < 16) {
-                  W[i] = M[offset + i] | 0;
+            _doProcessBlock: function(M2, offset) {
+              var H3 = this._hash.words;
+              var a2 = H3[0];
+              var b2 = H3[1];
+              var c2 = H3[2];
+              var d2 = H3[3];
+              var e2 = H3[4];
+              var f2 = H3[5];
+              var g2 = H3[6];
+              var h2 = H3[7];
+              for (var i2 = 0; i2 < 64; i2++) {
+                if (i2 < 16) {
+                  W[i2] = M2[offset + i2] | 0;
                 } else {
-                  var gamma0x = W[i - 15];
+                  var gamma0x = W[i2 - 15];
                   var gamma0 = (gamma0x << 25 | gamma0x >>> 7) ^ (gamma0x << 14 | gamma0x >>> 18) ^ gamma0x >>> 3;
-                  var gamma1x = W[i - 2];
+                  var gamma1x = W[i2 - 2];
                   var gamma1 = (gamma1x << 15 | gamma1x >>> 17) ^ (gamma1x << 13 | gamma1x >>> 19) ^ gamma1x >>> 10;
-                  W[i] = gamma0 + W[i - 7] + gamma1 + W[i - 16];
+                  W[i2] = gamma0 + W[i2 - 7] + gamma1 + W[i2 - 16];
                 }
-                var ch = e & f ^ ~e & g;
-                var maj = a & b ^ a & c ^ b & c;
-                var sigma0 = (a << 30 | a >>> 2) ^ (a << 19 | a >>> 13) ^ (a << 10 | a >>> 22);
-                var sigma1 = (e << 26 | e >>> 6) ^ (e << 21 | e >>> 11) ^ (e << 7 | e >>> 25);
-                var t1 = h + sigma1 + ch + K[i] + W[i];
+                var ch = e2 & f2 ^ ~e2 & g2;
+                var maj = a2 & b2 ^ a2 & c2 ^ b2 & c2;
+                var sigma0 = (a2 << 30 | a2 >>> 2) ^ (a2 << 19 | a2 >>> 13) ^ (a2 << 10 | a2 >>> 22);
+                var sigma1 = (e2 << 26 | e2 >>> 6) ^ (e2 << 21 | e2 >>> 11) ^ (e2 << 7 | e2 >>> 25);
+                var t1 = h2 + sigma1 + ch + K[i2] + W[i2];
                 var t2 = sigma0 + maj;
-                h = g;
-                g = f;
-                f = e;
-                e = d + t1 | 0;
-                d = c;
-                c = b;
-                b = a;
-                a = t1 + t2 | 0;
+                h2 = g2;
+                g2 = f2;
+                f2 = e2;
+                e2 = d2 + t1 | 0;
+                d2 = c2;
+                c2 = b2;
+                b2 = a2;
+                a2 = t1 + t2 | 0;
               }
-              H2[0] = H2[0] + a | 0;
-              H2[1] = H2[1] + b | 0;
-              H2[2] = H2[2] + c | 0;
-              H2[3] = H2[3] + d | 0;
-              H2[4] = H2[4] + e | 0;
-              H2[5] = H2[5] + f | 0;
-              H2[6] = H2[6] + g | 0;
-              H2[7] = H2[7] + h | 0;
+              H3[0] = H3[0] + a2 | 0;
+              H3[1] = H3[1] + b2 | 0;
+              H3[2] = H3[2] + c2 | 0;
+              H3[3] = H3[3] + d2 | 0;
+              H3[4] = H3[4] + e2 | 0;
+              H3[5] = H3[5] + f2 | 0;
+              H3[6] = H3[6] + g2 | 0;
+              H3[7] = H3[7] + h2 | 0;
             },
             _doFinalize: function() {
               var data = this._data;
@@ -1728,8 +1728,8 @@
               return clone;
             }
           });
-          C.SHA256 = Hasher._createHelper(SHA256);
-          C.HmacSHA256 = Hasher._createHmacHelper(SHA256);
+          C2.SHA256 = Hasher._createHelper(SHA256);
+          C2.HmacSHA256 = Hasher._createHmacHelper(SHA256);
         })(Math);
         return CryptoJS2.SHA256;
       });
@@ -1748,10 +1748,10 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var WordArray = C_lib.WordArray;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           var SHA256 = C_algo.SHA256;
           var SHA224 = C_algo.SHA224 = SHA256.extend({
             _doReset: function() {
@@ -1772,8 +1772,8 @@
               return hash;
             }
           });
-          C.SHA224 = SHA256._createHelper(SHA224);
-          C.HmacSHA224 = SHA256._createHmacHelper(SHA224);
+          C2.SHA224 = SHA256._createHelper(SHA224);
+          C2.HmacSHA224 = SHA256._createHmacHelper(SHA224);
         })();
         return CryptoJS2.SHA224;
       });
@@ -1792,13 +1792,13 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var Hasher = C_lib.Hasher;
-          var C_x64 = C.x64;
+          var C_x64 = C2.x64;
           var X64Word = C_x64.Word;
           var X64WordArray = C_x64.WordArray;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           function X64Word_create() {
             return X64Word.create.apply(X64Word, arguments);
           }
@@ -1886,8 +1886,8 @@
           ];
           var W = [];
           (function() {
-            for (var i = 0; i < 80; i++) {
-              W[i] = X64Word_create();
+            for (var i2 = 0; i2 < 80; i2++) {
+              W[i2] = X64Word_create();
             }
           })();
           var SHA512 = C_algo.SHA512 = Hasher.extend({
@@ -1903,22 +1903,22 @@
                 new X64Word.init(1541459225, 327033209)
               ]);
             },
-            _doProcessBlock: function(M, offset) {
-              var H = this._hash.words;
-              var H0 = H[0];
-              var H1 = H[1];
-              var H2 = H[2];
-              var H3 = H[3];
-              var H4 = H[4];
-              var H5 = H[5];
-              var H6 = H[6];
-              var H7 = H[7];
+            _doProcessBlock: function(M2, offset) {
+              var H2 = this._hash.words;
+              var H0 = H2[0];
+              var H1 = H2[1];
+              var H22 = H2[2];
+              var H3 = H2[3];
+              var H4 = H2[4];
+              var H5 = H2[5];
+              var H6 = H2[6];
+              var H7 = H2[7];
               var H0h = H0.high;
               var H0l = H0.low;
               var H1h = H1.high;
               var H1l = H1.low;
-              var H2h = H2.high;
-              var H2l = H2.low;
+              var H2h = H22.high;
+              var H2l = H22.low;
               var H3h = H3.high;
               var H3l = H3.low;
               var H4h = H4.high;
@@ -1945,28 +1945,28 @@
               var gl = H6l;
               var hh = H7h;
               var hl = H7l;
-              for (var i = 0; i < 80; i++) {
+              for (var i2 = 0; i2 < 80; i2++) {
                 var Wil;
                 var Wih;
-                var Wi = W[i];
-                if (i < 16) {
-                  Wih = Wi.high = M[offset + i * 2] | 0;
-                  Wil = Wi.low = M[offset + i * 2 + 1] | 0;
+                var Wi = W[i2];
+                if (i2 < 16) {
+                  Wih = Wi.high = M2[offset + i2 * 2] | 0;
+                  Wil = Wi.low = M2[offset + i2 * 2 + 1] | 0;
                 } else {
-                  var gamma0x = W[i - 15];
+                  var gamma0x = W[i2 - 15];
                   var gamma0xh = gamma0x.high;
                   var gamma0xl = gamma0x.low;
                   var gamma0h = (gamma0xh >>> 1 | gamma0xl << 31) ^ (gamma0xh >>> 8 | gamma0xl << 24) ^ gamma0xh >>> 7;
                   var gamma0l = (gamma0xl >>> 1 | gamma0xh << 31) ^ (gamma0xl >>> 8 | gamma0xh << 24) ^ (gamma0xl >>> 7 | gamma0xh << 25);
-                  var gamma1x = W[i - 2];
+                  var gamma1x = W[i2 - 2];
                   var gamma1xh = gamma1x.high;
                   var gamma1xl = gamma1x.low;
                   var gamma1h = (gamma1xh >>> 19 | gamma1xl << 13) ^ (gamma1xh << 3 | gamma1xl >>> 29) ^ gamma1xh >>> 6;
                   var gamma1l = (gamma1xl >>> 19 | gamma1xh << 13) ^ (gamma1xl << 3 | gamma1xh >>> 29) ^ (gamma1xl >>> 6 | gamma1xh << 26);
-                  var Wi7 = W[i - 7];
+                  var Wi7 = W[i2 - 7];
                   var Wi7h = Wi7.high;
                   var Wi7l = Wi7.low;
-                  var Wi16 = W[i - 16];
+                  var Wi16 = W[i2 - 16];
                   var Wi16h = Wi16.high;
                   var Wi16l = Wi16.low;
                   Wil = gamma0l + Wi7l;
@@ -1986,7 +1986,7 @@
                 var sigma0l = (al >>> 28 | ah << 4) ^ (al << 30 | ah >>> 2) ^ (al << 25 | ah >>> 7);
                 var sigma1h = (eh >>> 14 | el << 18) ^ (eh >>> 18 | el << 14) ^ (eh << 23 | el >>> 9);
                 var sigma1l = (el >>> 14 | eh << 18) ^ (el >>> 18 | eh << 14) ^ (el << 23 | eh >>> 9);
-                var Ki = K[i];
+                var Ki = K[i2];
                 var Kih = Ki.high;
                 var Kil = Ki.low;
                 var t1l = hl + sigma1l;
@@ -2020,8 +2020,8 @@
               H0.high = H0h + ah + (H0l >>> 0 < al >>> 0 ? 1 : 0);
               H1l = H1.low = H1l + bl;
               H1.high = H1h + bh + (H1l >>> 0 < bl >>> 0 ? 1 : 0);
-              H2l = H2.low = H2l + cl;
-              H2.high = H2h + ch + (H2l >>> 0 < cl >>> 0 ? 1 : 0);
+              H2l = H22.low = H2l + cl;
+              H22.high = H2h + ch + (H2l >>> 0 < cl >>> 0 ? 1 : 0);
               H3l = H3.low = H3l + dl;
               H3.high = H3h + dh + (H3l >>> 0 < dl >>> 0 ? 1 : 0);
               H4l = H4.low = H4l + el;
@@ -2053,8 +2053,8 @@
             },
             blockSize: 1024 / 32
           });
-          C.SHA512 = Hasher._createHelper(SHA512);
-          C.HmacSHA512 = Hasher._createHmacHelper(SHA512);
+          C2.SHA512 = Hasher._createHelper(SHA512);
+          C2.HmacSHA512 = Hasher._createHmacHelper(SHA512);
         })();
         return CryptoJS2.SHA512;
       });
@@ -2073,11 +2073,11 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_x64 = C.x64;
+          var C2 = CryptoJS2;
+          var C_x64 = C2.x64;
           var X64Word = C_x64.Word;
           var X64WordArray = C_x64.WordArray;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           var SHA512 = C_algo.SHA512;
           var SHA384 = C_algo.SHA384 = SHA512.extend({
             _doReset: function() {
@@ -2098,8 +2098,8 @@
               return hash;
             }
           });
-          C.SHA384 = SHA512._createHelper(SHA384);
-          C.HmacSHA384 = SHA512._createHmacHelper(SHA384);
+          C2.SHA384 = SHA512._createHelper(SHA384);
+          C2.HmacSHA384 = SHA512._createHmacHelper(SHA384);
         })();
         return CryptoJS2.SHA384;
       });
@@ -2118,37 +2118,37 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function(Math2) {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var WordArray = C_lib.WordArray;
           var Hasher = C_lib.Hasher;
-          var C_x64 = C.x64;
+          var C_x64 = C2.x64;
           var X64Word = C_x64.Word;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           var RHO_OFFSETS = [];
           var PI_INDEXES = [];
           var ROUND_CONSTANTS = [];
           (function() {
-            var x = 1, y = 0;
-            for (var t = 0; t < 24; t++) {
-              RHO_OFFSETS[x + 5 * y] = (t + 1) * (t + 2) / 2 % 64;
-              var newX = y % 5;
-              var newY = (2 * x + 3 * y) % 5;
-              x = newX;
-              y = newY;
+            var x2 = 1, y2 = 0;
+            for (var t2 = 0; t2 < 24; t2++) {
+              RHO_OFFSETS[x2 + 5 * y2] = (t2 + 1) * (t2 + 2) / 2 % 64;
+              var newX = y2 % 5;
+              var newY = (2 * x2 + 3 * y2) % 5;
+              x2 = newX;
+              y2 = newY;
             }
-            for (var x = 0; x < 5; x++) {
-              for (var y = 0; y < 5; y++) {
-                PI_INDEXES[x + 5 * y] = y + (2 * x + 3 * y) % 5 * 5;
+            for (var x2 = 0; x2 < 5; x2++) {
+              for (var y2 = 0; y2 < 5; y2++) {
+                PI_INDEXES[x2 + 5 * y2] = y2 + (2 * x2 + 3 * y2) % 5 * 5;
               }
             }
             var LFSR = 1;
-            for (var i = 0; i < 24; i++) {
+            for (var i2 = 0; i2 < 24; i2++) {
               var roundConstantMsw = 0;
               var roundConstantLsw = 0;
-              for (var j = 0; j < 7; j++) {
+              for (var j2 = 0; j2 < 7; j2++) {
                 if (LFSR & 1) {
-                  var bitPosition = (1 << j) - 1;
+                  var bitPosition = (1 << j2) - 1;
                   if (bitPosition < 32) {
                     roundConstantLsw ^= 1 << bitPosition;
                   } else {
@@ -2161,13 +2161,13 @@
                   LFSR <<= 1;
                 }
               }
-              ROUND_CONSTANTS[i] = X64Word.create(roundConstantMsw, roundConstantLsw);
+              ROUND_CONSTANTS[i2] = X64Word.create(roundConstantMsw, roundConstantLsw);
             }
           })();
-          var T = [];
+          var T2 = [];
           (function() {
-            for (var i = 0; i < 25; i++) {
-              T[i] = X64Word.create();
+            for (var i2 = 0; i2 < 25; i2++) {
+              T2[i2] = X64Word.create();
             }
           })();
           var SHA3 = C_algo.SHA3 = Hasher.extend({
@@ -2184,44 +2184,44 @@
             }),
             _doReset: function() {
               var state = this._state = [];
-              for (var i = 0; i < 25; i++) {
-                state[i] = new X64Word.init();
+              for (var i2 = 0; i2 < 25; i2++) {
+                state[i2] = new X64Word.init();
               }
               this.blockSize = (1600 - 2 * this.cfg.outputLength) / 32;
             },
-            _doProcessBlock: function(M, offset) {
+            _doProcessBlock: function(M2, offset) {
               var state = this._state;
               var nBlockSizeLanes = this.blockSize / 2;
-              for (var i = 0; i < nBlockSizeLanes; i++) {
-                var M2i = M[offset + 2 * i];
-                var M2i1 = M[offset + 2 * i + 1];
+              for (var i2 = 0; i2 < nBlockSizeLanes; i2++) {
+                var M2i = M2[offset + 2 * i2];
+                var M2i1 = M2[offset + 2 * i2 + 1];
                 M2i = (M2i << 8 | M2i >>> 24) & 16711935 | (M2i << 24 | M2i >>> 8) & 4278255360;
                 M2i1 = (M2i1 << 8 | M2i1 >>> 24) & 16711935 | (M2i1 << 24 | M2i1 >>> 8) & 4278255360;
-                var lane = state[i];
+                var lane = state[i2];
                 lane.high ^= M2i1;
                 lane.low ^= M2i;
               }
               for (var round = 0; round < 24; round++) {
-                for (var x = 0; x < 5; x++) {
+                for (var x2 = 0; x2 < 5; x2++) {
                   var tMsw = 0, tLsw = 0;
-                  for (var y = 0; y < 5; y++) {
-                    var lane = state[x + 5 * y];
+                  for (var y2 = 0; y2 < 5; y2++) {
+                    var lane = state[x2 + 5 * y2];
                     tMsw ^= lane.high;
                     tLsw ^= lane.low;
                   }
-                  var Tx = T[x];
+                  var Tx = T2[x2];
                   Tx.high = tMsw;
                   Tx.low = tLsw;
                 }
-                for (var x = 0; x < 5; x++) {
-                  var Tx4 = T[(x + 4) % 5];
-                  var Tx1 = T[(x + 1) % 5];
+                for (var x2 = 0; x2 < 5; x2++) {
+                  var Tx4 = T2[(x2 + 4) % 5];
+                  var Tx1 = T2[(x2 + 1) % 5];
                   var Tx1Msw = Tx1.high;
                   var Tx1Lsw = Tx1.low;
                   var tMsw = Tx4.high ^ (Tx1Msw << 1 | Tx1Lsw >>> 31);
                   var tLsw = Tx4.low ^ (Tx1Lsw << 1 | Tx1Msw >>> 31);
-                  for (var y = 0; y < 5; y++) {
-                    var lane = state[x + 5 * y];
+                  for (var y2 = 0; y2 < 5; y2++) {
+                    var lane = state[x2 + 5 * y2];
                     lane.high ^= tMsw;
                     lane.low ^= tLsw;
                   }
@@ -2240,21 +2240,21 @@
                     tMsw = laneLsw << rhoOffset - 32 | laneMsw >>> 64 - rhoOffset;
                     tLsw = laneMsw << rhoOffset - 32 | laneLsw >>> 64 - rhoOffset;
                   }
-                  var TPiLane = T[PI_INDEXES[laneIndex]];
+                  var TPiLane = T2[PI_INDEXES[laneIndex]];
                   TPiLane.high = tMsw;
                   TPiLane.low = tLsw;
                 }
-                var T0 = T[0];
+                var T0 = T2[0];
                 var state0 = state[0];
                 T0.high = state0.high;
                 T0.low = state0.low;
-                for (var x = 0; x < 5; x++) {
-                  for (var y = 0; y < 5; y++) {
-                    var laneIndex = x + 5 * y;
+                for (var x2 = 0; x2 < 5; x2++) {
+                  for (var y2 = 0; y2 < 5; y2++) {
+                    var laneIndex = x2 + 5 * y2;
                     var lane = state[laneIndex];
-                    var TLane = T[laneIndex];
-                    var Tx1Lane = T[(x + 1) % 5 + 5 * y];
-                    var Tx2Lane = T[(x + 2) % 5 + 5 * y];
+                    var TLane = T2[laneIndex];
+                    var Tx1Lane = T2[(x2 + 1) % 5 + 5 * y2];
+                    var Tx2Lane = T2[(x2 + 2) % 5 + 5 * y2];
                     lane.high = TLane.high ^ ~Tx1Lane.high & Tx2Lane.high;
                     lane.low = TLane.low ^ ~Tx1Lane.low & Tx2Lane.low;
                   }
@@ -2279,8 +2279,8 @@
               var outputLengthBytes = this.cfg.outputLength / 8;
               var outputLengthLanes = outputLengthBytes / 8;
               var hashWords = [];
-              for (var i = 0; i < outputLengthLanes; i++) {
-                var lane = state[i];
+              for (var i2 = 0; i2 < outputLengthLanes; i2++) {
+                var lane = state[i2];
                 var laneMsw = lane.high;
                 var laneLsw = lane.low;
                 laneMsw = (laneMsw << 8 | laneMsw >>> 24) & 16711935 | (laneMsw << 24 | laneMsw >>> 8) & 4278255360;
@@ -2293,14 +2293,14 @@
             clone: function() {
               var clone = Hasher.clone.call(this);
               var state = clone._state = this._state.slice(0);
-              for (var i = 0; i < 25; i++) {
-                state[i] = state[i].clone();
+              for (var i2 = 0; i2 < 25; i2++) {
+                state[i2] = state[i2].clone();
               }
               return clone;
             }
           });
-          C.SHA3 = Hasher._createHelper(SHA3);
-          C.HmacSHA3 = Hasher._createHmacHelper(SHA3);
+          C2.SHA3 = Hasher._createHelper(SHA3);
+          C2.HmacSHA3 = Hasher._createHmacHelper(SHA3);
         })(Math);
         return CryptoJS2.SHA3;
       });
@@ -2329,11 +2329,11 @@
         			THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         			*/
         (function(Math2) {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var WordArray = C_lib.WordArray;
           var Hasher = C_lib.Hasher;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           var _zl = WordArray.create([
             0,
             1,
@@ -2668,13 +2668,13 @@
             _doReset: function() {
               this._hash = WordArray.create([1732584193, 4023233417, 2562383102, 271733878, 3285377520]);
             },
-            _doProcessBlock: function(M, offset) {
-              for (var i = 0; i < 16; i++) {
-                var offset_i = offset + i;
-                var M_offset_i = M[offset_i];
-                M[offset_i] = (M_offset_i << 8 | M_offset_i >>> 24) & 16711935 | (M_offset_i << 24 | M_offset_i >>> 8) & 4278255360;
+            _doProcessBlock: function(M2, offset) {
+              for (var i2 = 0; i2 < 16; i2++) {
+                var offset_i = offset + i2;
+                var M_offset_i = M2[offset_i];
+                M2[offset_i] = (M_offset_i << 8 | M_offset_i >>> 24) & 16711935 | (M_offset_i << 24 | M_offset_i >>> 8) & 4278255360;
               }
-              var H = this._hash.words;
+              var H2 = this._hash.words;
               var hl = _hl.words;
               var hr = _hr.words;
               var zl = _zl.words;
@@ -2683,60 +2683,60 @@
               var sr = _sr.words;
               var al, bl, cl, dl, el;
               var ar, br, cr, dr, er;
-              ar = al = H[0];
-              br = bl = H[1];
-              cr = cl = H[2];
-              dr = dl = H[3];
-              er = el = H[4];
-              var t;
-              for (var i = 0; i < 80; i += 1) {
-                t = al + M[offset + zl[i]] | 0;
-                if (i < 16) {
-                  t += f1(bl, cl, dl) + hl[0];
-                } else if (i < 32) {
-                  t += f2(bl, cl, dl) + hl[1];
-                } else if (i < 48) {
-                  t += f3(bl, cl, dl) + hl[2];
-                } else if (i < 64) {
-                  t += f4(bl, cl, dl) + hl[3];
+              ar = al = H2[0];
+              br = bl = H2[1];
+              cr = cl = H2[2];
+              dr = dl = H2[3];
+              er = el = H2[4];
+              var t2;
+              for (var i2 = 0; i2 < 80; i2 += 1) {
+                t2 = al + M2[offset + zl[i2]] | 0;
+                if (i2 < 16) {
+                  t2 += f1(bl, cl, dl) + hl[0];
+                } else if (i2 < 32) {
+                  t2 += f2(bl, cl, dl) + hl[1];
+                } else if (i2 < 48) {
+                  t2 += f3(bl, cl, dl) + hl[2];
+                } else if (i2 < 64) {
+                  t2 += f4(bl, cl, dl) + hl[3];
                 } else {
-                  t += f5(bl, cl, dl) + hl[4];
+                  t2 += f5(bl, cl, dl) + hl[4];
                 }
-                t = t | 0;
-                t = rotl(t, sl[i]);
-                t = t + el | 0;
+                t2 = t2 | 0;
+                t2 = rotl(t2, sl[i2]);
+                t2 = t2 + el | 0;
                 al = el;
                 el = dl;
                 dl = rotl(cl, 10);
                 cl = bl;
-                bl = t;
-                t = ar + M[offset + zr[i]] | 0;
-                if (i < 16) {
-                  t += f5(br, cr, dr) + hr[0];
-                } else if (i < 32) {
-                  t += f4(br, cr, dr) + hr[1];
-                } else if (i < 48) {
-                  t += f3(br, cr, dr) + hr[2];
-                } else if (i < 64) {
-                  t += f2(br, cr, dr) + hr[3];
+                bl = t2;
+                t2 = ar + M2[offset + zr[i2]] | 0;
+                if (i2 < 16) {
+                  t2 += f5(br, cr, dr) + hr[0];
+                } else if (i2 < 32) {
+                  t2 += f4(br, cr, dr) + hr[1];
+                } else if (i2 < 48) {
+                  t2 += f3(br, cr, dr) + hr[2];
+                } else if (i2 < 64) {
+                  t2 += f2(br, cr, dr) + hr[3];
                 } else {
-                  t += f1(br, cr, dr) + hr[4];
+                  t2 += f1(br, cr, dr) + hr[4];
                 }
-                t = t | 0;
-                t = rotl(t, sr[i]);
-                t = t + er | 0;
+                t2 = t2 | 0;
+                t2 = rotl(t2, sr[i2]);
+                t2 = t2 + er | 0;
                 ar = er;
                 er = dr;
                 dr = rotl(cr, 10);
                 cr = br;
-                br = t;
+                br = t2;
               }
-              t = H[1] + cl + dr | 0;
-              H[1] = H[2] + dl + er | 0;
-              H[2] = H[3] + el + ar | 0;
-              H[3] = H[4] + al + br | 0;
-              H[4] = H[0] + bl + cr | 0;
-              H[0] = t;
+              t2 = H2[1] + cl + dr | 0;
+              H2[1] = H2[2] + dl + er | 0;
+              H2[2] = H2[3] + el + ar | 0;
+              H2[3] = H2[4] + al + br | 0;
+              H2[4] = H2[0] + bl + cr | 0;
+              H2[0] = t2;
             },
             _doFinalize: function() {
               var data = this._data;
@@ -2748,10 +2748,10 @@
               data.sigBytes = (dataWords.length + 1) * 4;
               this._process();
               var hash = this._hash;
-              var H = hash.words;
-              for (var i = 0; i < 5; i++) {
-                var H_i = H[i];
-                H[i] = (H_i << 8 | H_i >>> 24) & 16711935 | (H_i << 24 | H_i >>> 8) & 4278255360;
+              var H2 = hash.words;
+              for (var i2 = 0; i2 < 5; i2++) {
+                var H_i = H2[i2];
+                H2[i2] = (H_i << 8 | H_i >>> 24) & 16711935 | (H_i << 24 | H_i >>> 8) & 4278255360;
               }
               return hash;
             },
@@ -2761,26 +2761,26 @@
               return clone;
             }
           });
-          function f1(x, y, z) {
-            return x ^ y ^ z;
+          function f1(x2, y2, z2) {
+            return x2 ^ y2 ^ z2;
           }
-          function f2(x, y, z) {
-            return x & y | ~x & z;
+          function f2(x2, y2, z2) {
+            return x2 & y2 | ~x2 & z2;
           }
-          function f3(x, y, z) {
-            return (x | ~y) ^ z;
+          function f3(x2, y2, z2) {
+            return (x2 | ~y2) ^ z2;
           }
-          function f4(x, y, z) {
-            return x & z | y & ~z;
+          function f4(x2, y2, z2) {
+            return x2 & z2 | y2 & ~z2;
           }
-          function f5(x, y, z) {
-            return x ^ (y | ~z);
+          function f5(x2, y2, z2) {
+            return x2 ^ (y2 | ~z2);
           }
-          function rotl(x, n) {
-            return x << n | x >>> 32 - n;
+          function rotl(x2, n2) {
+            return x2 << n2 | x2 >>> 32 - n2;
           }
-          C.RIPEMD160 = Hasher._createHelper(RIPEMD160);
-          C.HmacRIPEMD160 = Hasher._createHmacHelper(RIPEMD160);
+          C2.RIPEMD160 = Hasher._createHelper(RIPEMD160);
+          C2.HmacRIPEMD160 = Hasher._createHmacHelper(RIPEMD160);
         })();
         return CryptoJS2.RIPEMD160;
       });
@@ -2799,12 +2799,12 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var Base = C_lib.Base;
-          var C_enc = C.enc;
+          var C_enc = C2.enc;
           var Utf8 = C_enc.Utf8;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           C_algo.HMAC = Base.extend({
             /**
              * Initializes a newly created HMAC.
@@ -2831,9 +2831,9 @@
               var iKey = this._iKey = key.clone();
               var oKeyWords = oKey.words;
               var iKeyWords = iKey.words;
-              for (var i = 0; i < hasherBlockSize; i++) {
-                oKeyWords[i] ^= 1549556828;
-                iKeyWords[i] ^= 909522486;
+              for (var i2 = 0; i2 < hasherBlockSize; i2++) {
+                oKeyWords[i2] ^= 1549556828;
+                iKeyWords[i2] ^= 909522486;
               }
               oKey.sigBytes = iKey.sigBytes = hasherBlockSizeBytes;
               this.reset();
@@ -2905,11 +2905,11 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var Base = C_lib.Base;
           var WordArray = C_lib.WordArray;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           var SHA256 = C_algo.SHA256;
           var HMAC = C_algo.HMAC;
           var PBKDF2 = C_algo.PBKDF2 = Base.extend({
@@ -2966,12 +2966,12 @@
                 var blockWords = block.words;
                 var blockWordsLength = blockWords.length;
                 var intermediate = block;
-                for (var i = 1; i < iterations; i++) {
+                for (var i2 = 1; i2 < iterations; i2++) {
                   intermediate = hmac2.finalize(intermediate);
                   hmac2.reset();
                   var intermediateWords = intermediate.words;
-                  for (var j = 0; j < blockWordsLength; j++) {
-                    blockWords[j] ^= intermediateWords[j];
+                  for (var j2 = 0; j2 < blockWordsLength; j2++) {
+                    blockWords[j2] ^= intermediateWords[j2];
                   }
                 }
                 derivedKey.concat(block);
@@ -2981,7 +2981,7 @@
               return derivedKey;
             }
           });
-          C.PBKDF2 = function(password, salt, cfg) {
+          C2.PBKDF2 = function(password, salt, cfg) {
             return PBKDF2.create(cfg).compute(password, salt);
           };
         })();
@@ -3002,11 +3002,11 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var Base = C_lib.Base;
           var WordArray = C_lib.WordArray;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           var MD5 = C_algo.MD5;
           var EvpKDF = C_algo.EvpKDF = Base.extend({
             /**
@@ -3061,7 +3061,7 @@
                 }
                 block = hasher.update(password).finalize(salt);
                 hasher.reset();
-                for (var i = 1; i < iterations; i++) {
+                for (var i2 = 1; i2 < iterations; i2++) {
                   block = hasher.finalize(block);
                   hasher.reset();
                 }
@@ -3071,7 +3071,7 @@
               return derivedKey;
             }
           });
-          C.EvpKDF = function(password, salt, cfg) {
+          C2.EvpKDF = function(password, salt, cfg) {
             return EvpKDF.create(cfg).compute(password, salt);
           };
         })();
@@ -3092,15 +3092,15 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         CryptoJS2.lib.Cipher || function(undefined$1) {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var Base = C_lib.Base;
           var WordArray = C_lib.WordArray;
           var BufferedBlockAlgorithm = C_lib.BufferedBlockAlgorithm;
-          var C_enc = C.enc;
+          var C_enc = C2.enc;
           C_enc.Utf8;
           var Base64 = C_enc.Base64;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           var EvpKDF = C_algo.EvpKDF;
           var Cipher = C_lib.Cipher = BufferedBlockAlgorithm.extend({
             /**
@@ -3252,7 +3252,7 @@
             },
             blockSize: 1
           });
-          var C_mode = C.mode = {};
+          var C_mode = C2.mode = {};
           var BlockCipherMode = C_lib.BlockCipherMode = Base.extend({
             /**
              * Creates this mode for encryption.
@@ -3349,13 +3349,13 @@
               } else {
                 block = this._prevBlock;
               }
-              for (var i = 0; i < blockSize; i++) {
-                words[offset + i] ^= block[i];
+              for (var i2 = 0; i2 < blockSize; i2++) {
+                words[offset + i2] ^= block[i2];
               }
             }
             return CBC2;
           }();
-          var C_pad = C.pad = {};
+          var C_pad = C2.pad = {};
           var Pkcs7 = C_pad.Pkcs7 = {
             /**
              * Pads data using the algorithm defined in PKCS #5/7.
@@ -3374,7 +3374,7 @@
               var nPaddingBytes = blockSizeBytes - data.sigBytes % blockSizeBytes;
               var paddingWord = nPaddingBytes << 24 | nPaddingBytes << 16 | nPaddingBytes << 8 | nPaddingBytes;
               var paddingWords = [];
-              for (var i = 0; i < nPaddingBytes; i += 4) {
+              for (var i2 = 0; i2 < nPaddingBytes; i2 += 4) {
                 paddingWords.push(paddingWord);
               }
               var padding = WordArray.create(paddingWords, nPaddingBytes);
@@ -3485,7 +3485,7 @@
               return (formatter || this.formatter).stringify(this);
             }
           });
-          var C_format = C.format = {};
+          var C_format = C2.format = {};
           var OpenSSLFormatter = C_format.OpenSSL = {
             /**
              * Converts a cipher params object to an OpenSSL-compatible string.
@@ -3625,7 +3625,7 @@
               }
             }
           });
-          var C_kdf = C.kdf = {};
+          var C_kdf = C2.kdf = {};
           var OpenSSLKdf = C_kdf.OpenSSL = {
             /**
              * Derives a key and IV from a password.
@@ -3763,8 +3763,8 @@
               keystream = this._prevBlock;
             }
             cipher.encryptBlock(keystream, 0);
-            for (var i = 0; i < blockSize; i++) {
-              words[offset + i] ^= keystream[i];
+            for (var i2 = 0; i2 < blockSize; i2++) {
+              words[offset + i2] ^= keystream[i2];
             }
           }
           return CFB;
@@ -3800,8 +3800,8 @@
               var keystream = counter.slice(0);
               cipher.encryptBlock(keystream, 0);
               counter[blockSize - 1] = counter[blockSize - 1] + 1 | 0;
-              for (var i = 0; i < blockSize; i++) {
-                words[offset + i] ^= keystream[i];
+              for (var i2 = 0; i2 < blockSize; i2++) {
+                words[offset + i2] ^= keystream[i2];
               }
             }
           });
@@ -3879,8 +3879,8 @@
               incCounter(counter);
               var keystream = counter.slice(0);
               cipher.encryptBlock(keystream, 0);
-              for (var i = 0; i < blockSize; i++) {
-                words[offset + i] ^= keystream[i];
+              for (var i2 = 0; i2 < blockSize; i2++) {
+                words[offset + i2] ^= keystream[i2];
               }
             }
           });
@@ -3916,8 +3916,8 @@
                 this._iv = void 0;
               }
               cipher.encryptBlock(keystream, 0);
-              for (var i = 0; i < blockSize; i++) {
-                words[offset + i] ^= keystream[i];
+              for (var i2 = 0; i2 < blockSize; i2++) {
+                words[offset + i2] ^= keystream[i2];
               }
             }
           });
@@ -4062,10 +4062,10 @@
           },
           unpad: function(data) {
             var dataWords = data.words;
-            var i = data.sigBytes - 1;
-            for (var i = data.sigBytes - 1; i >= 0; i--) {
-              if (dataWords[i >>> 2] >>> 24 - i % 4 * 8 & 255) {
-                data.sigBytes = i + 1;
+            var i2 = data.sigBytes - 1;
+            for (var i2 = data.sigBytes - 1; i2 >= 0; i2--) {
+              if (dataWords[i2 >>> 2] >>> 24 - i2 % 4 * 8 & 255) {
+                data.sigBytes = i2 + 1;
                 break;
               }
             }
@@ -4110,12 +4110,12 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function(undefined$1) {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var CipherParams = C_lib.CipherParams;
-          var C_enc = C.enc;
+          var C_enc = C2.enc;
           var Hex = C_enc.Hex;
-          var C_format = C.format;
+          var C_format = C2.format;
           C_format.Hex = {
             /**
              * Converts the ciphertext of a cipher params object to a hexadecimally encoded string.
@@ -4169,10 +4169,10 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var BlockCipher = C_lib.BlockCipher;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           var SBOX = [];
           var INV_SBOX = [];
           var SUB_MIX_0 = [];
@@ -4184,46 +4184,46 @@
           var INV_SUB_MIX_2 = [];
           var INV_SUB_MIX_3 = [];
           (function() {
-            var d = [];
-            for (var i = 0; i < 256; i++) {
-              if (i < 128) {
-                d[i] = i << 1;
+            var d2 = [];
+            for (var i2 = 0; i2 < 256; i2++) {
+              if (i2 < 128) {
+                d2[i2] = i2 << 1;
               } else {
-                d[i] = i << 1 ^ 283;
+                d2[i2] = i2 << 1 ^ 283;
               }
             }
-            var x = 0;
+            var x2 = 0;
             var xi = 0;
-            for (var i = 0; i < 256; i++) {
+            for (var i2 = 0; i2 < 256; i2++) {
               var sx = xi ^ xi << 1 ^ xi << 2 ^ xi << 3 ^ xi << 4;
               sx = sx >>> 8 ^ sx & 255 ^ 99;
-              SBOX[x] = sx;
-              INV_SBOX[sx] = x;
-              var x2 = d[x];
-              var x4 = d[x2];
-              var x8 = d[x4];
-              var t = d[sx] * 257 ^ sx * 16843008;
-              SUB_MIX_0[x] = t << 24 | t >>> 8;
-              SUB_MIX_1[x] = t << 16 | t >>> 16;
-              SUB_MIX_2[x] = t << 8 | t >>> 24;
-              SUB_MIX_3[x] = t;
-              var t = x8 * 16843009 ^ x4 * 65537 ^ x2 * 257 ^ x * 16843008;
-              INV_SUB_MIX_0[sx] = t << 24 | t >>> 8;
-              INV_SUB_MIX_1[sx] = t << 16 | t >>> 16;
-              INV_SUB_MIX_2[sx] = t << 8 | t >>> 24;
-              INV_SUB_MIX_3[sx] = t;
-              if (!x) {
-                x = xi = 1;
+              SBOX[x2] = sx;
+              INV_SBOX[sx] = x2;
+              var x22 = d2[x2];
+              var x4 = d2[x22];
+              var x8 = d2[x4];
+              var t2 = d2[sx] * 257 ^ sx * 16843008;
+              SUB_MIX_0[x2] = t2 << 24 | t2 >>> 8;
+              SUB_MIX_1[x2] = t2 << 16 | t2 >>> 16;
+              SUB_MIX_2[x2] = t2 << 8 | t2 >>> 24;
+              SUB_MIX_3[x2] = t2;
+              var t2 = x8 * 16843009 ^ x4 * 65537 ^ x22 * 257 ^ x2 * 16843008;
+              INV_SUB_MIX_0[sx] = t2 << 24 | t2 >>> 8;
+              INV_SUB_MIX_1[sx] = t2 << 16 | t2 >>> 16;
+              INV_SUB_MIX_2[sx] = t2 << 8 | t2 >>> 24;
+              INV_SUB_MIX_3[sx] = t2;
+              if (!x2) {
+                x2 = xi = 1;
               } else {
-                x = x2 ^ d[d[d[x8 ^ x2]]];
-                xi ^= d[d[xi]];
+                x2 = x22 ^ d2[d2[d2[x8 ^ x22]]];
+                xi ^= d2[d2[xi]];
               }
             }
           })();
           var RCON = [0, 1, 2, 4, 8, 16, 32, 64, 128, 27, 54];
           var AES = C_algo.AES = BlockCipher.extend({
             _doReset: function() {
-              var t;
+              var t2;
               if (this._nRounds && this._keyPriorReset === this._key) {
                 return;
               }
@@ -4237,50 +4237,50 @@
                 if (ksRow < keySize) {
                   keySchedule[ksRow] = keyWords[ksRow];
                 } else {
-                  t = keySchedule[ksRow - 1];
+                  t2 = keySchedule[ksRow - 1];
                   if (!(ksRow % keySize)) {
-                    t = t << 8 | t >>> 24;
-                    t = SBOX[t >>> 24] << 24 | SBOX[t >>> 16 & 255] << 16 | SBOX[t >>> 8 & 255] << 8 | SBOX[t & 255];
-                    t ^= RCON[ksRow / keySize | 0] << 24;
+                    t2 = t2 << 8 | t2 >>> 24;
+                    t2 = SBOX[t2 >>> 24] << 24 | SBOX[t2 >>> 16 & 255] << 16 | SBOX[t2 >>> 8 & 255] << 8 | SBOX[t2 & 255];
+                    t2 ^= RCON[ksRow / keySize | 0] << 24;
                   } else if (keySize > 6 && ksRow % keySize == 4) {
-                    t = SBOX[t >>> 24] << 24 | SBOX[t >>> 16 & 255] << 16 | SBOX[t >>> 8 & 255] << 8 | SBOX[t & 255];
+                    t2 = SBOX[t2 >>> 24] << 24 | SBOX[t2 >>> 16 & 255] << 16 | SBOX[t2 >>> 8 & 255] << 8 | SBOX[t2 & 255];
                   }
-                  keySchedule[ksRow] = keySchedule[ksRow - keySize] ^ t;
+                  keySchedule[ksRow] = keySchedule[ksRow - keySize] ^ t2;
                 }
               }
               var invKeySchedule = this._invKeySchedule = [];
               for (var invKsRow = 0; invKsRow < ksRows; invKsRow++) {
                 var ksRow = ksRows - invKsRow;
                 if (invKsRow % 4) {
-                  var t = keySchedule[ksRow];
+                  var t2 = keySchedule[ksRow];
                 } else {
-                  var t = keySchedule[ksRow - 4];
+                  var t2 = keySchedule[ksRow - 4];
                 }
                 if (invKsRow < 4 || ksRow <= 4) {
-                  invKeySchedule[invKsRow] = t;
+                  invKeySchedule[invKsRow] = t2;
                 } else {
-                  invKeySchedule[invKsRow] = INV_SUB_MIX_0[SBOX[t >>> 24]] ^ INV_SUB_MIX_1[SBOX[t >>> 16 & 255]] ^ INV_SUB_MIX_2[SBOX[t >>> 8 & 255]] ^ INV_SUB_MIX_3[SBOX[t & 255]];
+                  invKeySchedule[invKsRow] = INV_SUB_MIX_0[SBOX[t2 >>> 24]] ^ INV_SUB_MIX_1[SBOX[t2 >>> 16 & 255]] ^ INV_SUB_MIX_2[SBOX[t2 >>> 8 & 255]] ^ INV_SUB_MIX_3[SBOX[t2 & 255]];
                 }
               }
             },
-            encryptBlock: function(M, offset) {
-              this._doCryptBlock(M, offset, this._keySchedule, SUB_MIX_0, SUB_MIX_1, SUB_MIX_2, SUB_MIX_3, SBOX);
+            encryptBlock: function(M2, offset) {
+              this._doCryptBlock(M2, offset, this._keySchedule, SUB_MIX_0, SUB_MIX_1, SUB_MIX_2, SUB_MIX_3, SBOX);
             },
-            decryptBlock: function(M, offset) {
-              var t = M[offset + 1];
-              M[offset + 1] = M[offset + 3];
-              M[offset + 3] = t;
-              this._doCryptBlock(M, offset, this._invKeySchedule, INV_SUB_MIX_0, INV_SUB_MIX_1, INV_SUB_MIX_2, INV_SUB_MIX_3, INV_SBOX);
-              var t = M[offset + 1];
-              M[offset + 1] = M[offset + 3];
-              M[offset + 3] = t;
+            decryptBlock: function(M2, offset) {
+              var t2 = M2[offset + 1];
+              M2[offset + 1] = M2[offset + 3];
+              M2[offset + 3] = t2;
+              this._doCryptBlock(M2, offset, this._invKeySchedule, INV_SUB_MIX_0, INV_SUB_MIX_1, INV_SUB_MIX_2, INV_SUB_MIX_3, INV_SBOX);
+              var t2 = M2[offset + 1];
+              M2[offset + 1] = M2[offset + 3];
+              M2[offset + 3] = t2;
             },
-            _doCryptBlock: function(M, offset, keySchedule, SUB_MIX_02, SUB_MIX_12, SUB_MIX_22, SUB_MIX_32, SBOX2) {
+            _doCryptBlock: function(M2, offset, keySchedule, SUB_MIX_02, SUB_MIX_12, SUB_MIX_22, SUB_MIX_32, SBOX2) {
               var nRounds = this._nRounds;
-              var s0 = M[offset] ^ keySchedule[0];
-              var s1 = M[offset + 1] ^ keySchedule[1];
-              var s2 = M[offset + 2] ^ keySchedule[2];
-              var s3 = M[offset + 3] ^ keySchedule[3];
+              var s0 = M2[offset] ^ keySchedule[0];
+              var s1 = M2[offset + 1] ^ keySchedule[1];
+              var s2 = M2[offset + 2] ^ keySchedule[2];
+              var s3 = M2[offset + 3] ^ keySchedule[3];
               var ksRow = 4;
               for (var round = 1; round < nRounds; round++) {
                 var t0 = SUB_MIX_02[s0 >>> 24] ^ SUB_MIX_12[s1 >>> 16 & 255] ^ SUB_MIX_22[s2 >>> 8 & 255] ^ SUB_MIX_32[s3 & 255] ^ keySchedule[ksRow++];
@@ -4296,14 +4296,14 @@
               var t1 = (SBOX2[s1 >>> 24] << 24 | SBOX2[s2 >>> 16 & 255] << 16 | SBOX2[s3 >>> 8 & 255] << 8 | SBOX2[s0 & 255]) ^ keySchedule[ksRow++];
               var t2 = (SBOX2[s2 >>> 24] << 24 | SBOX2[s3 >>> 16 & 255] << 16 | SBOX2[s0 >>> 8 & 255] << 8 | SBOX2[s1 & 255]) ^ keySchedule[ksRow++];
               var t3 = (SBOX2[s3 >>> 24] << 24 | SBOX2[s0 >>> 16 & 255] << 16 | SBOX2[s1 >>> 8 & 255] << 8 | SBOX2[s2 & 255]) ^ keySchedule[ksRow++];
-              M[offset] = t0;
-              M[offset + 1] = t1;
-              M[offset + 2] = t2;
-              M[offset + 3] = t3;
+              M2[offset] = t0;
+              M2[offset + 1] = t1;
+              M2[offset + 2] = t2;
+              M2[offset + 3] = t3;
             },
             keySize: 256 / 32
           });
-          C.AES = BlockCipher._createHelper(AES);
+          C2.AES = BlockCipher._createHelper(AES);
         })();
         return CryptoJS2.AES;
       });
@@ -4322,11 +4322,11 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var WordArray = C_lib.WordArray;
           var BlockCipher = C_lib.BlockCipher;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           var PC1 = [
             57,
             49,
@@ -4981,38 +4981,38 @@
               var key = this._key;
               var keyWords = key.words;
               var keyBits = [];
-              for (var i = 0; i < 56; i++) {
-                var keyBitPos = PC1[i] - 1;
-                keyBits[i] = keyWords[keyBitPos >>> 5] >>> 31 - keyBitPos % 32 & 1;
+              for (var i2 = 0; i2 < 56; i2++) {
+                var keyBitPos = PC1[i2] - 1;
+                keyBits[i2] = keyWords[keyBitPos >>> 5] >>> 31 - keyBitPos % 32 & 1;
               }
               var subKeys = this._subKeys = [];
               for (var nSubKey = 0; nSubKey < 16; nSubKey++) {
                 var subKey = subKeys[nSubKey] = [];
                 var bitShift = BIT_SHIFTS[nSubKey];
-                for (var i = 0; i < 24; i++) {
-                  subKey[i / 6 | 0] |= keyBits[(PC2[i] - 1 + bitShift) % 28] << 31 - i % 6;
-                  subKey[4 + (i / 6 | 0)] |= keyBits[28 + (PC2[i + 24] - 1 + bitShift) % 28] << 31 - i % 6;
+                for (var i2 = 0; i2 < 24; i2++) {
+                  subKey[i2 / 6 | 0] |= keyBits[(PC2[i2] - 1 + bitShift) % 28] << 31 - i2 % 6;
+                  subKey[4 + (i2 / 6 | 0)] |= keyBits[28 + (PC2[i2 + 24] - 1 + bitShift) % 28] << 31 - i2 % 6;
                 }
                 subKey[0] = subKey[0] << 1 | subKey[0] >>> 31;
-                for (var i = 1; i < 7; i++) {
-                  subKey[i] = subKey[i] >>> (i - 1) * 4 + 3;
+                for (var i2 = 1; i2 < 7; i2++) {
+                  subKey[i2] = subKey[i2] >>> (i2 - 1) * 4 + 3;
                 }
                 subKey[7] = subKey[7] << 5 | subKey[7] >>> 27;
               }
               var invSubKeys = this._invSubKeys = [];
-              for (var i = 0; i < 16; i++) {
-                invSubKeys[i] = subKeys[15 - i];
+              for (var i2 = 0; i2 < 16; i2++) {
+                invSubKeys[i2] = subKeys[15 - i2];
               }
             },
-            encryptBlock: function(M, offset) {
-              this._doCryptBlock(M, offset, this._subKeys);
+            encryptBlock: function(M2, offset) {
+              this._doCryptBlock(M2, offset, this._subKeys);
             },
-            decryptBlock: function(M, offset) {
-              this._doCryptBlock(M, offset, this._invSubKeys);
+            decryptBlock: function(M2, offset) {
+              this._doCryptBlock(M2, offset, this._invSubKeys);
             },
-            _doCryptBlock: function(M, offset, subKeys) {
-              this._lBlock = M[offset];
-              this._rBlock = M[offset + 1];
+            _doCryptBlock: function(M2, offset, subKeys) {
+              this._lBlock = M2[offset];
+              this._rBlock = M2[offset + 1];
               exchangeLR.call(this, 4, 252645135);
               exchangeLR.call(this, 16, 65535);
               exchangeRL.call(this, 2, 858993459);
@@ -5022,39 +5022,39 @@
                 var subKey = subKeys[round];
                 var lBlock = this._lBlock;
                 var rBlock = this._rBlock;
-                var f = 0;
-                for (var i = 0; i < 8; i++) {
-                  f |= SBOX_P[i][((rBlock ^ subKey[i]) & SBOX_MASK[i]) >>> 0];
+                var f2 = 0;
+                for (var i2 = 0; i2 < 8; i2++) {
+                  f2 |= SBOX_P[i2][((rBlock ^ subKey[i2]) & SBOX_MASK[i2]) >>> 0];
                 }
                 this._lBlock = rBlock;
-                this._rBlock = lBlock ^ f;
+                this._rBlock = lBlock ^ f2;
               }
-              var t = this._lBlock;
+              var t2 = this._lBlock;
               this._lBlock = this._rBlock;
-              this._rBlock = t;
+              this._rBlock = t2;
               exchangeLR.call(this, 1, 1431655765);
               exchangeRL.call(this, 8, 16711935);
               exchangeRL.call(this, 2, 858993459);
               exchangeLR.call(this, 16, 65535);
               exchangeLR.call(this, 4, 252645135);
-              M[offset] = this._lBlock;
-              M[offset + 1] = this._rBlock;
+              M2[offset] = this._lBlock;
+              M2[offset + 1] = this._rBlock;
             },
             keySize: 64 / 32,
             ivSize: 64 / 32,
             blockSize: 64 / 32
           });
           function exchangeLR(offset, mask) {
-            var t = (this._lBlock >>> offset ^ this._rBlock) & mask;
-            this._rBlock ^= t;
-            this._lBlock ^= t << offset;
+            var t2 = (this._lBlock >>> offset ^ this._rBlock) & mask;
+            this._rBlock ^= t2;
+            this._lBlock ^= t2 << offset;
           }
           function exchangeRL(offset, mask) {
-            var t = (this._rBlock >>> offset ^ this._lBlock) & mask;
-            this._lBlock ^= t;
-            this._rBlock ^= t << offset;
+            var t2 = (this._rBlock >>> offset ^ this._lBlock) & mask;
+            this._lBlock ^= t2;
+            this._rBlock ^= t2 << offset;
           }
-          C.DES = BlockCipher._createHelper(DES);
+          C2.DES = BlockCipher._createHelper(DES);
           var TripleDES = C_algo.TripleDES = BlockCipher.extend({
             _doReset: function() {
               var key = this._key;
@@ -5069,21 +5069,21 @@
               this._des2 = DES.createEncryptor(WordArray.create(key2));
               this._des3 = DES.createEncryptor(WordArray.create(key3));
             },
-            encryptBlock: function(M, offset) {
-              this._des1.encryptBlock(M, offset);
-              this._des2.decryptBlock(M, offset);
-              this._des3.encryptBlock(M, offset);
+            encryptBlock: function(M2, offset) {
+              this._des1.encryptBlock(M2, offset);
+              this._des2.decryptBlock(M2, offset);
+              this._des3.encryptBlock(M2, offset);
             },
-            decryptBlock: function(M, offset) {
-              this._des3.decryptBlock(M, offset);
-              this._des2.encryptBlock(M, offset);
-              this._des1.decryptBlock(M, offset);
+            decryptBlock: function(M2, offset) {
+              this._des3.decryptBlock(M2, offset);
+              this._des2.encryptBlock(M2, offset);
+              this._des1.decryptBlock(M2, offset);
             },
             keySize: 192 / 32,
             ivSize: 64 / 32,
             blockSize: 64 / 32
           });
-          C.TripleDES = BlockCipher._createHelper(TripleDES);
+          C2.TripleDES = BlockCipher._createHelper(TripleDES);
         })();
         return CryptoJS2.TripleDES;
       });
@@ -5102,53 +5102,53 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var StreamCipher = C_lib.StreamCipher;
-          var C_algo = C.algo;
+          var C_algo = C2.algo;
           var RC4 = C_algo.RC4 = StreamCipher.extend({
             _doReset: function() {
               var key = this._key;
               var keyWords = key.words;
               var keySigBytes = key.sigBytes;
-              var S = this._S = [];
-              for (var i = 0; i < 256; i++) {
-                S[i] = i;
+              var S2 = this._S = [];
+              for (var i2 = 0; i2 < 256; i2++) {
+                S2[i2] = i2;
               }
-              for (var i = 0, j = 0; i < 256; i++) {
-                var keyByteIndex = i % keySigBytes;
+              for (var i2 = 0, j2 = 0; i2 < 256; i2++) {
+                var keyByteIndex = i2 % keySigBytes;
                 var keyByte = keyWords[keyByteIndex >>> 2] >>> 24 - keyByteIndex % 4 * 8 & 255;
-                j = (j + S[i] + keyByte) % 256;
-                var t = S[i];
-                S[i] = S[j];
-                S[j] = t;
+                j2 = (j2 + S2[i2] + keyByte) % 256;
+                var t2 = S2[i2];
+                S2[i2] = S2[j2];
+                S2[j2] = t2;
               }
               this._i = this._j = 0;
             },
-            _doProcessBlock: function(M, offset) {
-              M[offset] ^= generateKeystreamWord.call(this);
+            _doProcessBlock: function(M2, offset) {
+              M2[offset] ^= generateKeystreamWord.call(this);
             },
             keySize: 256 / 32,
             ivSize: 0
           });
           function generateKeystreamWord() {
-            var S = this._S;
-            var i = this._i;
-            var j = this._j;
+            var S2 = this._S;
+            var i2 = this._i;
+            var j2 = this._j;
             var keystreamWord = 0;
-            for (var n = 0; n < 4; n++) {
-              i = (i + 1) % 256;
-              j = (j + S[i]) % 256;
-              var t = S[i];
-              S[i] = S[j];
-              S[j] = t;
-              keystreamWord |= S[(S[i] + S[j]) % 256] << 24 - n * 8;
+            for (var n2 = 0; n2 < 4; n2++) {
+              i2 = (i2 + 1) % 256;
+              j2 = (j2 + S2[i2]) % 256;
+              var t2 = S2[i2];
+              S2[i2] = S2[j2];
+              S2[j2] = t2;
+              keystreamWord |= S2[(S2[i2] + S2[j2]) % 256] << 24 - n2 * 8;
             }
-            this._i = i;
-            this._j = j;
+            this._i = i2;
+            this._j = j2;
             return keystreamWord;
           }
-          C.RC4 = StreamCipher._createHelper(RC4);
+          C2.RC4 = StreamCipher._createHelper(RC4);
           var RC4Drop = C_algo.RC4Drop = RC4.extend({
             /**
              * Configuration options.
@@ -5160,12 +5160,12 @@
             }),
             _doReset: function() {
               RC4._doReset.call(this);
-              for (var i = this.cfg.drop; i > 0; i--) {
+              for (var i2 = this.cfg.drop; i2 > 0; i2--) {
                 generateKeystreamWord.call(this);
               }
             }
           });
-          C.RC4Drop = StreamCipher._createHelper(RC4Drop);
+          C2.RC4Drop = StreamCipher._createHelper(RC4Drop);
         })();
         return CryptoJS2.RC4;
       });
@@ -5184,19 +5184,19 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var StreamCipher = C_lib.StreamCipher;
-          var C_algo = C.algo;
-          var S = [];
+          var C_algo = C2.algo;
+          var S2 = [];
           var C_ = [];
-          var G = [];
+          var G2 = [];
           var Rabbit = C_algo.Rabbit = StreamCipher.extend({
             _doReset: function() {
               var K = this._key.words;
               var iv = this.cfg.iv;
-              for (var i = 0; i < 4; i++) {
-                K[i] = (K[i] << 8 | K[i] >>> 24) & 16711935 | (K[i] << 24 | K[i] >>> 8) & 4278255360;
+              for (var i2 = 0; i2 < 4; i2++) {
+                K[i2] = (K[i2] << 8 | K[i2] >>> 24) & 16711935 | (K[i2] << 24 | K[i2] >>> 8) & 4278255360;
               }
               var X = this._X = [
                 K[0],
@@ -5208,7 +5208,7 @@
                 K[3],
                 K[2] << 16 | K[1] >>> 16
               ];
-              var C2 = this._C = [
+              var C3 = this._C = [
                 K[2] << 16 | K[2] >>> 16,
                 K[0] & 4294901760 | K[1] & 65535,
                 K[3] << 16 | K[3] >>> 16,
@@ -5219,43 +5219,43 @@
                 K[3] & 4294901760 | K[0] & 65535
               ];
               this._b = 0;
-              for (var i = 0; i < 4; i++) {
+              for (var i2 = 0; i2 < 4; i2++) {
                 nextState.call(this);
               }
-              for (var i = 0; i < 8; i++) {
-                C2[i] ^= X[i + 4 & 7];
+              for (var i2 = 0; i2 < 8; i2++) {
+                C3[i2] ^= X[i2 + 4 & 7];
               }
               if (iv) {
                 var IV = iv.words;
                 var IV_0 = IV[0];
                 var IV_1 = IV[1];
                 var i0 = (IV_0 << 8 | IV_0 >>> 24) & 16711935 | (IV_0 << 24 | IV_0 >>> 8) & 4278255360;
-                var i2 = (IV_1 << 8 | IV_1 >>> 24) & 16711935 | (IV_1 << 24 | IV_1 >>> 8) & 4278255360;
-                var i1 = i0 >>> 16 | i2 & 4294901760;
-                var i3 = i2 << 16 | i0 & 65535;
-                C2[0] ^= i0;
-                C2[1] ^= i1;
-                C2[2] ^= i2;
-                C2[3] ^= i3;
-                C2[4] ^= i0;
-                C2[5] ^= i1;
-                C2[6] ^= i2;
-                C2[7] ^= i3;
-                for (var i = 0; i < 4; i++) {
+                var i22 = (IV_1 << 8 | IV_1 >>> 24) & 16711935 | (IV_1 << 24 | IV_1 >>> 8) & 4278255360;
+                var i1 = i0 >>> 16 | i22 & 4294901760;
+                var i3 = i22 << 16 | i0 & 65535;
+                C3[0] ^= i0;
+                C3[1] ^= i1;
+                C3[2] ^= i22;
+                C3[3] ^= i3;
+                C3[4] ^= i0;
+                C3[5] ^= i1;
+                C3[6] ^= i22;
+                C3[7] ^= i3;
+                for (var i2 = 0; i2 < 4; i2++) {
                   nextState.call(this);
                 }
               }
             },
-            _doProcessBlock: function(M, offset) {
+            _doProcessBlock: function(M2, offset) {
               var X = this._X;
               nextState.call(this);
-              S[0] = X[0] ^ X[5] >>> 16 ^ X[3] << 16;
-              S[1] = X[2] ^ X[7] >>> 16 ^ X[5] << 16;
-              S[2] = X[4] ^ X[1] >>> 16 ^ X[7] << 16;
-              S[3] = X[6] ^ X[3] >>> 16 ^ X[1] << 16;
-              for (var i = 0; i < 4; i++) {
-                S[i] = (S[i] << 8 | S[i] >>> 24) & 16711935 | (S[i] << 24 | S[i] >>> 8) & 4278255360;
-                M[offset + i] ^= S[i];
+              S2[0] = X[0] ^ X[5] >>> 16 ^ X[3] << 16;
+              S2[1] = X[2] ^ X[7] >>> 16 ^ X[5] << 16;
+              S2[2] = X[4] ^ X[1] >>> 16 ^ X[7] << 16;
+              S2[3] = X[6] ^ X[3] >>> 16 ^ X[1] << 16;
+              for (var i2 = 0; i2 < 4; i2++) {
+                S2[i2] = (S2[i2] << 8 | S2[i2] >>> 24) & 16711935 | (S2[i2] << 24 | S2[i2] >>> 8) & 4278255360;
+                M2[offset + i2] ^= S2[i2];
               }
             },
             blockSize: 128 / 32,
@@ -5263,37 +5263,37 @@
           });
           function nextState() {
             var X = this._X;
-            var C2 = this._C;
-            for (var i = 0; i < 8; i++) {
-              C_[i] = C2[i];
+            var C3 = this._C;
+            for (var i2 = 0; i2 < 8; i2++) {
+              C_[i2] = C3[i2];
             }
-            C2[0] = C2[0] + 1295307597 + this._b | 0;
-            C2[1] = C2[1] + 3545052371 + (C2[0] >>> 0 < C_[0] >>> 0 ? 1 : 0) | 0;
-            C2[2] = C2[2] + 886263092 + (C2[1] >>> 0 < C_[1] >>> 0 ? 1 : 0) | 0;
-            C2[3] = C2[3] + 1295307597 + (C2[2] >>> 0 < C_[2] >>> 0 ? 1 : 0) | 0;
-            C2[4] = C2[4] + 3545052371 + (C2[3] >>> 0 < C_[3] >>> 0 ? 1 : 0) | 0;
-            C2[5] = C2[5] + 886263092 + (C2[4] >>> 0 < C_[4] >>> 0 ? 1 : 0) | 0;
-            C2[6] = C2[6] + 1295307597 + (C2[5] >>> 0 < C_[5] >>> 0 ? 1 : 0) | 0;
-            C2[7] = C2[7] + 3545052371 + (C2[6] >>> 0 < C_[6] >>> 0 ? 1 : 0) | 0;
-            this._b = C2[7] >>> 0 < C_[7] >>> 0 ? 1 : 0;
-            for (var i = 0; i < 8; i++) {
-              var gx = X[i] + C2[i];
+            C3[0] = C3[0] + 1295307597 + this._b | 0;
+            C3[1] = C3[1] + 3545052371 + (C3[0] >>> 0 < C_[0] >>> 0 ? 1 : 0) | 0;
+            C3[2] = C3[2] + 886263092 + (C3[1] >>> 0 < C_[1] >>> 0 ? 1 : 0) | 0;
+            C3[3] = C3[3] + 1295307597 + (C3[2] >>> 0 < C_[2] >>> 0 ? 1 : 0) | 0;
+            C3[4] = C3[4] + 3545052371 + (C3[3] >>> 0 < C_[3] >>> 0 ? 1 : 0) | 0;
+            C3[5] = C3[5] + 886263092 + (C3[4] >>> 0 < C_[4] >>> 0 ? 1 : 0) | 0;
+            C3[6] = C3[6] + 1295307597 + (C3[5] >>> 0 < C_[5] >>> 0 ? 1 : 0) | 0;
+            C3[7] = C3[7] + 3545052371 + (C3[6] >>> 0 < C_[6] >>> 0 ? 1 : 0) | 0;
+            this._b = C3[7] >>> 0 < C_[7] >>> 0 ? 1 : 0;
+            for (var i2 = 0; i2 < 8; i2++) {
+              var gx = X[i2] + C3[i2];
               var ga = gx & 65535;
               var gb = gx >>> 16;
               var gh = ((ga * ga >>> 17) + ga * gb >>> 15) + gb * gb;
               var gl = ((gx & 4294901760) * gx | 0) + ((gx & 65535) * gx | 0);
-              G[i] = gh ^ gl;
+              G2[i2] = gh ^ gl;
             }
-            X[0] = G[0] + (G[7] << 16 | G[7] >>> 16) + (G[6] << 16 | G[6] >>> 16) | 0;
-            X[1] = G[1] + (G[0] << 8 | G[0] >>> 24) + G[7] | 0;
-            X[2] = G[2] + (G[1] << 16 | G[1] >>> 16) + (G[0] << 16 | G[0] >>> 16) | 0;
-            X[3] = G[3] + (G[2] << 8 | G[2] >>> 24) + G[1] | 0;
-            X[4] = G[4] + (G[3] << 16 | G[3] >>> 16) + (G[2] << 16 | G[2] >>> 16) | 0;
-            X[5] = G[5] + (G[4] << 8 | G[4] >>> 24) + G[3] | 0;
-            X[6] = G[6] + (G[5] << 16 | G[5] >>> 16) + (G[4] << 16 | G[4] >>> 16) | 0;
-            X[7] = G[7] + (G[6] << 8 | G[6] >>> 24) + G[5] | 0;
+            X[0] = G2[0] + (G2[7] << 16 | G2[7] >>> 16) + (G2[6] << 16 | G2[6] >>> 16) | 0;
+            X[1] = G2[1] + (G2[0] << 8 | G2[0] >>> 24) + G2[7] | 0;
+            X[2] = G2[2] + (G2[1] << 16 | G2[1] >>> 16) + (G2[0] << 16 | G2[0] >>> 16) | 0;
+            X[3] = G2[3] + (G2[2] << 8 | G2[2] >>> 24) + G2[1] | 0;
+            X[4] = G2[4] + (G2[3] << 16 | G2[3] >>> 16) + (G2[2] << 16 | G2[2] >>> 16) | 0;
+            X[5] = G2[5] + (G2[4] << 8 | G2[4] >>> 24) + G2[3] | 0;
+            X[6] = G2[6] + (G2[5] << 16 | G2[5] >>> 16) + (G2[4] << 16 | G2[4] >>> 16) | 0;
+            X[7] = G2[7] + (G2[6] << 8 | G2[6] >>> 24) + G2[5] | 0;
           }
-          C.Rabbit = StreamCipher._createHelper(Rabbit);
+          C2.Rabbit = StreamCipher._createHelper(Rabbit);
         })();
         return CryptoJS2.Rabbit;
       });
@@ -5312,13 +5312,13 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var StreamCipher = C_lib.StreamCipher;
-          var C_algo = C.algo;
-          var S = [];
+          var C_algo = C2.algo;
+          var S2 = [];
           var C_ = [];
-          var G = [];
+          var G2 = [];
           var RabbitLegacy = C_algo.RabbitLegacy = StreamCipher.extend({
             _doReset: function() {
               var K = this._key.words;
@@ -5333,7 +5333,7 @@
                 K[3],
                 K[2] << 16 | K[1] >>> 16
               ];
-              var C2 = this._C = [
+              var C3 = this._C = [
                 K[2] << 16 | K[2] >>> 16,
                 K[0] & 4294901760 | K[1] & 65535,
                 K[3] << 16 | K[3] >>> 16,
@@ -5344,43 +5344,43 @@
                 K[3] & 4294901760 | K[0] & 65535
               ];
               this._b = 0;
-              for (var i = 0; i < 4; i++) {
+              for (var i2 = 0; i2 < 4; i2++) {
                 nextState.call(this);
               }
-              for (var i = 0; i < 8; i++) {
-                C2[i] ^= X[i + 4 & 7];
+              for (var i2 = 0; i2 < 8; i2++) {
+                C3[i2] ^= X[i2 + 4 & 7];
               }
               if (iv) {
                 var IV = iv.words;
                 var IV_0 = IV[0];
                 var IV_1 = IV[1];
                 var i0 = (IV_0 << 8 | IV_0 >>> 24) & 16711935 | (IV_0 << 24 | IV_0 >>> 8) & 4278255360;
-                var i2 = (IV_1 << 8 | IV_1 >>> 24) & 16711935 | (IV_1 << 24 | IV_1 >>> 8) & 4278255360;
-                var i1 = i0 >>> 16 | i2 & 4294901760;
-                var i3 = i2 << 16 | i0 & 65535;
-                C2[0] ^= i0;
-                C2[1] ^= i1;
-                C2[2] ^= i2;
-                C2[3] ^= i3;
-                C2[4] ^= i0;
-                C2[5] ^= i1;
-                C2[6] ^= i2;
-                C2[7] ^= i3;
-                for (var i = 0; i < 4; i++) {
+                var i22 = (IV_1 << 8 | IV_1 >>> 24) & 16711935 | (IV_1 << 24 | IV_1 >>> 8) & 4278255360;
+                var i1 = i0 >>> 16 | i22 & 4294901760;
+                var i3 = i22 << 16 | i0 & 65535;
+                C3[0] ^= i0;
+                C3[1] ^= i1;
+                C3[2] ^= i22;
+                C3[3] ^= i3;
+                C3[4] ^= i0;
+                C3[5] ^= i1;
+                C3[6] ^= i22;
+                C3[7] ^= i3;
+                for (var i2 = 0; i2 < 4; i2++) {
                   nextState.call(this);
                 }
               }
             },
-            _doProcessBlock: function(M, offset) {
+            _doProcessBlock: function(M2, offset) {
               var X = this._X;
               nextState.call(this);
-              S[0] = X[0] ^ X[5] >>> 16 ^ X[3] << 16;
-              S[1] = X[2] ^ X[7] >>> 16 ^ X[5] << 16;
-              S[2] = X[4] ^ X[1] >>> 16 ^ X[7] << 16;
-              S[3] = X[6] ^ X[3] >>> 16 ^ X[1] << 16;
-              for (var i = 0; i < 4; i++) {
-                S[i] = (S[i] << 8 | S[i] >>> 24) & 16711935 | (S[i] << 24 | S[i] >>> 8) & 4278255360;
-                M[offset + i] ^= S[i];
+              S2[0] = X[0] ^ X[5] >>> 16 ^ X[3] << 16;
+              S2[1] = X[2] ^ X[7] >>> 16 ^ X[5] << 16;
+              S2[2] = X[4] ^ X[1] >>> 16 ^ X[7] << 16;
+              S2[3] = X[6] ^ X[3] >>> 16 ^ X[1] << 16;
+              for (var i2 = 0; i2 < 4; i2++) {
+                S2[i2] = (S2[i2] << 8 | S2[i2] >>> 24) & 16711935 | (S2[i2] << 24 | S2[i2] >>> 8) & 4278255360;
+                M2[offset + i2] ^= S2[i2];
               }
             },
             blockSize: 128 / 32,
@@ -5388,37 +5388,37 @@
           });
           function nextState() {
             var X = this._X;
-            var C2 = this._C;
-            for (var i = 0; i < 8; i++) {
-              C_[i] = C2[i];
+            var C3 = this._C;
+            for (var i2 = 0; i2 < 8; i2++) {
+              C_[i2] = C3[i2];
             }
-            C2[0] = C2[0] + 1295307597 + this._b | 0;
-            C2[1] = C2[1] + 3545052371 + (C2[0] >>> 0 < C_[0] >>> 0 ? 1 : 0) | 0;
-            C2[2] = C2[2] + 886263092 + (C2[1] >>> 0 < C_[1] >>> 0 ? 1 : 0) | 0;
-            C2[3] = C2[3] + 1295307597 + (C2[2] >>> 0 < C_[2] >>> 0 ? 1 : 0) | 0;
-            C2[4] = C2[4] + 3545052371 + (C2[3] >>> 0 < C_[3] >>> 0 ? 1 : 0) | 0;
-            C2[5] = C2[5] + 886263092 + (C2[4] >>> 0 < C_[4] >>> 0 ? 1 : 0) | 0;
-            C2[6] = C2[6] + 1295307597 + (C2[5] >>> 0 < C_[5] >>> 0 ? 1 : 0) | 0;
-            C2[7] = C2[7] + 3545052371 + (C2[6] >>> 0 < C_[6] >>> 0 ? 1 : 0) | 0;
-            this._b = C2[7] >>> 0 < C_[7] >>> 0 ? 1 : 0;
-            for (var i = 0; i < 8; i++) {
-              var gx = X[i] + C2[i];
+            C3[0] = C3[0] + 1295307597 + this._b | 0;
+            C3[1] = C3[1] + 3545052371 + (C3[0] >>> 0 < C_[0] >>> 0 ? 1 : 0) | 0;
+            C3[2] = C3[2] + 886263092 + (C3[1] >>> 0 < C_[1] >>> 0 ? 1 : 0) | 0;
+            C3[3] = C3[3] + 1295307597 + (C3[2] >>> 0 < C_[2] >>> 0 ? 1 : 0) | 0;
+            C3[4] = C3[4] + 3545052371 + (C3[3] >>> 0 < C_[3] >>> 0 ? 1 : 0) | 0;
+            C3[5] = C3[5] + 886263092 + (C3[4] >>> 0 < C_[4] >>> 0 ? 1 : 0) | 0;
+            C3[6] = C3[6] + 1295307597 + (C3[5] >>> 0 < C_[5] >>> 0 ? 1 : 0) | 0;
+            C3[7] = C3[7] + 3545052371 + (C3[6] >>> 0 < C_[6] >>> 0 ? 1 : 0) | 0;
+            this._b = C3[7] >>> 0 < C_[7] >>> 0 ? 1 : 0;
+            for (var i2 = 0; i2 < 8; i2++) {
+              var gx = X[i2] + C3[i2];
               var ga = gx & 65535;
               var gb = gx >>> 16;
               var gh = ((ga * ga >>> 17) + ga * gb >>> 15) + gb * gb;
               var gl = ((gx & 4294901760) * gx | 0) + ((gx & 65535) * gx | 0);
-              G[i] = gh ^ gl;
+              G2[i2] = gh ^ gl;
             }
-            X[0] = G[0] + (G[7] << 16 | G[7] >>> 16) + (G[6] << 16 | G[6] >>> 16) | 0;
-            X[1] = G[1] + (G[0] << 8 | G[0] >>> 24) + G[7] | 0;
-            X[2] = G[2] + (G[1] << 16 | G[1] >>> 16) + (G[0] << 16 | G[0] >>> 16) | 0;
-            X[3] = G[3] + (G[2] << 8 | G[2] >>> 24) + G[1] | 0;
-            X[4] = G[4] + (G[3] << 16 | G[3] >>> 16) + (G[2] << 16 | G[2] >>> 16) | 0;
-            X[5] = G[5] + (G[4] << 8 | G[4] >>> 24) + G[3] | 0;
-            X[6] = G[6] + (G[5] << 16 | G[5] >>> 16) + (G[4] << 16 | G[4] >>> 16) | 0;
-            X[7] = G[7] + (G[6] << 8 | G[6] >>> 24) + G[5] | 0;
+            X[0] = G2[0] + (G2[7] << 16 | G2[7] >>> 16) + (G2[6] << 16 | G2[6] >>> 16) | 0;
+            X[1] = G2[1] + (G2[0] << 8 | G2[0] >>> 24) + G2[7] | 0;
+            X[2] = G2[2] + (G2[1] << 16 | G2[1] >>> 16) + (G2[0] << 16 | G2[0] >>> 16) | 0;
+            X[3] = G2[3] + (G2[2] << 8 | G2[2] >>> 24) + G2[1] | 0;
+            X[4] = G2[4] + (G2[3] << 16 | G2[3] >>> 16) + (G2[2] << 16 | G2[2] >>> 16) | 0;
+            X[5] = G2[5] + (G2[4] << 8 | G2[4] >>> 24) + G2[3] | 0;
+            X[6] = G2[6] + (G2[5] << 16 | G2[5] >>> 16) + (G2[4] << 16 | G2[4] >>> 16) | 0;
+            X[7] = G2[7] + (G2[6] << 8 | G2[6] >>> 24) + G2[5] | 0;
           }
-          C.RabbitLegacy = StreamCipher._createHelper(RabbitLegacy);
+          C2.RabbitLegacy = StreamCipher._createHelper(RabbitLegacy);
         })();
         return CryptoJS2.RabbitLegacy;
       });
@@ -5437,11 +5437,11 @@
         }
       })(commonjsGlobal, function(CryptoJS2) {
         (function() {
-          var C = CryptoJS2;
-          var C_lib = C.lib;
+          var C2 = CryptoJS2;
+          var C_lib = C2.lib;
           var BlockCipher = C_lib.BlockCipher;
-          var C_algo = C.algo;
-          const N = 16;
+          var C_algo = C2.algo;
+          const N2 = 16;
           const ORIG_P = [
             608135816,
             2242054355,
@@ -6500,23 +6500,23 @@
             pbox: [],
             sbox: []
           };
-          function F(ctx, x) {
-            let a = x >> 24 & 255;
-            let b = x >> 16 & 255;
-            let c = x >> 8 & 255;
-            let d = x & 255;
-            let y = ctx.sbox[0][a] + ctx.sbox[1][b];
-            y = y ^ ctx.sbox[2][c];
-            y = y + ctx.sbox[3][d];
-            return y;
+          function F2(ctx, x2) {
+            let a2 = x2 >> 24 & 255;
+            let b2 = x2 >> 16 & 255;
+            let c2 = x2 >> 8 & 255;
+            let d2 = x2 & 255;
+            let y2 = ctx.sbox[0][a2] + ctx.sbox[1][b2];
+            y2 = y2 ^ ctx.sbox[2][c2];
+            y2 = y2 + ctx.sbox[3][d2];
+            return y2;
           }
           function BlowFish_Encrypt(ctx, left, right) {
             let Xl = left;
             let Xr = right;
             let temp;
-            for (let i = 0; i < N; ++i) {
-              Xl = Xl ^ ctx.pbox[i];
-              Xr = F(ctx, Xl) ^ Xr;
+            for (let i2 = 0; i2 < N2; ++i2) {
+              Xl = Xl ^ ctx.pbox[i2];
+              Xr = F2(ctx, Xl) ^ Xr;
               temp = Xl;
               Xl = Xr;
               Xr = temp;
@@ -6524,17 +6524,17 @@
             temp = Xl;
             Xl = Xr;
             Xr = temp;
-            Xr = Xr ^ ctx.pbox[N];
-            Xl = Xl ^ ctx.pbox[N + 1];
+            Xr = Xr ^ ctx.pbox[N2];
+            Xl = Xl ^ ctx.pbox[N2 + 1];
             return { left: Xl, right: Xr };
           }
           function BlowFish_Decrypt(ctx, left, right) {
             let Xl = left;
             let Xr = right;
             let temp;
-            for (let i = N + 1; i > 1; --i) {
-              Xl = Xl ^ ctx.pbox[i];
-              Xr = F(ctx, Xl) ^ Xr;
+            for (let i2 = N2 + 1; i2 > 1; --i2) {
+              Xl = Xl ^ ctx.pbox[i2];
+              Xr = F2(ctx, Xl) ^ Xr;
               temp = Xl;
               Xl = Xr;
               Xr = temp;
@@ -6554,7 +6554,7 @@
               }
             }
             let keyIndex = 0;
-            for (let index = 0; index < N + 2; index++) {
+            for (let index = 0; index < N2 + 2; index++) {
               ctx.pbox[index] = ORIG_P[index] ^ key[keyIndex];
               keyIndex++;
               if (keyIndex >= keysize) {
@@ -6564,20 +6564,20 @@
             let Data1 = 0;
             let Data2 = 0;
             let res = 0;
-            for (let i = 0; i < N + 2; i += 2) {
+            for (let i2 = 0; i2 < N2 + 2; i2 += 2) {
               res = BlowFish_Encrypt(ctx, Data1, Data2);
               Data1 = res.left;
               Data2 = res.right;
-              ctx.pbox[i] = Data1;
-              ctx.pbox[i + 1] = Data2;
+              ctx.pbox[i2] = Data1;
+              ctx.pbox[i2 + 1] = Data2;
             }
-            for (let i = 0; i < 4; i++) {
-              for (let j = 0; j < 256; j += 2) {
+            for (let i2 = 0; i2 < 4; i2++) {
+              for (let j2 = 0; j2 < 256; j2 += 2) {
                 res = BlowFish_Encrypt(ctx, Data1, Data2);
                 Data1 = res.left;
                 Data2 = res.right;
-                ctx.sbox[i][j] = Data1;
-                ctx.sbox[i][j + 1] = Data2;
+                ctx.sbox[i2][j2] = Data1;
+                ctx.sbox[i2][j2 + 1] = Data2;
               }
             }
             return true;
@@ -6592,21 +6592,21 @@
               var keySize = key.sigBytes / 4;
               BlowFishInit(BLOWFISH_CTX, keyWords, keySize);
             },
-            encryptBlock: function(M, offset) {
-              var res = BlowFish_Encrypt(BLOWFISH_CTX, M[offset], M[offset + 1]);
-              M[offset] = res.left;
-              M[offset + 1] = res.right;
+            encryptBlock: function(M2, offset) {
+              var res = BlowFish_Encrypt(BLOWFISH_CTX, M2[offset], M2[offset + 1]);
+              M2[offset] = res.left;
+              M2[offset + 1] = res.right;
             },
-            decryptBlock: function(M, offset) {
-              var res = BlowFish_Decrypt(BLOWFISH_CTX, M[offset], M[offset + 1]);
-              M[offset] = res.left;
-              M[offset + 1] = res.right;
+            decryptBlock: function(M2, offset) {
+              var res = BlowFish_Decrypt(BLOWFISH_CTX, M2[offset], M2[offset + 1]);
+              M2[offset] = res.left;
+              M2[offset + 1] = res.right;
             },
             blockSize: 64 / 32,
             keySize: 128 / 32,
             ivSize: 64 / 32
           });
-          C.Blowfish = BlockCipher._createHelper(Blowfish);
+          C2.Blowfish = BlockCipher._createHelper(Blowfish);
         })();
         return CryptoJS2.Blowfish;
       });
@@ -6678,7 +6678,7 @@
   }
   function formatNotificationContent(assignments) {
     const pendingCount = assignments.length;
-    const urgentCount = assignments.filter((a) => a.urgency === "critical" || a.urgency === "urgent").length;
+    const urgentCount = assignments.filter((a2) => a2.urgency === "critical" || a2.urgency === "urgent").length;
     const title = `【NoDDL 预警】有 ${pendingCount} 项作业待提交（${urgentCount} 项紧急）`;
     const markdownLines = [
       `### 🔔 NoDDL (Not Only DDL) 作业死线提醒`,
@@ -6798,11 +6798,11 @@
       while ((preMatch = preRegex.exec(html)) !== null) {
         blocks.push(cleanCodeBlock(preMatch[1]));
       }
-      for (let i = 0; i < blocks.length - 1; i += 2) {
+      for (let i2 = 0; i2 < blocks.length - 1; i2 += 2) {
         testCases.push({
-          index: i / 2 + 1,
-          input: blocks[i],
-          output: blocks[i + 1]
+          index: i2 / 2 + 1,
+          input: blocks[i2],
+          output: blocks[i2 + 1]
         });
       }
     }
@@ -6910,7 +6910,7 @@
         } catch {
         }
       }
-      return allAssignments.filter((item) => item.status === "pending" && item.remainingHours <= hoursThreshold).sort((a, b) => a.deadlineTimestamp - b.deadlineTimestamp);
+      return allAssignments.filter((item) => item.status === "pending" && item.remainingHours <= hoursThreshold).sort((a2, b2) => a2.deadlineTimestamp - b2.deadlineTimestamp);
     }
     /**
      * 获取题目详情与测试用例
@@ -7060,7 +7060,1089 @@ ${markdown}` }
       }
     }
   }
-  function renderUrgentBanner(assignments, onConfigClick) {
+  var n, t$1, r$1, u$2, f$1, o$2, e$1, l$1, c$1, a$1, h$1 = {}, p$1 = [], v$1 = /^m(i|n|o|s|text|space)$/, y$1 = Array.isArray, d$1 = p$1.slice, w = Object.assign;
+  function _$1(n2) {
+    n2 && n2.parentNode && n2.remove();
+  }
+  function g$1(n2, t2, i2) {
+    var r2, u2, f2, o2 = {}, e2 = arguments.length;
+    for (f2 in t2) "key" == f2 ? r2 = t2[f2] : "ref" == f2 && "function" != typeof n2 ? u2 = t2[f2] : o2[f2] = t2[f2];
+    return e2 > 2 && (o2.children = e2 > 3 ? d$1.call(arguments, 2) : i2), b(n2, o2, r2, u2, null);
+  }
+  function b(i2, r2, u2, f2, o2) {
+    var e2 = { type: i2, props: r2, key: u2, ref: f2, __k: null, __: null, __b: 0, __e: null, __c: null, constructor: void 0, __v: o2 || ++t$1, __i: -1, __u: 0 };
+    return !o2 && n.vnode && n.vnode(e2), e2;
+  }
+  function M(n2) {
+    return n2.children;
+  }
+  function $(n2, t2) {
+    this.props = n2, this.context = t2, this.__g = 0;
+  }
+  function x(n2, t2) {
+    if (null == t2) return n2.__ ? x(n2.__, n2.__i + 1) : null;
+    for (var i2; t2 < n2.__k.length; t2++) if ((i2 = n2.__k[t2]) && i2.__e) return i2.__e;
+    return "function" != typeof n2.type || n2.props.__P ? null : x(n2);
+  }
+  function S(n2) {
+    if ((n2 = n2.__) && n2.__c && !n2.props.__P) return n2.__e = null, n2.__k.some(function(t2) {
+      return t2 && (n2.__e = t2.__e);
+    }), S(n2);
+  }
+  function C$1(t2) {
+    (8 & t2.__g || !(t2.__g |= 8) || !r$1.push(t2) || f$1++) && u$2 == n.debounceRendering || ((u$2 = n.debounceRendering) || queueMicrotask)(j);
+  }
+  function j() {
+    var t2, i2, u2, e2, l2, c2, a2, s2, h2;
+    try {
+      for (i2 = 1; r$1.length; ) r$1.length > i2 && r$1.sort(o$2), t2 = r$1.shift(), i2 = r$1.length, 8 & t2.__g && (e2 = void 0, l2 = void 0, c2 = (l2 = (u2 = t2).__v).__e, a2 = [], s2 = [], (h2 = u2.__P) && ((e2 = w({ constructor: void 0 }, l2)).__v = l2.__v + 1, n.vnode && n.vnode(e2), N(h2, e2, l2, u2.__n, h2.namespaceURI, 32 & l2.__u ? [c2] : null, a2, c2 || x(l2), 32 & l2.__u, s2), e2.__v = l2.__v, e2.__.__k[e2.__i] = e2, z$1(a2, e2, s2), l2.__ = l2.__e = null, e2.__e != c2 && S(e2)));
+    } finally {
+      r$1.length = f$1 = 0;
+    }
+  }
+  function L(n2, t2, i2, r2, u2, f2, o2, e2, l2, c2, a2) {
+    var s2, v2, y2, d2, w2, _2, g2 = r2.__k || p$1, k2 = t2.length;
+    for (l2 = H(i2, t2, g2, l2, k2), s2 = 0; s2 < k2; s2++) null != (y2 = i2.__k[s2]) && (v2 = ~y2.__i && g2[y2.__i] || h$1, y2.__i = s2, _2 = N(n2, y2, v2, u2, f2, o2, e2, l2, c2, a2), d2 = y2.__e, (v2.ref != y2.ref || 8 & v2.__u) && (v2.ref && D$1(v2.ref, null, y2, v2), y2.ref && a2.push(y2.ref, y2.__c || d2, y2)), w2 = w2 || d2, 4 & y2.__u ? (l2 = I(y2, l2, n2, !v2.__v), v2.__e && (v2.__e = null)) : "function" == typeof y2.type && void 0 !== _2 ? l2 = _2 : d2 && (l2 = d2.nextSibling), y2.__u &= -7);
+    return i2.__e = w2, l2;
+  }
+  function H(n2, t2, i2, r2, u2) {
+    var f2, o2, e2, l2, c2, a2, s2, h2, p2, v2, d2 = i2.length, w2 = d2, _2 = 0, g2 = false, k2 = n2.__k = Array(u2);
+    for (f2 = 0; f2 < u2; f2++) null != (o2 = t2[f2]) && "boolean" != typeof o2 && "function" != typeof o2 ? ("object" != typeof o2 || o2.constructor == String ? o2 = k2[f2] = b(null, o2) : y$1(o2) ? o2 = k2[f2] = b(M, { children: o2 }) : void 0 === o2.constructor && o2.__b ? o2 = k2[f2] = b(o2.type, o2.props, o2.key, o2.ref, o2.__v) : k2[f2] = o2, l2 = f2 + _2, o2.__ = n2, o2.__b = n2.__b + 1, e2 = null, ~(c2 = o2.__i = O(o2, i2, l2, w2)) && (w2--, (e2 = i2[c2]) && (e2.__u |= 2)), e2 && e2.__v ? (o2.__u |= 2, c2 == l2 - 1 ? _2-- : c2 == l2 + 1 ? _2++ : c2 != l2 && (c2 > l2 ? _2-- : _2++, g2 = true)) : (~c2 || (u2 > d2 ? _2-- : u2 < d2 && _2++), "function" != typeof o2.type && (o2.__u |= 4))) : k2[f2] = null;
+    if (g2) {
+      for (a2 = [], s2 = [], f2 = 0; f2 < u2; f2++) if ((o2 = k2[f2]) && 2 & o2.__u) {
+        for (h2 = 0, p2 = a2.length; h2 < p2; ) a2[v2 = h2 + p2 >> 1] < o2.__i ? h2 = v2 + 1 : p2 = v2;
+        a2[h2] = o2.__i, s2[f2] = h2 + 1;
+      }
+      for (_2 = a2.length; f2--; ) s2[f2] && (s2[f2] == _2 ? _2-- : k2[f2].__u |= 4);
+    }
+    if (w2) for (f2 = 0; f2 < d2; f2++) !(e2 = i2[f2]) || 2 & e2.__u || (e2.__e == r2 && (r2 = x(e2)), E$1(e2, e2));
+    return r2;
+  }
+  function I(n2, t2, i2, r2) {
+    var u2, f2, o2;
+    if ("function" == typeof n2.type) {
+      if (n2.props.__P) return t2;
+      if (u2 = n2.__k) for (f2 = 0; f2 < u2.length; f2++) u2[f2] && (u2[f2].__ = n2, t2 = I(u2[f2], t2, i2, false));
+      return t2;
+    }
+    for (t2 && !t2.parentNode && (t2 = x(n2)) && !t2.parentNode && (t2 = null), o2 = t2; o2 && 8 == o2.nodeType; ) o2 = o2.nextSibling;
+    for (n2.__e != o2 && (!r2 && i2.moveBefore && n2.__e.parentNode ? i2.moveBefore(n2.__e, t2) : i2.insertBefore(n2.__e, t2 || null)), t2 = n2.__e; (t2 = t2 && t2.nextSibling) && 8 == t2.nodeType; ) ;
+    return t2;
+  }
+  function O(n2, t2, i2, r2) {
+    var u2, f2, o2, e2 = n2.key, l2 = n2.type, c2 = t2[i2], a2 = c2 && !(2 & c2.__u);
+    if (null === c2 && null == e2 || a2 && e2 == c2.key && l2 == c2.type) return i2;
+    if (r2 > (a2 ? 1 : 0)) {
+      for (u2 = i2 - 1, f2 = i2 + 1; u2 >= 0 || f2 < t2.length; ) if ((c2 = t2[o2 = u2 >= 0 ? u2-- : f2++]) && !(2 & c2.__u) && e2 == c2.key && l2 == c2.type) return o2;
+    }
+    return -1;
+  }
+  function P(n2, t2, i2) {
+    null == i2 && (i2 = ""), "-" == t2[0] ? n2.setProperty(t2, i2) : n2[t2] = i2;
+  }
+  function T(n2, t2, i2, r2, u2) {
+    var f2, o2;
+    n: if ("style" == t2) if ("string" == typeof i2) n2.style.cssText = i2;
+    else {
+      if ("string" == typeof r2 && (n2.style.cssText = r2 = ""), r2) for (t2 in r2) i2 && t2 in i2 || P(n2.style, t2, "");
+      if (i2) for (t2 in i2) r2 && i2[t2] == r2[t2] || P(n2.style, t2, i2[t2]);
+    }
+    else if ("o" == t2[0] && "n" == t2[1]) (n2.__e || (n2.__e = {}))[t2] = i2, i2 && r2 || (o2 = a$1[t2] || (a$1[t2] = q(t2)), (n2.__a || (n2.__a = {}))[t2] = c$1, f2 = t2 != (t2 = t2.replace(l$1, "$1")), (t2 = t2.slice(2))[0] < "a" && (t2 = t2.toLowerCase()), i2 ? n2.addEventListener(t2, o2, f2) : n2.removeEventListener(t2, o2, f2));
+    else {
+      if ("http://www.w3.org/2000/svg" == u2) t2 = t2.replace(/xlink(H|:h)/, "h").replace(/sName$/, "s");
+      else if ("width" != t2 && "height" != t2 && "href" != t2 && "list" != t2 && "form" != t2 && "tabIndex" != t2 && "download" != t2 && "rowSpan" != t2 && "colSpan" != t2 && "role" != t2 && "popover" != t2 && t2 in n2) try {
+        n2[t2] = null == i2 ? "" : i2;
+        break n;
+      } catch (n3) {
+      }
+      "function" == typeof i2 || (null == i2 || false === i2 && "-" != t2[4] ? n2.removeAttribute(t2) : n2.setAttribute(t2, "popover" == t2 && 1 == i2 ? "" : i2));
+    }
+  }
+  function q(t2) {
+    return function(i2) {
+      if (this.__e) {
+        var r2 = this.__e[t2];
+        if (null == i2[e$1]) i2[e$1] = c$1++;
+        else if (i2[e$1] < this.__a[t2]) return;
+        return r2(n.event ? n.event(i2) : i2);
+      }
+    };
+  }
+  function N(t2, i2, r2, u2, f2, o2, e2, l2, c2, a2) {
+    var s2, h2, v2, d2, g2, k2, b2, m2, S2, C2, j2, H2, I2, A2, O2, P2, T2, q2, N2, z2, D2 = i2.type;
+    if (void 0 !== i2.constructor) return null;
+    if (128 & r2.__u && (c2 = 32 & r2.__u, s2 = r2.__c.__z)) {
+      if (i2.__u |= c2, h2 = o2 = [], 8 == s2.nodeType) for (v2 = 1, d2 = s2.nextSibling; d2; d2 = d2.nextSibling) {
+        if (8 == d2.nodeType) {
+          if (d2.data.startsWith("$s")) v2++;
+          else if (d2.data.startsWith("/$s") && !--v2) break;
+        }
+        o2.push(d2);
+      }
+      else o2.push(s2);
+      l2 = o2[0];
+    }
+    (s2 = n.__b) && s2(i2);
+    n: if ("function" == typeof D2) {
+      g2 = e2.length;
+      try {
+        if (C2 = i2.props, j2 = (s2 = D2.prototype) && s2.render, H2 = (s2 = D2.contextType) && u2[s2.__c], I2 = s2 ? H2 ? H2.props.value : s2.__ : u2, r2.__c ? 2 & (k2 = i2.__c = r2.__c).__g && (k2.__g |= 1) : (j2 ? i2.__c = k2 = new D2(C2, I2) : (i2.__c = k2 = new $(C2, I2), k2.constructor = D2, k2.render = F), H2 && H2.sub(k2), k2.state || (k2.state = {}), k2.__n = u2, k2.__g |= 8, k2.__h = [], k2.__k = []), j2 && (k2.__s || (k2.__s = k2.state), D2.getDerivedStateFromProps && (k2.__s == k2.state && (k2.__s = w({}, k2.__s)), w(k2.__s, D2.getDerivedStateFromProps(C2, k2.__s)))), b2 = k2.props, m2 = k2.state, k2.__v = i2, r2.__c) {
+          if (j2 && !D2.getDerivedStateFromProps && C2 !== b2 && k2.componentWillReceiveProps && k2.componentWillReceiveProps(C2, I2), i2.__v == r2.__v && !(8 & k2.__g) || !(4 & k2.__g) && k2.shouldComponentUpdate && false === k2.shouldComponentUpdate(C2, k2.__s, I2)) {
+            i2.__v != r2.__v && (k2.props = C2, k2.state = k2.__s, k2.__g &= -9), i2.__e = r2.__e, i2.__k = r2.__k, i2.__k.some(function(n2) {
+              n2 && (n2.__ = i2);
+            }), p$1.push.apply(k2.__h, k2.__k), k2.__k = [], k2.__h.length && e2.push(k2), l2 = x(r2);
+            break n;
+          }
+          k2.componentWillUpdate && k2.componentWillUpdate(C2, k2.__s, I2), j2 && k2.componentDidUpdate && k2.__h.push(function() {
+            k2.componentDidUpdate(b2, m2, S2);
+          });
+        } else j2 && !D2.getDerivedStateFromProps && k2.componentWillMount && k2.componentWillMount(), j2 && k2.componentDidMount && k2.__h.push(k2.componentDidMount);
+        if (k2.context = I2, k2.props = C2, k2.__P = t2, k2.__g &= -5, A2 = n.__r, O2 = 0, j2) k2.state = k2.__s, k2.__g &= -9, A2 && A2(i2), s2 = k2.render(k2.props, k2.state, k2.context), p$1.push.apply(k2.__h, k2.__k), k2.__k = [];
+        else do {
+          k2.__g &= -9, A2 && A2(i2), s2 = k2.render(k2.props, k2.state, k2.context), k2.state = k2.__s;
+        } while (8 & k2.__g && ++O2 < 25);
+        k2.state = k2.__s, k2.getChildContext && (u2 = w({}, u2, k2.getChildContext())), j2 && r2.__c && k2.getSnapshotBeforeUpdate && (S2 = k2.getSnapshotBeforeUpdate(b2, m2)), P2 = s2 && s2.type === M && null == s2.key ? s2.props.children : s2, C2.__P && (s2 = l2, f2 = (t2 = C2.__P).namespaceURI, c2 = o2 = null, r2.props && r2.props.__P != t2 && (r2.__k.some(function(n2) {
+          n2 && E$1(n2, n2);
+        }), r2.__k = null), l2 = r2.__k ? x(r2, 0) : null), l2 = L(t2, y$1(P2) ? P2 : [P2], i2, r2, u2, f2, o2, e2, l2, c2, a2), C2.__P && (i2.__e = null, l2 = s2), i2.__u &= -161, 128 & r2.__u && (k2.__z = null), h2 && h2.some(_$1), k2.__h.length && e2.push(k2), 1 & k2.__g && (k2.__g &= -4);
+      } catch (t3) {
+        if (e2.length = g2, i2.__v = null, c2 || o2) if (t3.then) {
+          if (T2 = 0, i2.__u |= c2 ? 160 : 128, o2) {
+            for (~(N2 = o2.indexOf(l2 || void 0)) || (N2 = o2.length); (z2 = o2[N2 - 1]) && 8 == z2.nodeType; ) N2--;
+            for (; N2 < o2.length; N2++) if (z2 = o2[N2]) {
+              if (o2[N2] = null, 8 == z2.nodeType) {
+                if (z2.data.startsWith("$s")) T2++ || (q2 = z2);
+                else if (T2 && z2.data.startsWith("/$s") && !--T2) {
+                  l2 = z2;
+                  break;
+                }
+              } else if (!T2) break;
+            }
+          }
+          if (!q2) {
+            for (; l2 && 8 == l2.nodeType && l2.nextSibling; ) l2 = l2.nextSibling;
+            q2 = l2;
+          }
+          i2.__c.__z || (i2.__c.__z = q2), i2.__e = l2;
+        } else o2 && o2.some(_$1);
+        else i2.__e = r2.__e;
+        i2.__k || (i2.__k = r2.__k || []), t3.then || V(i2), n.__e(t3, i2, r2);
+      }
+    } else l2 = i2.__e = B$1(r2.__e, i2, r2, u2, f2, o2, e2, c2, a2, t2);
+    return (s2 = n.diffed) && s2(i2), 128 & i2.__u ? void 0 : l2;
+  }
+  function V(n2) {
+    n2 && (n2.__c && (n2.__c.__g |= 4), n2.__k && n2.__k.some(V));
+  }
+  function z$1(t2, i2, r2) {
+    for (var u2 = 0; u2 < r2.length; ) D$1(r2[u2++], r2[u2++], r2[u2++]);
+    n.__c && n.__c(i2, t2), t2.some(function(i3) {
+      try {
+        t2 = i3.__h, i3.__h = [], t2.some(function(n2) {
+          n2.call(i3);
+        });
+      } catch (t3) {
+        n.__e(t3, i3.__v);
+      }
+    });
+  }
+  function B$1(t2, i2, r2, u2, f2, o2, e2, l2, c2, a2) {
+    var s2, p2, w2, g2, k2, b2, m2, M2, $2, S2 = r2.props || h$1, C2 = i2.props, j2 = i2.type;
+    if ("svg" == j2 ? f2 = "http://www.w3.org/2000/svg" : "math" == j2 ? f2 = "http://www.w3.org/1998/Math/MathML" : f2 || (f2 = "http://www.w3.org/1999/xhtml"), o2) {
+      for (s2 = 0; s2 < o2.length; s2++) if ((k2 = o2[s2]) && (j2 ? k2.localName == j2 : 3 == k2.nodeType)) {
+        t2 = k2, o2[s2] = null;
+        break;
+      }
+    }
+    if (!t2) {
+      if (M2 = a2.ownerDocument || document, !j2) return M2.createTextNode(C2);
+      t2 = M2.createElementNS(f2, j2, C2.is && C2), l2 && (n.__m && n.__m(i2, o2), l2 = false), o2 = null;
+    }
+    if (j2) {
+      if (a2 = "template" == j2 ? t2.content : t2, o2 = "textarea" == j2 && null != C2.defaultValue ? null : o2 && d$1.call(a2.childNodes), !l2 && o2) for (S2 = {}, s2 = 0; s2 < t2.attributes.length; s2++) S2[(k2 = t2.attributes[s2]).name] = k2.value;
+      for (s2 in S2) k2 = S2[s2], "dangerouslySetInnerHTML" == s2 ? w2 = k2 : "children" == s2 || s2 in C2 || "value" == s2 && "defaultValue" in C2 || "checked" == s2 && "defaultChecked" in C2 || T(t2, s2, null, k2, f2);
+      for (s2 in $2 = 1 & r2.__u, C2) k2 = C2[s2], "children" == s2 ? g2 = k2 : "dangerouslySetInnerHTML" == s2 ? p2 = k2 : "value" == s2 ? b2 = k2 : "checked" == s2 ? m2 = k2 : l2 && "function" != typeof k2 || !(S2[s2] !== k2 || $2 && null != k2) || T(t2, s2, k2, S2[s2], f2);
+      p2 ? (l2 || w2 && (p2.__html == w2.__html || p2.__html == t2.innerHTML) || (t2.innerHTML = p2.__html), i2.__k = []) : (w2 && (t2.textContent = ""), ("foreignObject" == j2 || "http://www.w3.org/1998/Math/MathML" == f2 && v$1.test(j2)) && (f2 = "http://www.w3.org/1999/xhtml"), L(a2, y$1(g2) ? g2 : [g2], i2, r2, u2, f2, o2, e2, o2 ? o2[0] : r2.__k && x(r2, 0), l2, c2), o2 && o2.some(_$1)), l2 && "textarea" != j2 || (s2 = "value", "progress" == j2 && null == b2 ? t2.removeAttribute(s2) : null == b2 || b2 === t2[s2] && ("progress" != j2 || b2) || T(t2, s2, b2, S2[s2], f2), s2 = "checked", null != m2 && m2 != t2[s2] && T(t2, s2, m2, S2[s2], f2));
+    } else S2 === C2 || l2 && t2.data == C2 || (t2.data = C2);
+    return t2;
+  }
+  function D$1(t2, i2, r2, u2) {
+    try {
+      "function" == typeof t2 ? i2 ? i2.__x = t2(i2) || 1 : u2 && (u2 = u2.__c || u2.__e) && (i2 = u2.__x) && (u2.__x = null, "function" == typeof i2 ? i2() : t2(null)) : t2.current = i2;
+    } catch (t3) {
+      n.__e(t3, r2);
+    }
+  }
+  function E$1(t2, i2, r2) {
+    var u2, f2;
+    if (n.unmount && n.unmount(t2), !(u2 = t2.ref) || u2.current && u2.current != t2.__e || D$1(u2, null, i2, t2), u2 = t2.__c) {
+      if (u2.componentWillUnmount) try {
+        u2.componentWillUnmount();
+      } catch (t3) {
+        n.__e(t3, i2);
+      }
+      u2.__P = u2.__n = null;
+    }
+    if (u2 = t2.__k) for (f2 = 0; f2 < u2.length; f2++) u2[f2] && E$1(u2[f2], i2, "function" != typeof t2.type || r2 && !t2.props.__P);
+    (u2 = t2.__e) && (r2 || _$1(u2), u2.__e && (u2.__e = null)), t2.__e = t2.__c = t2.__ = null;
+  }
+  function F(n2, t2, i2) {
+    return this.constructor(n2, i2);
+  }
+  function G$1(t2, i2) {
+    var r2, u2, f2, o2;
+    n.__ && n.__(t2, i2), 9 == i2.nodeType && (i2 = i2.documentElement), u2 = (r2 = t2 && 32 & t2.__u) ? null : i2.__k, i2.__k = b(M, { children: [t2] }), f2 = [], o2 = [], N(i2, i2.__k, u2 || h$1, h$1, i2.namespaceURI, u2 ? null : i2.firstChild ? d$1.call(i2.childNodes) : null, f2, u2 ? u2.__e : i2.firstChild, r2, o2), z$1(f2, i2.__k, o2), i2.__k.props.children = null;
+  }
+  n = { __e: function(n2, t2, i2, r2) {
+    for (var u2, o2, e2; t2 = t2.__; ) if ((u2 = t2.__c) && !(1 & u2.__g)) {
+      u2.__g |= 4;
+      try {
+        if ((o2 = u2.constructor) && o2.getDerivedStateFromError && (u2.setState(o2.getDerivedStateFromError(n2)), e2 = 8 & u2.__g), u2.componentDidCatch && (u2.componentDidCatch(n2, r2 || {}), e2 = 8 & u2.__g), e2) return void (u2.__g |= 2);
+      } catch (t3) {
+        n2 = t3, e2 = 0;
+      }
+    }
+    throw f$1 = 0, n2;
+  } }, t$1 = 0, $.prototype.setState = function(n2, t2) {
+    var i2 = this.__s;
+    i2 && i2 != this.state || (i2 = this.__s = w({}, this.state)), "function" == typeof n2 && (n2 = n2(w({}, i2), this.props)), n2 && (w(i2, n2), this.__v && (t2 && this.__k.push(t2), C$1(this)));
+  }, $.prototype.forceUpdate = function(n2) {
+    this.__v && (this.__g |= 4, n2 && this.__h.push(n2), C$1(this));
+  }, $.prototype.render = M, r$1 = [], f$1 = 0, o$2 = function(n2, t2) {
+    return n2.__v.__b - t2.__v.__b;
+  }, e$1 = Symbol(), l$1 = /(PointerCapture)$|Capture$/i, c$1 = 0, a$1 = {};
+  var o$1 = 0;
+  function u$1(t2, e2, n$1, f2, u2, i2) {
+    e2 || (e2 = {});
+    var a2, c2, l2 = e2;
+    if ("ref" in l2 && "function" != typeof t2) for (c2 in l2 = {}, e2) "ref" == c2 ? a2 = e2[c2] : l2[c2] = e2[c2];
+    var p2 = { type: t2, props: l2, key: n$1, ref: a2, __k: null, __: null, __b: 0, __e: null, __c: null, constructor: void 0, __v: --o$1, __i: -1, __u: 0 };
+    return n.vnode && n.vnode(p2), p2;
+  }
+  var t, r, u, i, o = Object.is, f = 0, c = [], e = [], a = n, v = a.__b, l = a.__r, m = a.diffed, s = a.__c, h = a.unmount, p = a.__;
+  function y(n2, t2) {
+    a.__h && a.__h(r, n2, f || t2), f = 0;
+    var u2 = r.__H || (r.__H = { __: [], __h: [] });
+    return n2 >= u2.__.length && u2.__.push({}), u2.__[n2];
+  }
+  function d(n2) {
+    return f = 1, _(G, n2);
+  }
+  function _(n2, u2, i2) {
+    var f2 = y(t++, 2);
+    if (f2.t = n2, !f2.__c && (f2.__ = [G(void 0, u2), function(n3) {
+      var t2 = f2.__N ? f2.__N[0] : f2.__[0], r2 = f2.t(t2, n3);
+      o(t2, r2) || (f2.__N = [r2, f2.__[1]], f2.__c.setState({}));
+    }], f2.__c = r, !r.__f)) {
+      r.__f = true;
+      var c2 = r.shouldComponentUpdate;
+      r.shouldComponentUpdate = function(n3, t2, r2) {
+        var u3 = this.__H;
+        if (!u3) return true;
+        var i3 = false, f3 = this.props != n3;
+        if (u3.__.some(function(n4) {
+          n4.__N && (i3 = true, o(n4.__[0], n4.__N[0]) || (f3 = true));
+        }), c2) {
+          var e2 = c2.call(this, n3, t2, r2);
+          return i3 ? e2 || f3 : e2;
+        }
+        return !i3 || f3;
+      };
+    }
+    return f2.__;
+  }
+  function A(n2, u2) {
+    var i2 = y(t++, 3);
+    !a.__s && E(i2.__H, u2) && (i2.__P = true, i2.__ = n2, i2.u = u2, r.__H.__h.push(i2));
+  }
+  function g() {
+    var n2;
+    do {
+      for (; n2 = e.shift(); ) try {
+        C(n2);
+      } catch (t3) {
+        a.__e(t3, { __: (n2 = n2.__P) && n2.__v });
+      }
+      for (; n2 = c.shift(); ) {
+        var t2 = n2.__H;
+        if (n2.__P && t2) try {
+          t2.__h.some(C), t2.__h.some(D), t2.__h = [];
+        } catch (r2) {
+          t2.__h = [], a.__e(r2, n2.__v);
+        }
+      }
+    } while (e.length);
+  }
+  a.__b = function(n2) {
+    r = null, v && v(n2);
+  }, a.__ = function(n2, t2) {
+    n2 && t2.__k && t2.__k.__m && (n2.__m = t2.__k.__m), p && p(n2, t2);
+  }, a.__r = function(n2) {
+    l && l(n2), t = 0;
+    var i2 = (r = n2.__c).__H;
+    i2 && (u == r ? r.__h = [] : (i2.__h.some(C), i2.__h.some(D), t = 0), i2.__h = [], i2.__.some(function(n3) {
+      n3.__N && (n3.__ = n3.__N), n3.u = n3.__N = void 0;
+    })), u = r;
+  }, a.diffed = function(n2) {
+    m && m(n2);
+    var t2 = n2.__c;
+    t2 && t2.__H && (t2.__H.__h.length && B(c.push(t2)), t2.__H.__.some(function(n3) {
+      n3.u && (n3.__H = n3.u);
+    })), u = r = null;
+  }, a.__c = function(n2, t2) {
+    t2.some(function(n3) {
+      try {
+        n3.__h.some(C), n3.__h = n3.__h.filter(function(n4) {
+          return !n4.__ || D(n4);
+        });
+      } catch (r2) {
+        t2.some(function(n4) {
+          n4.__h && (n4.__h = []);
+        }), t2 = [], a.__e(r2, n3.__v);
+      }
+    }), s && s(n2, t2);
+  }, a.unmount = function(n2) {
+    h && h(n2);
+    var t2, r2, u2 = n2.__c;
+    u2 && u2.__H && (u2.__H.__.some(function(u3) {
+      try {
+        if (u3.__P && u3.__c) {
+          if (void 0 === r2) {
+            for (r2 = n2.__; r2 && (!r2.__c || !r2.__c.__P); ) r2 = r2.__;
+            r2 = r2 && r2.__c;
+          }
+          u3.__P = r2, B(e.push(u3));
+        } else C(u3);
+      } catch (n3) {
+        t2 = n3;
+      }
+    }), u2.__H = void 0, t2 && a.__e(t2, u2.__v));
+  };
+  var k = "function" == typeof requestAnimationFrame;
+  function z(n2) {
+    var t2, r2 = function() {
+      clearTimeout(u2), k && cancelAnimationFrame(t2), setTimeout(n2);
+    }, u2 = setTimeout(r2, 35);
+    k && (t2 = requestAnimationFrame(r2));
+  }
+  function B(n2) {
+    1 != n2 && i == a.requestAnimationFrame || ((i = a.requestAnimationFrame) || z)(g);
+  }
+  function C(n2) {
+    var t2 = r, u2 = n2.__c;
+    "function" == typeof u2 && (n2.__c = void 0, u2()), r = t2;
+  }
+  function D(n2) {
+    var t2 = r;
+    n2.__c = n2.__(), r = t2;
+  }
+  function E(n2, t2) {
+    return !n2 || n2.length != t2.length || t2.some(function(t3, r2) {
+      return !o(t3, n2[r2]);
+    });
+  }
+  function G(n2, t2) {
+    return "function" == typeof t2 ? t2(n2) : t2;
+  }
+  function App({ client: client2, storage: storage2, initialAssignments }) {
+    const [isOpen, setIsOpen] = d(false);
+    const [activeTab, setActiveTab] = d("homework");
+    const [assignments, setAssignments] = d(initialAssignments);
+    const [loading, setLoading] = d(false);
+    const [filter, setFilter] = d("pending");
+    const [pushplusToken, setPushplusToken] = d("");
+    const [barkUrl, setBarkUrl] = d("");
+    const [threshold, setThreshold] = d(72);
+    const [submissions, setSubmissions] = d([]);
+    const [evalLoading, setEvalLoading] = d(false);
+    const [drafts, setDrafts] = d([]);
+    const [toast, setToast] = d(null);
+    const showToast = (msg) => {
+      setToast(msg);
+      setTimeout(() => setToast(null), 2500);
+    };
+    A(() => {
+      (async () => {
+        const token = await storage2.get("nodd_pushplus_token") || "";
+        const bark = await storage2.get("nodd_bark_url") || "";
+        const th = parseInt(await storage2.get("nodd_hours_threshold") || "72", 10);
+        setPushplusToken(token);
+        setBarkUrl(bark);
+        setThreshold(th);
+      })();
+    }, []);
+    const refreshAssignments = async () => {
+      setLoading(true);
+      try {
+        const list = await client2.getPendingAssignments(threshold);
+        setAssignments(list);
+        showToast(`已刷新：发现 ${list.length} 项待完成任务`);
+      } catch {
+        showToast("获取作业列表失败");
+      } finally {
+        setLoading(false);
+      }
+    };
+    const refreshSubmissions = async () => {
+      setEvalLoading(true);
+      try {
+        const subs = await client2.getLatestSubmissions();
+        setSubmissions(subs);
+      } catch {
+        showToast("获取评测历史失败");
+      } finally {
+        setEvalLoading(false);
+      }
+    };
+    const loadDrafts = () => {
+      const list = [];
+      for (let i2 = 0; i2 < localStorage.length; i2++) {
+        const key = localStorage.key(i2);
+        if (key && key.startsWith("nodd_autosave_")) {
+          try {
+            const item = JSON.parse(localStorage.getItem(key) || "{}");
+            if (item.code) {
+              list.push({
+                key,
+                time: item.time || "未知时间",
+                length: item.code.length,
+                code: item.code
+              });
+            }
+          } catch {
+          }
+        }
+      }
+      setDrafts(list);
+    };
+    const savePushConfig = async () => {
+      await storage2.set("nodd_pushplus_token", pushplusToken.trim());
+      await storage2.set("nodd_bark_url", barkUrl.trim());
+      await storage2.set("nodd_hours_threshold", String(threshold));
+      showToast("推送配置已保存！");
+    };
+    const testPush = async () => {
+      if (!pushplusToken && !barkUrl) {
+        showToast("请先配置 PushPlus Token 或 Bark URL");
+        return;
+      }
+      showToast("正在发送测试推送...");
+      const res = await client2.triggerPushAlert({
+        pushplusToken,
+        barkUrl,
+        hoursThreshold: threshold
+      });
+      if (res.sent) {
+        showToast(`测试推送成功！包含 ${res.count} 项作业`);
+      } else {
+        showToast(`推送失败: ${res.error || "未知原因"}`);
+      }
+    };
+    const copyCookie = () => {
+      const cookie = document.cookie;
+      if (typeof GM_setClipboard !== "undefined") {
+        GM_setClipboard(cookie);
+      } else {
+        navigator.clipboard.writeText(cookie);
+      }
+      showToast("平台 Cookie 凭据已复制到剪贴板！");
+    };
+    const filteredAssignments = assignments.filter((item) => {
+      if (filter === "urgent") return item.urgency === "critical" || item.urgency === "urgent";
+      if (filter === "pending") return item.status === "pending";
+      return true;
+    });
+    const urgentCount = assignments.filter((a2) => a2.urgency === "critical" || a2.urgency === "urgent").length;
+    return /* @__PURE__ */ u$1("div", { children: [
+      /* @__PURE__ */ u$1("div", { className: "nodd-trigger", onClick: () => setIsOpen(!isOpen), children: [
+        /* @__PURE__ */ u$1("span", { className: "logo-badge", children: "NoDDL" }),
+        urgentCount > 0 && /* @__PURE__ */ u$1("span", { className: "counter", children: urgentCount })
+      ] }),
+      isOpen && /* @__PURE__ */ u$1("div", { className: "nodd-panel-wrapper", children: [
+        toast && /* @__PURE__ */ u$1("div", { className: "nodd-toast", children: toast }),
+        /* @__PURE__ */ u$1("div", { className: "nodd-header", children: [
+          /* @__PURE__ */ u$1("div", { className: "nodd-header-title", children: /* @__PURE__ */ u$1("span", { children: "🚀 NoDDL 控制台" }) }),
+          /* @__PURE__ */ u$1("div", { className: "nodd-header-actions", children: [
+            /* @__PURE__ */ u$1(
+              "button",
+              {
+                className: "icon-btn",
+                title: "刷新数据",
+                onClick: () => {
+                  if (activeTab === "homework") refreshAssignments();
+                  if (activeTab === "eval") refreshSubmissions();
+                  if (activeTab === "toolbox") loadDrafts();
+                },
+                children: "🔄"
+              }
+            ),
+            /* @__PURE__ */ u$1("button", { className: "icon-btn", title: "关闭面板", onClick: () => setIsOpen(false), children: "✕" })
+          ] })
+        ] }),
+        /* @__PURE__ */ u$1("div", { className: "nodd-tabs", children: [
+          /* @__PURE__ */ u$1(
+            "div",
+            {
+              className: `nodd-tab-item ${activeTab === "homework" ? "active" : ""}`,
+              onClick: () => setActiveTab("homework"),
+              children: [
+                "📋 死线看板 (",
+                assignments.length,
+                ")"
+              ]
+            }
+          ),
+          /* @__PURE__ */ u$1(
+            "div",
+            {
+              className: `nodd-tab-item ${activeTab === "settings" ? "active" : ""}`,
+              onClick: () => setActiveTab("settings"),
+              children: "⚙️ 推送配置"
+            }
+          ),
+          /* @__PURE__ */ u$1(
+            "div",
+            {
+              className: `nodd-tab-item ${activeTab === "toolbox" ? "active" : ""}`,
+              onClick: () => {
+                setActiveTab("toolbox");
+                loadDrafts();
+              },
+              children: "🛠️ 实用工具"
+            }
+          ),
+          /* @__PURE__ */ u$1(
+            "div",
+            {
+              className: `nodd-tab-item ${activeTab === "eval" ? "active" : ""}`,
+              onClick: () => {
+                setActiveTab("eval");
+                refreshSubmissions();
+              },
+              children: "📊 评测状态"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ u$1("div", { className: "nodd-content", children: [
+          activeTab === "homework" && /* @__PURE__ */ u$1("div", { children: [
+            /* @__PURE__ */ u$1("div", { style: "display:flex;gap:6px;margin-bottom:12px;", children: [
+              /* @__PURE__ */ u$1(
+                "button",
+                {
+                  className: `btn btn-sm ${filter === "pending" ? "btn-primary" : "btn-secondary"}`,
+                  onClick: () => setFilter("pending"),
+                  children: [
+                    "未提交 (",
+                    assignments.filter((a2) => a2.status === "pending").length,
+                    ")"
+                  ]
+                }
+              ),
+              /* @__PURE__ */ u$1(
+                "button",
+                {
+                  className: `btn btn-sm ${filter === "urgent" ? "btn-primary" : "btn-secondary"}`,
+                  onClick: () => setFilter("urgent"),
+                  children: [
+                    "即将截止 (",
+                    urgentCount,
+                    ")"
+                  ]
+                }
+              ),
+              /* @__PURE__ */ u$1(
+                "button",
+                {
+                  className: `btn btn-sm ${filter === "all" ? "btn-primary" : "btn-secondary"}`,
+                  onClick: () => setFilter("all"),
+                  children: "全部"
+                }
+              )
+            ] }),
+            loading ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: "正在拉取作业列表..." }) : filteredAssignments.length === 0 ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: [
+              /* @__PURE__ */ u$1("span", { style: "font-size:24px;", children: "🎉" }),
+              /* @__PURE__ */ u$1("span", { children: "当前筛选条件下没有待完成的作业" })
+            ] }) : /* @__PURE__ */ u$1("div", { style: "display:flex;flex-direction:column;gap:8px;", children: filteredAssignments.map((hw) => {
+              const badgeClass = hw.urgency === "critical" ? "badge-critical" : hw.urgency === "urgent" ? "badge-urgent" : hw.urgency === "warning" ? "badge-warning" : "badge-normal";
+              return /* @__PURE__ */ u$1("div", { className: "nodd-card", children: [
+                /* @__PURE__ */ u$1("div", { className: "card-header", children: [
+                  /* @__PURE__ */ u$1("div", { children: [
+                    /* @__PURE__ */ u$1("div", { className: "card-title", children: hw.title }),
+                    /* @__PURE__ */ u$1("div", { className: "card-course", children: hw.courseName })
+                  ] }),
+                  /* @__PURE__ */ u$1("span", { className: `badge ${badgeClass}`, children: hw.remainingText })
+                ] }),
+                /* @__PURE__ */ u$1("div", { style: "display:flex;justify-content:space-between;align-items:center;margin-top:4px;", children: [
+                  /* @__PURE__ */ u$1("span", { style: "font-size:12px;color:var(--text-sub);", children: [
+                    "截止：",
+                    hw.deadline
+                  ] }),
+                  hw.url && /* @__PURE__ */ u$1(
+                    "a",
+                    {
+                      href: hw.url,
+                      style: "font-size:12px;color:var(--primary);text-decoration:none;font-weight:600;",
+                      children: "前往作答 →"
+                    }
+                  )
+                ] })
+              ] }, hw.id);
+            }) })
+          ] }),
+          activeTab === "settings" && /* @__PURE__ */ u$1("div", { style: "display:flex;flex-direction:column;gap:14px;", children: [
+            /* @__PURE__ */ u$1("div", { className: "form-group", children: [
+              /* @__PURE__ */ u$1("label", { className: "form-label", children: "PushPlus Token (微信推送通知)" }),
+              /* @__PURE__ */ u$1(
+                "input",
+                {
+                  type: "text",
+                  className: "form-input",
+                  placeholder: "在 pushplus.plus 获取的 Token",
+                  value: pushplusToken,
+                  onInput: (e2) => setPushplusToken(e2.target.value)
+                }
+              )
+            ] }),
+            /* @__PURE__ */ u$1("div", { className: "form-group", children: [
+              /* @__PURE__ */ u$1("label", { className: "form-label", children: "Bark URL (iOS 系统横幅通知)" }),
+              /* @__PURE__ */ u$1(
+                "input",
+                {
+                  type: "text",
+                  className: "form-input",
+                  placeholder: "https://api.day.app/YOUR_KEY",
+                  value: barkUrl,
+                  onInput: (e2) => setBarkUrl(e2.target.value)
+                }
+              )
+            ] }),
+            /* @__PURE__ */ u$1("div", { className: "form-group", children: [
+              /* @__PURE__ */ u$1("label", { className: "form-label", children: "死线提醒阈值" }),
+              /* @__PURE__ */ u$1(
+                "select",
+                {
+                  className: "form-input",
+                  value: threshold,
+                  onChange: (e2) => setThreshold(parseInt(e2.target.value, 10)),
+                  children: [
+                    /* @__PURE__ */ u$1("option", { value: 24, children: "24 小时以内 (极紧急)" }),
+                    /* @__PURE__ */ u$1("option", { value: 48, children: "48 小时以内 (2天)" }),
+                    /* @__PURE__ */ u$1("option", { value: 72, children: "72 小时以内 (3天)" }),
+                    /* @__PURE__ */ u$1("option", { value: 168, children: "168 小时以内 (1周)" })
+                  ]
+                }
+              )
+            ] }),
+            /* @__PURE__ */ u$1("div", { style: "display:flex;gap:8px;margin-top:8px;", children: [
+              /* @__PURE__ */ u$1("button", { className: "btn btn-primary", style: "flex:1;", onClick: savePushConfig, children: "💾 保存配置" }),
+              /* @__PURE__ */ u$1("button", { className: "btn btn-secondary", onClick: testPush, children: "🔔 发送测试推送" })
+            ] })
+          ] }),
+          activeTab === "toolbox" && /* @__PURE__ */ u$1("div", { style: "display:flex;flex-direction:column;gap:14px;", children: [
+            /* @__PURE__ */ u$1("div", { className: "nodd-card", children: [
+              /* @__PURE__ */ u$1("div", { className: "card-title", children: "平台会话凭据" }),
+              /* @__PURE__ */ u$1("div", { style: "font-size:12px;color:var(--text-sub);", children: "一键复制当前登录的 Cookie，供外部脚本或包管理器工具使用。" }),
+              /* @__PURE__ */ u$1("button", { className: "btn btn-secondary btn-sm", onClick: copyCookie, children: "📋 复制当前 Cookie 到剪贴板" })
+            ] }),
+            /* @__PURE__ */ u$1("div", { className: "nodd-card", children: [
+              /* @__PURE__ */ u$1("div", { className: "card-title", children: [
+                "代码暂存草稿箱 (",
+                drafts.length,
+                ")"
+              ] }),
+              /* @__PURE__ */ u$1("div", { style: "font-size:12px;color:var(--text-sub);", children: "本地自动备份的代码记录，误刷新或关闭网页后可随时找回。" }),
+              drafts.length === 0 ? /* @__PURE__ */ u$1("div", { style: "font-size:12px;color:var(--text-sub);padding:8px 0;", children: "暂无暂存记录（在代码编辑框输入时会自动备份）" }) : /* @__PURE__ */ u$1("div", { style: "max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-top:6px;", children: drafts.map((d2) => /* @__PURE__ */ u$1(
+                "div",
+                {
+                  style: "display:flex;justify-content:space-between;align-items:center;background:#f1f5f9;padding:6px 10px;border-radius:6px;font-size:12px;",
+                  children: [
+                    /* @__PURE__ */ u$1("span", { children: [
+                      "🕒 ",
+                      d2.time,
+                      " (",
+                      d2.length,
+                      " 字符)"
+                    ] }),
+                    /* @__PURE__ */ u$1(
+                      "button",
+                      {
+                        className: "btn btn-sm btn-secondary",
+                        onClick: () => {
+                          if (typeof GM_setClipboard !== "undefined") {
+                            GM_setClipboard(d2.code);
+                          } else {
+                            navigator.clipboard.writeText(d2.code);
+                          }
+                          showToast("已复制草稿代码到剪贴板！");
+                        },
+                        children: "复制"
+                      }
+                    )
+                  ]
+                },
+                d2.key
+              )) })
+            ] })
+          ] }),
+          activeTab === "eval" && /* @__PURE__ */ u$1("div", { children: evalLoading ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: "正在查询最新评测结果..." }) : submissions.length === 0 ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: /* @__PURE__ */ u$1("span", { children: "暂无评测记录或页面未开放评测列表" }) }) : /* @__PURE__ */ u$1("div", { style: "display:flex;flex-direction:column;gap:8px;", children: submissions.map((sub) => /* @__PURE__ */ u$1("div", { className: "nodd-card", children: [
+            /* @__PURE__ */ u$1("div", { style: "display:flex;justify-content:space-between;align-items:center;", children: [
+              /* @__PURE__ */ u$1("span", { style: "font-weight:600;font-size:13px;", children: [
+                "提交 #",
+                sub.id
+              ] }),
+              /* @__PURE__ */ u$1(
+                "span",
+                {
+                  className: `badge ${sub.status === "Accepted" ? "badge-normal" : sub.status === "Judging" ? "badge-warning" : "badge-critical"}`,
+                  children: sub.status
+                }
+              )
+            ] }),
+            /* @__PURE__ */ u$1("div", { style: "font-size:12px;color:var(--text-sub);", children: [
+              "提交时间：",
+              sub.submitTime
+            ] })
+          ] }, sub.id)) }) })
+        ] })
+      ] })
+    ] });
+  }
+  const PANEL_STYLES = `
+:host {
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --bg-panel: rgba(255, 255, 255, 0.96);
+  --bg-card: #f8fafc;
+  --border: #e2e8f0;
+  --text-main: #0f172a;
+  --text-sub: #64748b;
+  --danger: #ef4444;
+  --warning: #f97316;
+  --success: #10b981;
+  --shadow: 0 12px 36px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  color: var(--text-main);
+  box-sizing: border-box;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* 悬浮球 Trigger */
+.nodd-trigger {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999999;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 30px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.nodd-trigger:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.45);
+}
+
+.nodd-trigger .logo-badge {
+  font-weight: 800;
+  font-size: 13px;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.5px;
+}
+
+.nodd-trigger .counter {
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  margin-left: 2px;
+}
+
+/* 浮动主面板 */
+.nodd-panel-wrapper {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  z-index: 999999;
+  width: 440px;
+  max-width: calc(100vw - 32px);
+  max-height: 640px;
+  height: 600px;
+  background: var(--bg-panel);
+  backdrop-filter: blur(16px);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: nodd-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes nodd-slide-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 面板头部 */
+.nodd-header {
+  padding: 14px 18px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nodd-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.nodd-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-sub);
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 15px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.icon-btn:hover {
+  background: var(--border);
+  color: var(--text-main);
+}
+
+/* 导航 Tabs */
+.nodd-tabs {
+  display: flex;
+  background: #f1f5f9;
+  padding: 6px;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.nodd-tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 7px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-sub);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.nodd-tab-item.active {
+  background: #ffffff;
+  color: var(--primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* 容器内容区 */
+.nodd-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 卡片样式 */
+.nodd-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  transition: border-color 0.15s;
+}
+
+.nodd-card:hover {
+  border-color: #cbd5e1;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.card-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-main);
+  line-height: 1.3;
+}
+
+.card-course {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+/* 标签 Badge */
+.badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.badge-critical { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+.badge-urgent { background: #ffedd5; color: #c2410c; border: 1px solid #fdba74; }
+.badge-warning { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+.badge-normal { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+
+/* 按钮规范 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--primary-hover); }
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: var(--text-main);
+  border-color: var(--border);
+}
+.btn-secondary:hover { background: #e2e8f0; }
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* 表单组件 */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-sub);
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  background: #ffffff;
+  color: var(--text-main);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+/* 空状态与加载态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  color: var(--text-sub);
+  text-align: center;
+  gap: 8px;
+}
+
+/* 顶部通知 Toast */
+.nodd-toast {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  animation: nodd-fade 0.2s ease-out;
+  z-index: 10;
+}
+
+@keyframes nodd-fade {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+`;
+  function mountNoDDLUI(client2, storage2, initialAssignments) {
+    const HOST_ID = "nodd-shadow-root";
+    let hostEl = document.getElementById(HOST_ID);
+    if (!hostEl) {
+      hostEl = document.createElement("div");
+      hostEl.id = HOST_ID;
+      document.body.appendChild(hostEl);
+    }
+    const shadowRoot = hostEl.shadowRoot || hostEl.attachShadow({ mode: "open" });
+    const styleEl = document.createElement("style");
+    styleEl.textContent = PANEL_STYLES;
+    shadowRoot.appendChild(styleEl);
+    const mountContainer = document.createElement("div");
+    shadowRoot.appendChild(mountContainer);
+    G$1(g$1(App, { client: client2, storage: storage2, initialAssignments }), mountContainer);
+  }
+  function renderUrgentBanner(assignments, onBannerClick) {
     const existing = document.getElementById("nodd-banner-container");
     if (existing) existing.remove();
     if (assignments.length === 0) return;
@@ -7074,7 +8156,7 @@ ${markdown}` }
     top: 0;
     left: 0;
     width: 100%;
-    z-index: 99999;
+    z-index: 99998;
     background: ${bgColor};
     color: #ffffff;
     box-shadow: 0 2px 10px rgba(0,0,0,0.2);
@@ -7087,7 +8169,7 @@ ${markdown}` }
     transition: all 0.3s ease;
   `;
     const leftSpan = document.createElement("div");
-    leftSpan.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600;";
+    leftSpan.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;";
     leftSpan.innerHTML = `
     <span>${isCritical ? "🚨" : "⏳"} [NoDDL]</span>
     <span>【${mostUrgent.courseName}】${mostUrgent.title}</span>
@@ -7096,30 +8178,18 @@ ${markdown}` }
     </span>
     ${assignments.length > 1 ? `<span style="font-size:12px;opacity:0.9;">等共 ${assignments.length} 项未交</span>` : ""}
   `;
+    leftSpan.onclick = onBannerClick;
     const rightActions = document.createElement("div");
     rightActions.style.cssText = "display:flex;align-items:center;gap:8px;";
-    const btnCopyCookie = document.createElement("button");
-    btnCopyCookie.innerText = "📋 复制会话凭据";
-    btnCopyCookie.style.cssText = "background:#ffffff;color:#2d3748;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;";
-    btnCopyCookie.onclick = () => {
-      const cookie = document.cookie;
-      if (typeof GM_setClipboard !== "undefined") {
-        GM_setClipboard(cookie);
-      } else {
-        navigator.clipboard.writeText(cookie);
-      }
-      alert("已复制平台会话凭据 (Cookie) 到剪贴板！");
-    };
-    const btnSettings = document.createElement("button");
-    btnSettings.innerText = "⚙️ 推送设置";
-    btnSettings.style.cssText = "background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;";
-    btnSettings.onclick = onConfigClick;
+    const btnOpenPanel = document.createElement("button");
+    btnOpenPanel.innerText = "📊 展开控制面板";
+    btnOpenPanel.style.cssText = "background:#ffffff;color:#2d3748;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;";
+    btnOpenPanel.onclick = onBannerClick;
     const btnClose = document.createElement("button");
     btnClose.innerText = "✕";
     btnClose.style.cssText = "background:none;border:none;color:#fff;font-size:16px;cursor:pointer;opacity:0.8;margin-left:8px;";
     btnClose.onclick = () => container.remove();
-    rightActions.appendChild(btnCopyCookie);
-    rightActions.appendChild(btnSettings);
+    rightActions.appendChild(btnOpenPanel);
     rightActions.appendChild(btnClose);
     container.appendChild(leftSpan);
     container.appendChild(rightActions);
@@ -7223,51 +8293,40 @@ ${markdown}` }
   const http = new BrowserHttpClient();
   const client = new CourseGradingClient({ baseUrl: window.location.origin }, http);
   async function initNoDDL() {
-    console.log("[NoDDL] 平台增强脚本已加载");
+    console.log("[NoDDL] 现代化交互界面已启动");
     setupTestCaseCopyButtons();
     setupCodeAutoSave();
-    const pushplusToken = await storage.get("nodd_pushplus_token") || "";
-    const barkUrl = await storage.get("nodd_bark_url") || "";
     const hoursThreshold = parseInt(await storage.get("nodd_hours_threshold") || "72", 10);
+    let pendingList = [];
     try {
-      const pending = await client.getPendingAssignments(hoursThreshold);
-      if (pending.length > 0) {
-        renderUrgentBanner(pending, showConfigDialog);
-        const mostUrgent = pending[0];
-        if (mostUrgent.urgency === "critical" || mostUrgent.urgency === "urgent") {
-          if (typeof GM_notification !== "undefined") {
-            GM_notification({
-              title: "🚨 NoDDL 待交作业提醒",
-              text: `【${mostUrgent.courseName}】${mostUrgent.title} ${mostUrgent.remainingText}，请尽快提交！`,
-              timeout: 8e3
-            });
-          }
-        }
-        const pushConfig = {
-          pushplusToken,
-          barkUrl,
-          hoursThreshold
-        };
-        if (pushplusToken || barkUrl) {
-          client.triggerPushAlert(pushConfig).catch(console.error);
+      pendingList = await client.getPendingAssignments(hoursThreshold);
+    } catch (err) {
+      console.warn("[NoDDL] 拉取作业列表异常:", err);
+    }
+    mountNoDDLUI(client, storage, pendingList);
+    if (pendingList.length > 0) {
+      renderUrgentBanner(pendingList, () => {
+        var _a, _b;
+        const trigger = (_b = (_a = document.getElementById("nodd-shadow-root")) == null ? void 0 : _a.shadowRoot) == null ? void 0 : _b.querySelector(".nodd-trigger");
+        trigger == null ? void 0 : trigger.click();
+      });
+      const mostUrgent = pendingList[0];
+      if (mostUrgent.urgency === "critical" || mostUrgent.urgency === "urgent") {
+        if (typeof GM_notification !== "undefined") {
+          GM_notification({
+            title: "🚨 NoDDL 待交作业提醒",
+            text: `【${mostUrgent.courseName}】${mostUrgent.title} ${mostUrgent.remainingText}，请尽快提交！`,
+            timeout: 8e3
+          });
         }
       }
-    } catch (err) {
-      console.warn("[NoDDL] 获取作业列表失败:", err);
+      const pushplusToken = await storage.get("nodd_pushplus_token") || "";
+      const barkUrl = await storage.get("nodd_bark_url") || "";
+      const pushConfig = { pushplusToken, barkUrl, hoursThreshold };
+      if (pushplusToken || barkUrl) {
+        client.triggerPushAlert(pushConfig).catch(console.error);
+      }
     }
-  }
-  async function showConfigDialog() {
-    const currentToken = await storage.get("nodd_pushplus_token") || "";
-    const currentBark = await storage.get("nodd_bark_url") || "";
-    const newToken = prompt("请输入 PushPlus Token (微信推送，留空表示不开启):", currentToken);
-    if (newToken !== null) {
-      await storage.set("nodd_pushplus_token", newToken.trim());
-    }
-    const newBark = prompt("请输入 Bark 推送 URL (iOS系统通知，例如 https://api.day.app/YOUR_KEY):", currentBark);
-    if (newBark !== null) {
-      await storage.set("nodd_bark_url", newBark.trim());
-    }
-    alert("NoDDL 配置已保存！");
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initNoDDL);
