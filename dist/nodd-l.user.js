@@ -6631,6 +6631,83 @@
     });
     return encrypted.toString();
   }
+  const DB_STORAGE_KEY = "nodd_homework_db_v1";
+  class HomeworkDB {
+    constructor(storage2) {
+      __publicField(this, "storage");
+      this.storage = storage2;
+    }
+    async load() {
+      try {
+        const raw = await this.storage.get(DB_STORAGE_KEY);
+        if (raw) {
+          return JSON.parse(raw);
+        }
+      } catch {
+      }
+      return { lastSync: 0, courses: {} };
+    }
+    async save(data) {
+      await this.storage.set(DB_STORAGE_KEY, JSON.stringify(data));
+    }
+    /**
+     * 更新或插入某个课程的作业列表
+     */
+    async upsertCourse(courseId, courseName, items) {
+      const db = await this.load();
+      db.courses[courseId] = {
+        id: courseId,
+        name: courseName,
+        updatedAt: Date.now(),
+        assignments: items
+      };
+      db.lastSync = Date.now();
+      await this.save(db);
+    }
+    /**
+     * 单个作业更新（例如用户打开 fileUploadList.jsp 时从页面提取到的单条作业）
+     */
+    async upsertAssignment(item) {
+      const db = await this.load();
+      const courseKey = item.courseName || "default";
+      if (!db.courses[courseKey]) {
+        db.courses[courseKey] = {
+          id: courseKey,
+          name: item.courseName || "当前课程",
+          updatedAt: Date.now(),
+          assignments: []
+        };
+      }
+      const course = db.courses[courseKey];
+      const idx = course.assignments.findIndex((a2) => a2.id === item.id);
+      if (idx !== -1) {
+        course.assignments[idx] = { ...course.assignments[idx], ...item };
+      } else {
+        course.assignments.push(item);
+      }
+      await this.save(db);
+    }
+    /**
+     * 获取本地数据库中全部课程的所有未完成作业，并按 DDL 智能排序
+     */
+    async getAllAssignments() {
+      const db = await this.load();
+      const map = /* @__PURE__ */ new Map();
+      for (const c2 of Object.values(db.courses)) {
+        for (const a2 of c2.assignments) {
+          map.set(a2.id, a2);
+        }
+      }
+      return Array.from(map.values()).sort((a2, b2) => {
+        if (a2.remainingHours > 0 && b2.remainingHours <= 0) return -1;
+        if (a2.remainingHours <= 0 && b2.remainingHours > 0) return 1;
+        if (a2.remainingHours > 0 && b2.remainingHours > 0) {
+          return a2.deadlineTimestamp - b2.deadlineTimestamp;
+        }
+        return b2.deadlineTimestamp - a2.deadlineTimestamp;
+      });
+    }
+  }
   function calculateUrgency(remainingHours) {
     if (remainingHours <= 0) return "passed";
     if (remainingHours <= 6) return "critical";
@@ -6668,7 +6745,7 @@
     const kw = text.match(/(?:截止|结束)(?:时间|日期)?[:：\s]*([^\n<]+)/i);
     if (kw) return kw[1].trim();
     const cleaned = text.replace(/[年月日]/g, (m2) => m2 === "日" ? " " : "-");
-    const dates = cleaned.match(/\d{1,4}[-/.]\d{1,2}(?:[-/.]\d{1,2})?(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?/g);
+    const dates = cleaned.match(/\b(?:\d{4}[-/.])?\d{1,2}[-/.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\b/g);
     return dates ? dates[dates.length - 1].trim() : text.trim();
   }
   function parseDeadlineBeijing(rawInput, nowMs = Date.now()) {
@@ -6689,6 +6766,9 @@
     const h2 = m2[4] !== void 0 ? parseInt(m2[4], 10) : 23;
     const min = m2[5] !== void 0 ? parseInt(m2[5], 10) : 59;
     const s2 = m2[6] !== void 0 ? parseInt(m2[6], 10) : 0;
+    if (mo < 1 || mo > 12 || d2 < 1 || d2 > 31 || h2 < 0 || h2 > 23 || min < 0 || min > 59) {
+      return emptyDeadline(raw);
+    }
     const ts = Date.UTC(y2, mo - 1, d2, h2, min, s2) - 8 * 3600 * 1e3;
     const remHrs = Number(((ts - nowMs) / 36e5).toFixed(1));
     const pad = (n2) => String(n2).padStart(2, "0");
@@ -6704,7 +6784,7 @@
   function emptyDeadline(rawText) {
     return {
       raw: rawText,
-      normalized: rawText,
+      normalized: "请查看详情",
       timestamp: 0,
       remainingHours: 9999,
       remainingText: "待定",
@@ -6875,13 +6955,17 @@
     return list;
   }
   class CourseGradingClient {
-    constructor(config = {}, http2 = new FetchHttpClient()) {
+    constructor(config = {}, http2 = new FetchHttpClient(), storage2) {
       __publicField(this, "baseUrl");
       __publicField(this, "http");
       __publicField(this, "sessionCookie");
+      __publicField(this, "db");
       this.http = http2;
       this.baseUrl = (config.baseUrl || "http://115.156.107.145").replace(/\/+$/, "");
       this.sessionCookie = config.sessionCookie || "";
+      if (storage2) {
+        this.db = new HomeworkDB(storage2);
+      }
     }
     setSessionCookie(cookie) {
       this.sessionCookie = cookie;
@@ -6928,9 +7012,13 @@
       }
     }
     /**
-     * 查询当前激活课程中的活跃作业与实训
-     * 【核心原则】严禁在后台静默请求 /courselist.jsp?courseID=xxx 篡改用户的会话上下文，
-     * 仅只读请求当前课程作业页面，绝不影响浏览器当前课程状态。
+     * 切换当前激活课程上下文
+     */
+    async enterCourse(courseId) {
+      await this.http.get(`${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`, this.getAuthHeaders());
+    }
+    /**
+     * 只读读取当前活跃课程的作业列表（不篡改 Session 状态）
      */
     async getPendingAssignments(hoursThreshold = 72) {
       const allAssignments = [];
@@ -6941,20 +7029,6 @@
           this.getAuthHeaders()
         );
         const list = parseActiveAssignmentsHtml(indexHtml, "当前课程");
-        for (const item of list) {
-          if (!seenIds.has(item.id)) {
-            seenIds.add(item.id);
-            allAssignments.push(item);
-          }
-        }
-      } catch {
-      }
-      try {
-        const activeHtml = await this.http.get(
-          `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
-          this.getAuthHeaders()
-        );
-        const list = parseActiveAssignmentsHtml(activeHtml, "当前课程");
         for (const item of list) {
           if (!seenIds.has(item.id)) {
             seenIds.add(item.id);
@@ -6991,6 +7065,56 @@
       });
     }
     /**
+     * 全量安全同步所有课程的作业并持久化存入数据库
+     * 【核心保障】爬取前记录当前用户所处课程 ID，依序抓取各门课后立即切回原课程，彻底杜绝串课
+     */
+    async safeSyncAllCourses(currentCourseId, onProgress) {
+      const courses = await this.getCourses();
+      if (courses.length === 0) {
+        const assigns = await this.getPendingAssignments();
+        if (this.db) {
+          await this.db.upsertCourse("default", "当前课程", assigns);
+        }
+        return assigns;
+      }
+      for (let i2 = 0; i2 < courses.length; i2++) {
+        const c2 = courses[i2];
+        if (onProgress) onProgress(`正在同步 [${i2 + 1}/${courses.length}] 《${c2.name}》...`);
+        try {
+          await this.enterCourse(c2.id);
+          const indexHtml = await this.http.get(`${this.baseUrl}/assignment/index.jsp`, this.getAuthHeaders());
+          const list = parseActiveAssignmentsHtml(indexHtml, c2.name);
+          for (const item of list) {
+            if (item.deadline === "请查看详情" || item.deadlineTimestamp === 0) {
+              try {
+                const detailHtml = await this.http.get(`${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`, this.getAuthHeaders());
+                const detail = parseAssignmentDetailHtml(detailHtml);
+                if (detail.deadline) {
+                  item.deadline = detail.deadline;
+                  item.deadlineTimestamp = detail.deadlineTimestamp;
+                  item.remainingHours = detail.remainingHours;
+                  item.remainingText = detail.remainingText;
+                }
+              } catch {
+              }
+            }
+          }
+          if (this.db) {
+            await this.db.upsertCourse(c2.id, c2.name, list);
+          }
+        } catch {
+        }
+      }
+      if (currentCourseId) {
+        if (onProgress) onProgress("正在恢复当前页面课程状态...");
+        try {
+          await this.enterCourse(currentCourseId);
+        } catch {
+        }
+      }
+      return this.db ? this.db.getAllAssignments() : this.getPendingAssignments();
+    }
+    /**
      * 获取题目详情与测试用例（兼容 programList.jsp 与 fileUploadList.jsp）
      */
     async getProblemDetail(assignId, proNum = 1) {
@@ -7011,7 +7135,7 @@
      */
     async triggerPushAlert(config) {
       const threshold = config.hoursThreshold ?? 48;
-      const allPending = await this.getPendingAssignments(threshold);
+      const allPending = this.db ? await this.db.getAllAssignments() : await this.getPendingAssignments(threshold);
       const activeUrgent = allPending.filter((a2) => a2.remainingHours > 0 && a2.remainingHours <= threshold);
       if (activeUrgent.length === 0) {
         return { sent: false, count: 0 };
@@ -7543,7 +7667,7 @@ ${markdown}` }
     const [toast, setToast] = d(null);
     const showToast = (msg) => {
       setToast(msg);
-      setTimeout(() => setToast(null), 2500);
+      setTimeout(() => setToast(null), 3e3);
     };
     A(() => {
       (async () => {
@@ -7558,11 +7682,35 @@ ${markdown}` }
     const refreshAssignments = async () => {
       setLoading(true);
       try {
+        if (client2.db) {
+          const cached = await client2.db.getAllAssignments();
+          if (cached.length > 0) {
+            setAssignments(cached);
+            showToast(`已加载数据库缓存：共 ${cached.length} 项作业`);
+          }
+        }
         const list = await client2.getPendingAssignments(threshold);
-        setAssignments(list);
-        showToast(`已刷新：发现 ${list.length} 项作业`);
+        if (list.length > 0) {
+          setAssignments(list);
+          showToast(`已刷新：发现 ${list.length} 项作业`);
+        }
       } catch {
         showToast("获取作业列表失败");
+      } finally {
+        setLoading(false);
+      }
+    };
+    const syncAllCourses = async () => {
+      setLoading(true);
+      showToast("正在全量安全同步所有课程...");
+      try {
+        const curMatch = document.documentElement.innerHTML.match(/courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)/i) || window.location.search.match(/courseID=([a-zA-Z0-9_-]+)/i);
+        const curId = curMatch ? curMatch[1] : void 0;
+        const list = await client2.safeSyncAllCourses(curId, (msg) => showToast(msg));
+        setAssignments(list);
+        showToast(`同步完成！共汇总 ${list.length} 项作业`);
+      } catch {
+        showToast("同步全部课程失败");
       } finally {
         setLoading(false);
       }
@@ -7649,6 +7797,16 @@ ${markdown}` }
         /* @__PURE__ */ u$1("div", { className: "nodd-header", children: [
           /* @__PURE__ */ u$1("div", { className: "nodd-header-title", children: /* @__PURE__ */ u$1("span", { children: "🚀 NoDDL 控制台" }) }),
           /* @__PURE__ */ u$1("div", { className: "nodd-header-actions", children: [
+            /* @__PURE__ */ u$1(
+              "button",
+              {
+                className: "btn btn-sm btn-secondary",
+                style: "font-size:11px;padding:3px 8px;font-weight:600;",
+                title: "全量扫描并同步所有课程作业",
+                onClick: syncAllCourses,
+                children: "🌐 同步全部课程"
+              }
+            ),
             /* @__PURE__ */ u$1(
               "button",
               {
@@ -7749,7 +7907,7 @@ ${markdown}` }
                 }
               )
             ] }),
-            loading ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: "正在拉取作业列表..." }) : filteredAssignments.length === 0 ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: [
+            loading ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: "正在同步作业数据..." }) : filteredAssignments.length === 0 ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: [
               /* @__PURE__ */ u$1("span", { style: "font-size:24px;", children: "🎉" }),
               /* @__PURE__ */ u$1("span", { children: "当前分类下没有作业" })
             ] }) : /* @__PURE__ */ u$1("div", { style: "display:flex;flex-direction:column;gap:8px;", children: filteredAssignments.map((hw) => {
@@ -8329,66 +8487,77 @@ ${markdown}` }
   }
   const storage = new BrowserStorage();
   const http = new BrowserHttpClient();
-  const client = new CourseGradingClient({ baseUrl: window.location.origin }, http);
+  const client = new CourseGradingClient({ baseUrl: window.location.origin }, http, storage);
   async function initNoDDL() {
-    console.log("[NoDDL] 启动希冀平台只读监听助手");
+    var _a;
+    console.log("[NoDDL] 启动希冀平台本地数据库与作业助手");
     setupTestCaseCopyButtons();
     setupCodeAutoSave();
-    const hoursThreshold = parseInt(await storage.get("nodd_hours_threshold") || "72", 10);
     const seenIds = /* @__PURE__ */ new Set();
     const pendingList = [];
-    try {
-      const domAssigns = parseActiveAssignmentsHtml(document.documentElement.innerHTML, "当前课程");
-      for (const item of domAssigns) {
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          pendingList.push(item);
+    if (client.db) {
+      try {
+        const cached = await client.db.getAllAssignments();
+        for (const item of cached) {
+          if (!seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            pendingList.push(item);
+          }
         }
+      } catch {
       }
-    } catch {
     }
     try {
       const urlMatch = window.location.href.match(/assignID=([a-zA-Z0-9_-]+)/i);
       if (urlMatch) {
         const curAssignId = urlMatch[1];
         const curDetail = parseAssignmentDetailHtml(document.documentElement.innerHTML);
-        if (curDetail.deadline) {
-          const existing = pendingList.find((a2) => a2.id === curAssignId);
-          if (existing) {
-            existing.deadline = curDetail.deadline;
-            existing.deadlineTimestamp = curDetail.deadlineTimestamp;
-            existing.remainingHours = curDetail.remainingHours;
-            existing.remainingText = curDetail.remainingText;
-            if (curDetail.title) existing.title = curDetail.title;
-          } else {
-            pendingList.unshift({
-              id: curAssignId,
-              courseName: "当前课程",
-              title: curDetail.title || `当前作业 (${curAssignId})`,
-              deadline: curDetail.deadline,
-              deadlineTimestamp: curDetail.deadlineTimestamp,
-              remainingHours: curDetail.remainingHours,
-              remainingText: curDetail.remainingText,
-              status: "pending",
-              urgency: curDetail.remainingHours <= 6 ? "critical" : curDetail.remainingHours <= 24 ? "urgent" : "normal",
-              url: window.location.pathname + window.location.search
-            });
-            seenIds.add(curAssignId);
-          }
+        let title = curDetail.title;
+        if (!title) {
+          const titleEl = document.querySelector(".breadcrumb li:last-child, .breadcrumb li.active, h4, h5, b");
+          if (titleEl) title = (_a = titleEl.textContent) == null ? void 0 : _a.trim();
+        }
+        title = title || `作业 ${curAssignId}`;
+        const item = {
+          id: curAssignId,
+          courseName: "当前课程",
+          title,
+          deadline: curDetail.deadline || "未设截止时间",
+          deadlineTimestamp: curDetail.deadlineTimestamp,
+          remainingHours: curDetail.remainingHours,
+          remainingText: curDetail.remainingText,
+          status: "pending",
+          urgency: curDetail.remainingHours <= 6 ? "critical" : curDetail.remainingHours <= 24 ? "urgent" : "normal",
+          url: window.location.pathname + window.location.search
+        };
+        if (client.db) {
+          await client.db.upsertAssignment(item);
+        }
+        const existingIdx = pendingList.findIndex((a2) => a2.id === curAssignId);
+        if (existingIdx !== -1) {
+          pendingList[existingIdx] = { ...pendingList[existingIdx], ...item };
+        } else {
+          pendingList.unshift(item);
+          seenIds.add(curAssignId);
         }
       }
     } catch {
     }
     try {
-      const apiAssigns = await client.getPendingAssignments(hoursThreshold);
-      for (const item of apiAssigns) {
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id);
+      const domAssigns = parseActiveAssignmentsHtml(document.documentElement.innerHTML, "当前课程");
+      for (const item of domAssigns) {
+        if (client.db) {
+          await client.db.upsertAssignment(item);
+        }
+        const existingIdx = pendingList.findIndex((a2) => a2.id === item.id);
+        if (existingIdx !== -1) {
+          pendingList[existingIdx] = { ...pendingList[existingIdx], ...item };
+        } else {
           pendingList.push(item);
+          seenIds.add(item.id);
         }
       }
-    } catch (err) {
-      console.warn("[NoDDL] 接口只读拉取作业异常:", err);
+    } catch {
     }
     mountNoDDLUI(client, storage, pendingList);
     if (pendingList.length > 0) {
@@ -8404,6 +8573,7 @@ ${markdown}` }
       }
       const pushplusToken = await storage.get("nodd_pushplus_token") || "";
       const barkUrl = await storage.get("nodd_bark_url") || "";
+      const hoursThreshold = parseInt(await storage.get("nodd_hours_threshold") || "72", 10);
       const pushConfig = { pushplusToken, barkUrl, hoursThreshold };
       if (pushplusToken || barkUrl) {
         client.triggerPushAlert(pushConfig).catch(console.error);

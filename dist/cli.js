@@ -52,6 +52,85 @@ function encryptPassword(password, secretKey = COURSE_GRADING_SECRET_KEY) {
   return encrypted.toString();
 }
 
+// src/core/db.ts
+var DB_STORAGE_KEY = "nodd_homework_db_v1";
+var HomeworkDB = class {
+  storage;
+  constructor(storage) {
+    this.storage = storage;
+  }
+  async load() {
+    try {
+      const raw = await this.storage.get(DB_STORAGE_KEY);
+      if (raw) {
+        return JSON.parse(raw);
+      }
+    } catch {
+    }
+    return { lastSync: 0, courses: {} };
+  }
+  async save(data) {
+    await this.storage.set(DB_STORAGE_KEY, JSON.stringify(data));
+  }
+  /**
+   * 更新或插入某个课程的作业列表
+   */
+  async upsertCourse(courseId, courseName, items) {
+    const db = await this.load();
+    db.courses[courseId] = {
+      id: courseId,
+      name: courseName,
+      updatedAt: Date.now(),
+      assignments: items
+    };
+    db.lastSync = Date.now();
+    await this.save(db);
+  }
+  /**
+   * 单个作业更新（例如用户打开 fileUploadList.jsp 时从页面提取到的单条作业）
+   */
+  async upsertAssignment(item) {
+    const db = await this.load();
+    const courseKey = item.courseName || "default";
+    if (!db.courses[courseKey]) {
+      db.courses[courseKey] = {
+        id: courseKey,
+        name: item.courseName || "\u5F53\u524D\u8BFE\u7A0B",
+        updatedAt: Date.now(),
+        assignments: []
+      };
+    }
+    const course = db.courses[courseKey];
+    const idx = course.assignments.findIndex((a) => a.id === item.id);
+    if (idx !== -1) {
+      course.assignments[idx] = { ...course.assignments[idx], ...item };
+    } else {
+      course.assignments.push(item);
+    }
+    await this.save(db);
+  }
+  /**
+   * 获取本地数据库中全部课程的所有未完成作业，并按 DDL 智能排序
+   */
+  async getAllAssignments() {
+    const db = await this.load();
+    const map = /* @__PURE__ */ new Map();
+    for (const c of Object.values(db.courses)) {
+      for (const a of c.assignments) {
+        map.set(a.id, a);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.remainingHours > 0 && b.remainingHours <= 0) return -1;
+      if (a.remainingHours <= 0 && b.remainingHours > 0) return 1;
+      if (a.remainingHours > 0 && b.remainingHours > 0) {
+        return a.deadlineTimestamp - b.deadlineTimestamp;
+      }
+      return b.deadlineTimestamp - a.deadlineTimestamp;
+    });
+  }
+};
+
 // src/core/time.ts
 function calculateUrgency(remainingHours) {
   if (remainingHours <= 0) return "passed";
@@ -90,7 +169,7 @@ function extractDeadlineFromText(text) {
   const kw = text.match(/(?:截止|结束)(?:时间|日期)?[:：\s]*([^\n<]+)/i);
   if (kw) return kw[1].trim();
   const cleaned = text.replace(/[年月日]/g, (m) => m === "\u65E5" ? " " : "-");
-  const dates = cleaned.match(/\d{1,4}[-/.]\d{1,2}(?:[-/.]\d{1,2})?(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?/g);
+  const dates = cleaned.match(/\b(?:\d{4}[-/.])?\d{1,2}[-/.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\b/g);
   return dates ? dates[dates.length - 1].trim() : text.trim();
 }
 function parseDeadlineBeijing(rawInput, nowMs = Date.now()) {
@@ -111,6 +190,9 @@ function parseDeadlineBeijing(rawInput, nowMs = Date.now()) {
   const h = m[4] !== void 0 ? parseInt(m[4], 10) : 23;
   const min = m[5] !== void 0 ? parseInt(m[5], 10) : 59;
   const s = m[6] !== void 0 ? parseInt(m[6], 10) : 0;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h < 0 || h > 23 || min < 0 || min > 59) {
+    return emptyDeadline(raw);
+  }
   const ts = Date.UTC(y, mo - 1, d, h, min, s) - 8 * 3600 * 1e3;
   const remHrs = Number(((ts - nowMs) / 36e5).toFixed(1));
   const pad = (n) => String(n).padStart(2, "0");
@@ -126,7 +208,7 @@ function parseDeadlineBeijing(rawInput, nowMs = Date.now()) {
 function emptyDeadline(rawText) {
   return {
     raw: rawText,
-    normalized: rawText,
+    normalized: "\u8BF7\u67E5\u770B\u8BE6\u60C5",
     timestamp: 0,
     remainingHours: 9999,
     remainingText: "\u5F85\u5B9A",
@@ -304,10 +386,14 @@ var CourseGradingClient = class {
   baseUrl;
   http;
   sessionCookie;
-  constructor(config = {}, http = new FetchHttpClient()) {
+  db;
+  constructor(config = {}, http = new FetchHttpClient(), storage) {
     this.http = http;
     this.baseUrl = (config.baseUrl || "http://115.156.107.145").replace(/\/+$/, "");
     this.sessionCookie = config.sessionCookie || "";
+    if (storage) {
+      this.db = new HomeworkDB(storage);
+    }
   }
   setSessionCookie(cookie) {
     this.sessionCookie = cookie;
@@ -354,9 +440,13 @@ var CourseGradingClient = class {
     }
   }
   /**
-   * 查询当前激活课程中的活跃作业与实训
-   * 【核心原则】严禁在后台静默请求 /courselist.jsp?courseID=xxx 篡改用户的会话上下文，
-   * 仅只读请求当前课程作业页面，绝不影响浏览器当前课程状态。
+   * 切换当前激活课程上下文
+   */
+  async enterCourse(courseId) {
+    await this.http.get(`${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`, this.getAuthHeaders());
+  }
+  /**
+   * 只读读取当前活跃课程的作业列表（不篡改 Session 状态）
    */
   async getPendingAssignments(hoursThreshold = 72) {
     const allAssignments = [];
@@ -367,20 +457,6 @@ var CourseGradingClient = class {
         this.getAuthHeaders()
       );
       const list = parseActiveAssignmentsHtml(indexHtml, "\u5F53\u524D\u8BFE\u7A0B");
-      for (const item of list) {
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          allAssignments.push(item);
-        }
-      }
-    } catch {
-    }
-    try {
-      const activeHtml = await this.http.get(
-        `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
-        this.getAuthHeaders()
-      );
-      const list = parseActiveAssignmentsHtml(activeHtml, "\u5F53\u524D\u8BFE\u7A0B");
       for (const item of list) {
         if (!seenIds.has(item.id)) {
           seenIds.add(item.id);
@@ -417,6 +493,56 @@ var CourseGradingClient = class {
     });
   }
   /**
+   * 全量安全同步所有课程的作业并持久化存入数据库
+   * 【核心保障】爬取前记录当前用户所处课程 ID，依序抓取各门课后立即切回原课程，彻底杜绝串课
+   */
+  async safeSyncAllCourses(currentCourseId, onProgress) {
+    const courses = await this.getCourses();
+    if (courses.length === 0) {
+      const assigns = await this.getPendingAssignments();
+      if (this.db) {
+        await this.db.upsertCourse("default", "\u5F53\u524D\u8BFE\u7A0B", assigns);
+      }
+      return assigns;
+    }
+    for (let i = 0; i < courses.length; i++) {
+      const c = courses[i];
+      if (onProgress) onProgress(`\u6B63\u5728\u540C\u6B65 [${i + 1}/${courses.length}] \u300A${c.name}\u300B...`);
+      try {
+        await this.enterCourse(c.id);
+        const indexHtml = await this.http.get(`${this.baseUrl}/assignment/index.jsp`, this.getAuthHeaders());
+        const list = parseActiveAssignmentsHtml(indexHtml, c.name);
+        for (const item of list) {
+          if (item.deadline === "\u8BF7\u67E5\u770B\u8BE6\u60C5" || item.deadlineTimestamp === 0) {
+            try {
+              const detailHtml = await this.http.get(`${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`, this.getAuthHeaders());
+              const detail = parseAssignmentDetailHtml(detailHtml);
+              if (detail.deadline) {
+                item.deadline = detail.deadline;
+                item.deadlineTimestamp = detail.deadlineTimestamp;
+                item.remainingHours = detail.remainingHours;
+                item.remainingText = detail.remainingText;
+              }
+            } catch {
+            }
+          }
+        }
+        if (this.db) {
+          await this.db.upsertCourse(c.id, c.name, list);
+        }
+      } catch {
+      }
+    }
+    if (currentCourseId) {
+      if (onProgress) onProgress("\u6B63\u5728\u6062\u590D\u5F53\u524D\u9875\u9762\u8BFE\u7A0B\u72B6\u6001...");
+      try {
+        await this.enterCourse(currentCourseId);
+      } catch {
+      }
+    }
+    return this.db ? this.db.getAllAssignments() : this.getPendingAssignments();
+  }
+  /**
    * 获取题目详情与测试用例（兼容 programList.jsp 与 fileUploadList.jsp）
    */
   async getProblemDetail(assignId, proNum = 1) {
@@ -437,7 +563,7 @@ var CourseGradingClient = class {
    */
   async triggerPushAlert(config) {
     const threshold = config.hoursThreshold ?? 48;
-    const allPending = await this.getPendingAssignments(threshold);
+    const allPending = this.db ? await this.db.getAllAssignments() : await this.getPendingAssignments(threshold);
     const activeUrgent = allPending.filter((a) => a.remainingHours > 0 && a.remainingHours <= threshold);
     if (activeUrgent.length === 0) {
       return { sent: false, count: 0 };

@@ -65,17 +65,15 @@ export function extractDeadlineFromText(text: string): string {
   const kw = text.match(/(?:截止|结束)(?:时间|日期)?[:：\s]*([^\n<]+)/i);
   if (kw) return kw[1].trim();
 
-  // 3. 将常见年月日字符替换为标准分隔符后提取日期，取最后一个
+  // 3. 将常见年月日字符替换为标准分隔符后提取有效日期，取最后一个
   const cleaned = text.replace(/[年月日]/g, (m) => (m === '日' ? ' ' : '-'));
-  const dates = cleaned.match(/\d{1,4}[-/.]\d{1,2}(?:[-/.]\d{1,2})?(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?/g);
+  const dates = cleaned.match(/\b(?:\d{4}[-/.])?\d{1,2}[-/.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\b/g);
   return dates ? dates[dates.length - 1].trim() : text.trim();
 }
 
 /**
  * 北京时间 (UTC+8) DDL 解析器
- * 1. 自动从范围或混合文本中提取真正的截止时间（忽略开始时间）
- * 2. 自动处理缺少年份（如 "10-15 23:59" 或 "10月15日 23:59"）
- * 3. 强制锚定北京时间 (UTC+8)，杜绝本机时区偏差
+ * 增加月份 (1-12) 与日期 (1-31) 强校验，彻底杜绝把非日期数字识别为 0月0日 导致算成 300 多天前
  */
 export function parseDeadlineBeijing(rawInput: string, nowMs = Date.now()): ParsedDeadline {
   const raw = rawInput.trim();
@@ -105,6 +103,11 @@ export function parseDeadlineBeijing(rawInput: string, nowMs = Date.now()): Pars
   const min = m[5] !== undefined ? parseInt(m[5], 10) : 59;
   const s = m[6] !== undefined ? parseInt(m[6], 10) : 0;
 
+  // 强校验月份 (1-12) 与日期 (1-31)，杜绝 00-00 误匹配
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h < 0 || h > 23 || min < 0 || min > 59) {
+    return emptyDeadline(raw);
+  }
+
   // 强制按照东八区 (UTC+8) 计算绝对时间戳
   const ts = Date.UTC(y, mo - 1, d, h, min, s) - 8 * 3600 * 1000;
   const remHrs = Number(((ts - nowMs) / 3600000).toFixed(1));
@@ -123,7 +126,7 @@ export function parseDeadlineBeijing(rawInput: string, nowMs = Date.now()): Pars
 function emptyDeadline(rawText: string): ParsedDeadline {
   return {
     raw: rawText,
-    normalized: rawText,
+    normalized: '请查看详情',
     timestamp: 0,
     remainingHours: 9999,
     remainingText: '待定',

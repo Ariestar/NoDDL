@@ -1,6 +1,7 @@
-import { Assignment, Course, HttpClient, PlatformConfig, ProblemDetail, PushConfig, SubmissionResult } from './types';
+import { Assignment, Course, HttpClient, PlatformConfig, ProblemDetail, PushConfig, SubmissionResult, StorageAdapter } from './types';
 import { FetchHttpClient } from './http';
 import { encryptPassword } from './crypto';
+import { HomeworkDB } from './db';
 import {
   parseActiveAssignmentsHtml,
   parseAssignmentDetailHtml,
@@ -13,11 +14,15 @@ export class CourseGradingClient {
   private baseUrl: string;
   private http: HttpClient;
   private sessionCookie: string;
+  public db?: HomeworkDB;
 
-  constructor(config: PlatformConfig = {}, http: HttpClient = new FetchHttpClient()) {
+  constructor(config: PlatformConfig = {}, http: HttpClient = new FetchHttpClient(), storage?: StorageAdapter) {
     this.http = http;
     this.baseUrl = (config.baseUrl || 'http://115.156.107.145').replace(/\/+$/, '');
     this.sessionCookie = config.sessionCookie || '';
+    if (storage) {
+      this.db = new HomeworkDB(storage);
+    }
   }
 
   setSessionCookie(cookie: string) {
@@ -73,15 +78,20 @@ export class CourseGradingClient {
   }
 
   /**
-   * 查询当前激活课程中的活跃作业与实训
-   * 【核心原则】严禁在后台静默请求 /courselist.jsp?courseID=xxx 篡改用户的会话上下文，
-   * 仅只读请求当前课程作业页面，绝不影响浏览器当前课程状态。
+   * 切换当前激活课程上下文
+   */
+  async enterCourse(courseId: string): Promise<void> {
+    await this.http.get(`${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`, this.getAuthHeaders());
+  }
+
+  /**
+   * 只读读取当前活跃课程的作业列表（不篡改 Session 状态）
    */
   async getPendingAssignments(hoursThreshold = 72): Promise<Assignment[]> {
     const allAssignments: Assignment[] = [];
     const seenIds = new Set<string>();
 
-    // 1. 只读读取当前活跃课程的作业主页 (/assignment/index.jsp)
+    // 1. 只读读取当前课程作业主页
     try {
       const indexHtml = await this.http.get(
         `${this.baseUrl}/assignment/index.jsp`,
@@ -96,22 +106,7 @@ export class CourseGradingClient {
       }
     } catch {}
 
-    // 2. 只读读取活跃作业组件 (/assignment/mainActiveAssigns.jsp)
-    try {
-      const activeHtml = await this.http.get(
-        `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
-        this.getAuthHeaders()
-      );
-      const list = parseActiveAssignmentsHtml(activeHtml, '当前课程');
-      for (const item of list) {
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          allAssignments.push(item);
-        }
-      }
-    } catch {}
-
-    // 3. 针对未带 DDL 的项目，定向只读查询详情补齐
+    // 2. 补齐详情页精确截止时间
     for (const item of allAssignments) {
       if (item.deadline === '请查看详情' || item.deadlineTimestamp === 0) {
         try {
@@ -133,15 +128,68 @@ export class CourseGradingClient {
     return allAssignments
       .filter(item => item.status === 'pending')
       .sort((a, b) => {
-        // 进行中的排在最前（早截止的更靠前）
         if (a.remainingHours > 0 && b.remainingHours <= 0) return -1;
         if (a.remainingHours <= 0 && b.remainingHours > 0) return 1;
         if (a.remainingHours > 0 && b.remainingHours > 0) {
           return a.deadlineTimestamp - b.deadlineTimestamp;
         }
-        // 都已逾期的排在后面（按最近逾期排）
         return b.deadlineTimestamp - a.deadlineTimestamp;
       });
+  }
+
+  /**
+   * 全量安全同步所有课程的作业并持久化存入数据库
+   * 【核心保障】爬取前记录当前用户所处课程 ID，依序抓取各门课后立即切回原课程，彻底杜绝串课
+   */
+  async safeSyncAllCourses(currentCourseId?: string, onProgress?: (msg: string) => void): Promise<Assignment[]> {
+    const courses = await this.getCourses();
+    if (courses.length === 0) {
+      const assigns = await this.getPendingAssignments();
+      if (this.db) {
+        await this.db.upsertCourse('default', '当前课程', assigns);
+      }
+      return assigns;
+    }
+
+    for (let i = 0; i < courses.length; i++) {
+      const c = courses[i];
+      if (onProgress) onProgress(`正在同步 [${i + 1}/${courses.length}] 《${c.name}》...`);
+      try {
+        await this.enterCourse(c.id);
+        const indexHtml = await this.http.get(`${this.baseUrl}/assignment/index.jsp`, this.getAuthHeaders());
+        const list = parseActiveAssignmentsHtml(indexHtml, c.name);
+
+        // 针对缺日期的作业定向只读请求详情补齐真实 DDL
+        for (const item of list) {
+          if (item.deadline === '请查看详情' || item.deadlineTimestamp === 0) {
+            try {
+              const detailHtml = await this.http.get(`${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`, this.getAuthHeaders());
+              const detail = parseAssignmentDetailHtml(detailHtml);
+              if (detail.deadline) {
+                item.deadline = detail.deadline;
+                item.deadlineTimestamp = detail.deadlineTimestamp;
+                item.remainingHours = detail.remainingHours;
+                item.remainingText = detail.remainingText;
+              }
+            } catch {}
+          }
+        }
+
+        if (this.db) {
+          await this.db.upsertCourse(c.id, c.name, list);
+        }
+      } catch {}
+    }
+
+    // 关键安全重置：必须立刻切回用户当前所在的课程上下文！
+    if (currentCourseId) {
+      if (onProgress) onProgress('正在恢复当前页面课程状态...');
+      try {
+        await this.enterCourse(currentCourseId);
+      } catch {}
+    }
+
+    return this.db ? this.db.getAllAssignments() : this.getPendingAssignments();
   }
 
   /**
@@ -167,7 +215,7 @@ export class CourseGradingClient {
    */
   async triggerPushAlert(config: PushConfig): Promise<{ sent: boolean; count: number; error?: string }> {
     const threshold = config.hoursThreshold ?? 48;
-    const allPending = await this.getPendingAssignments(threshold);
+    const allPending = this.db ? await this.db.getAllAssignments() : await this.getPendingAssignments(threshold);
 
     const activeUrgent = allPending.filter(a => a.remainingHours > 0 && a.remainingHours <= threshold);
     if (activeUrgent.length === 0) {

@@ -34,7 +34,7 @@ export function App({ client, storage, initialAssignments }: AppProps) {
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    setTimeout(() => setToast(null), 3000);
   };
 
   useEffect(() => {
@@ -48,12 +48,22 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     })();
   }, []);
 
+  // 刷新当前课程作业
   const refreshAssignments = async () => {
     setLoading(true);
     try {
+      if (client.db) {
+        const cached = await client.db.getAllAssignments();
+        if (cached.length > 0) {
+          setAssignments(cached);
+          showToast(`已加载数据库缓存：共 ${cached.length} 项作业`);
+        }
+      }
       const list = await client.getPendingAssignments(threshold);
-      setAssignments(list);
-      showToast(`已刷新：发现 ${list.length} 项作业`);
+      if (list.length > 0) {
+        setAssignments(list);
+        showToast(`已刷新：发现 ${list.length} 项作业`);
+      }
     } catch {
       showToast('获取作业列表失败');
     } finally {
@@ -61,6 +71,26 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     }
   };
 
+  // 一键全量同步所有课程（带安全 Session 恢复）
+  const syncAllCourses = async () => {
+    setLoading(true);
+    showToast('正在全量安全同步所有课程...');
+    try {
+      const curMatch = document.documentElement.innerHTML.match(/courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)/i) ||
+                       window.location.search.match(/courseID=([a-zA-Z0-9_-]+)/i);
+      const curId = curMatch ? curMatch[1] : undefined;
+
+      const list = await client.safeSyncAllCourses(curId, (msg) => showToast(msg));
+      setAssignments(list);
+      showToast(`同步完成！共汇总 ${list.length} 项作业`);
+    } catch {
+      showToast('同步全部课程失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 刷新评测记录
   const refreshSubmissions = async () => {
     setEvalLoading(true);
     try {
@@ -73,6 +103,7 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     }
   };
 
+  // 加载本地草稿历史
   const loadDrafts = () => {
     const list: { key: string; time: string; length: number; code: string }[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -163,6 +194,14 @@ export function App({ client, storage, initialAssignments }: AppProps) {
             </div>
             <div className="nodd-header-actions">
               <button
+                className="btn btn-sm btn-secondary"
+                style="font-size:11px;padding:3px 8px;font-weight:600;"
+                title="全量扫描并同步所有课程作业"
+                onClick={syncAllCourses}
+              >
+                🌐 同步全部课程
+              </button>
+              <button
                 className="icon-btn"
                 title="刷新数据"
                 onClick={() => {
@@ -240,7 +279,7 @@ export function App({ client, storage, initialAssignments }: AppProps) {
                 </div>
 
                 {loading ? (
-                  <div className="empty-state">正在拉取作业列表...</div>
+                  <div className="empty-state">正在同步作业数据...</div>
                 ) : filteredAssignments.length === 0 ? (
                   <div className="empty-state">
                     <span style="font-size:24px;">🎉</span>

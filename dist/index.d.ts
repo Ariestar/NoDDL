@@ -99,9 +99,7 @@ declare function formatRemainingTime(remainingHours: number): string;
 declare function extractDeadlineFromText(text: string): string;
 /**
  * 北京时间 (UTC+8) DDL 解析器
- * 1. 自动从范围或混合文本中提取真正的截止时间（忽略开始时间）
- * 2. 自动处理缺少年份（如 "10-15 23:59" 或 "10月15日 23:59"）
- * 3. 强制锚定北京时间 (UTC+8)，杜绝本机时区偏差
+ * 增加月份 (1-12) 与日期 (1-31) 强校验，彻底杜绝把非日期数字识别为 0月0日 导致算成 300 多天前
  */
 declare function parseDeadlineBeijing(rawInput: string, nowMs?: number): ParsedDeadline;
 
@@ -140,11 +138,41 @@ declare function parseProblemDetailHtml(problemId: string, html: string): Proble
  */
 declare function parseSubmissionsHtml(html: string): SubmissionResult[];
 
+interface CachedCourse {
+    id: string;
+    name: string;
+    updatedAt: number;
+    assignments: Assignment[];
+}
+interface HomeworkDBData {
+    lastSync: number;
+    courses: Record<string, CachedCourse>;
+}
+declare class HomeworkDB {
+    private storage;
+    constructor(storage: StorageAdapter);
+    load(): Promise<HomeworkDBData>;
+    save(data: HomeworkDBData): Promise<void>;
+    /**
+     * 更新或插入某个课程的作业列表
+     */
+    upsertCourse(courseId: string, courseName: string, items: Assignment[]): Promise<void>;
+    /**
+     * 单个作业更新（例如用户打开 fileUploadList.jsp 时从页面提取到的单条作业）
+     */
+    upsertAssignment(item: Assignment): Promise<void>;
+    /**
+     * 获取本地数据库中全部课程的所有未完成作业，并按 DDL 智能排序
+     */
+    getAllAssignments(): Promise<Assignment[]>;
+}
+
 declare class CourseGradingClient {
     private baseUrl;
     private http;
     private sessionCookie;
-    constructor(config?: PlatformConfig, http?: HttpClient);
+    db?: HomeworkDB;
+    constructor(config?: PlatformConfig, http?: HttpClient, storage?: StorageAdapter);
     setSessionCookie(cookie: string): void;
     getSessionCookie(): string;
     private getAuthHeaders;
@@ -160,11 +188,18 @@ declare class CourseGradingClient {
      */
     getCourses(): Promise<Course[]>;
     /**
-     * 查询当前激活课程中的活跃作业与实训
-     * 【核心原则】严禁在后台静默请求 /courselist.jsp?courseID=xxx 篡改用户的会话上下文，
-     * 仅只读请求当前课程作业页面，绝不影响浏览器当前课程状态。
+     * 切换当前激活课程上下文
+     */
+    enterCourse(courseId: string): Promise<void>;
+    /**
+     * 只读读取当前活跃课程的作业列表（不篡改 Session 状态）
      */
     getPendingAssignments(hoursThreshold?: number): Promise<Assignment[]>;
+    /**
+     * 全量安全同步所有课程的作业并持久化存入数据库
+     * 【核心保障】爬取前记录当前用户所处课程 ID，依序抓取各门课后立即切回原课程，彻底杜绝串课
+     */
+    safeSyncAllCourses(currentCourseId?: string, onProgress?: (msg: string) => void): Promise<Assignment[]>;
     /**
      * 获取题目详情与测试用例（兼容 programList.jsp 与 fileUploadList.jsp）
      */
@@ -183,4 +218,4 @@ declare class CourseGradingClient {
     }>;
 }
 
-export { type Assignment, COURSE_GRADING_SECRET_KEY, type Course, CourseGradingClient, FetchHttpClient, type HttpClient, type ParsedDeadline, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, extractDeadlineFromText, formatRemainingTime, parseActiveAssignmentsHtml, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };
+export { type Assignment, COURSE_GRADING_SECRET_KEY, type CachedCourse, type Course, CourseGradingClient, FetchHttpClient, HomeworkDB, type HomeworkDBData, type HttpClient, type ParsedDeadline, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, extractDeadlineFromText, formatRemainingTime, parseActiveAssignmentsHtml, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };
