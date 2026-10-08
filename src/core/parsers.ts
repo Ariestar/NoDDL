@@ -34,15 +34,13 @@ export function parseCourseListHtml(html: string): Course[] {
 
 /**
  * 解析希冀平台活跃作业列表
- * 支持结构：
- * 1. 侧边栏结构：精准切分当前作业（fas fa-clock）与历史作业（fas fa-history），只抓取当前作业
- * 2. 标准活跃容器：div.main-zy 或包含 assignID 的链接列表
+ * 侧边栏结构：精准切分当前作业（fas fa-clock）与历史作业（fas fa-history），只抓取当前作业
  */
 export function parseActiveAssignmentsHtml(html: string, courseName = '当前课程', nowMs = Date.now()): Assignment[] {
   const list: Assignment[] = [];
   const seen = new Set<string>();
 
-  // 1. 若存在侧边栏 "历史作业" (fas fa-history)，仅截取历史作业前面的 "当前进行中作业" 区域
+  // 1. 若存在侧边栏 "历史作业" (fas fa-history)，仅截取前面的当前进行中作业区域
   let activeSection = html;
   const historyIdx = html.search(/fas\s+fa-history|历史作业/i);
   if (historyIdx !== -1) {
@@ -68,7 +66,7 @@ export function parseActiveAssignmentsHtml(html: string, courseName = '当前课
 
     seen.add(id);
 
-    // 取该链接周围上下文解析 DDL
+    // 仅从同级/就近结构提取日期，若没有显式日期绝不猜测，保留为待查
     const matchPos = m.index;
     const ctx = activeSection.slice(Math.max(0, matchPos - 200), Math.min(activeSection.length, matchPos + 350));
     const ddl = parseDeadlineBeijing(ctx, nowMs);
@@ -134,14 +132,25 @@ export function parseAssignmentDetailHtml(html: string, nowMs = Date.now()): {
   remainingHours: number;
   remainingText: string;
 } {
-  // 提取 DDL：支持 "作业时间：<b>...</b> 至 <b>...</b>" 规范格式
   const ddl = parseDeadlineBeijing(html, nowMs);
 
-  // 提取作业名称：通常在 <b>作业名</b> 或 breadcrumb 中
-  const titleM = html.match(/(?:当前作业|作业名称)[：:\s]*<b>([^<]+)<\/b>/i) ||
-                 html.match(/<b>([^<]{2,40})<\/b>\s*<p>[^<]*作业时间/i) ||
-                 html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
-  const title = titleM ? titleM[1].replace(/<[^>]+>/g, '').trim() : undefined;
+  // 提取作业名称：优先匹配面包屑导航、<b>作业名</b>、或 h3/h4
+  const breadcrumbM = html.match(/<ol[^>]*class=["'][^"']*breadcrumb[^"']*["'][^>]*>([\s\S]*?)<\/ol>/i);
+  let title: string | undefined;
+
+  if (breadcrumbM) {
+    const items = [...breadcrumbM[1].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map(i => i[1].replace(/<[^>]+>/g, '').trim());
+    if (items.length > 0) {
+      title = items[items.length - 1];
+    }
+  }
+
+  if (!title) {
+    const titleM = html.match(/(?:当前作业|作业名称)[：:\s]*<b>([^<]+)<\/b>/i) ||
+                   html.match(/<b>([^<]{2,40})<\/b>\s*<p>[^<]*作业时间/i) ||
+                   html.match(/<h[2-4][^>]*>([^<]+)<\/h[2-4]>/i);
+    if (titleM) title = titleM[1].replace(/<[^>]+>/g, '').trim();
+  }
 
   return {
     title,

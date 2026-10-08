@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { encryptPassword, decryptPassword } from '../src/core/crypto';
-import { parseDeadlineBeijing, formatRemainingTime, calculateUrgency } from '../src/core/time';
+import { parseDeadlineBeijing, formatRemainingTime, calculateUrgency, extractDeadlineFromText } from '../src/core/time';
 import {
   parseCourseListHtml,
   parseActiveAssignmentsHtml,
@@ -16,6 +16,19 @@ test('AES-ECB 密码加密与解密一致性', () => {
 
   const decrypted = decryptPassword(encrypted);
   assert.strictEqual(decrypted, password);
+});
+
+test('时间引擎：严格边界校验，杜绝无日期文本误判为 00-00 或 311 天', () => {
+  // 无日期的普通标题文本
+  const noDate1 = parseDeadlineBeijing('第八章异常控制流-课后作业');
+  assert.strictEqual(noDate1.timestamp, 0);
+  assert.strictEqual(noDate1.normalized, '请查看详情');
+  assert.strictEqual(noDate1.remainingText, '待定');
+  assert.notStrictEqual(noDate1.normalized, '2026-00-00 23:59:00');
+
+  const noDate2 = parseDeadlineBeijing('第十章异常控制流-课后作业');
+  assert.strictEqual(noDate2.timestamp, 0);
+  assert.strictEqual(noDate2.remainingText, '待定');
 });
 
 test('时间引擎：标准格式解析与东八区校准', () => {
@@ -56,7 +69,7 @@ test('时间引擎：时间范围精准提取结束 DDL（忽略开始时间）'
   assert.strictEqual(parsed.remainingText, '剩 6 天 2 小时');
   assert.ok(parsed.remainingHours > 0);
 
-  // 规范标签包裹: 作业时间：<b>...</b> 至 <b>...</b>
+  // 希冀平台规范标签包裹: 作业时间：<b>...</b> 至 <b>...</b>
   const rawHtml = '作业时间：<b>2026-09-09 12:50:00</b> 至 <b>2026-10-15 00:00:00</b>';
   const parsedHtml = parseDeadlineBeijing(rawHtml, nowMs);
   assert.strictEqual(parsedHtml.normalized, '2026-10-15 00:00:00');
@@ -85,7 +98,6 @@ test('希冀平台侧边栏切分 (当前作业 vs 历史作业)', () => {
   const nowMs = Date.UTC(2026, 9, 8, 21, 56, 0) - 8 * 3600 * 1000;
   const list = parseActiveAssignmentsHtml(sampleSidebar, '计算机网络', nowMs);
 
-  // 必须只抓取当前作业 (3548)，绝不能把历史作业抓成待交作业
   assert.strictEqual(list.length, 1);
   assert.strictEqual(list[0].id, '3548');
   assert.strictEqual(list[0].title, '第七章链接-课后作业');
@@ -95,8 +107,11 @@ test('希冀平台侧边栏切分 (当前作业 vs 历史作业)', () => {
 
 test('希冀平台作业详情页解析 (/assignment/index.jsp 或 fileUploadList.jsp)', () => {
   const sampleDetail = `
+    <ol class="breadcrumb">
+      <li><a href="index.jsp">作业列表</a></li>
+      <li class="active">第七章链接-课后作业</li>
+    </ol>
     <div>
-      <b>第七章链接-课后作业</b>
       <p>作业时间：<b>2026-09-09 12:50:00</b> 至 <b>2026-10-15 00:00:00</b></p>
       <a href="fileUploadList.jsp?proNum=1&assignID=3548">第一题：实验报告提交</a>
     </div>

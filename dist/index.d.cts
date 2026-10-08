@@ -84,22 +84,17 @@ interface ParsedDeadline {
     remainingText: string;
     urgency: UrgencyLevel;
 }
-/**
- * 评估截止时间紧迫度等级
- */
 declare function calculateUrgency(remainingHours: number): UrgencyLevel;
-/**
- * 格式化剩余时间为人性化倒计时 / 逾期提示
- */
 declare function formatRemainingTime(remainingHours: number): string;
 /**
- * 从文本或时间范围中精确提取截止时间
- * 核心逻辑：若存在 "开始时间 至 截止时间" 或 "~"，精准提取分隔符右侧的结束时间，杜绝误识别开始时间
+ * 从希冀平台 HTML 或文本中提取精确截止时间
+ * 希冀平台规范结构: "作业时间：<b>开始时间</b> 至 <b>截止时间</b>"
+ * 无论传入整页 HTML 还是文本片段，都必须精准提取结束时间，绝对不匹配开始时间
  */
 declare function extractDeadlineFromText(text: string): string;
 /**
- * 北京时间 (UTC+8) DDL 解析器
- * 增加月份 (1-12) 与日期 (1-31) 强校验，彻底杜绝把非日期数字识别为 0月0日 导致算成 300 多天前
+ * 健壮的北京时间 (UTC+8) DDL 解析器
+ * 带严格的月 (1-12) 与日 (1-31) 边界校验，杜绝任何非日期文本误判为 00-00 导致 311 天 bug
  */
 declare function parseDeadlineBeijing(rawInput: string, nowMs?: number): ParsedDeadline;
 
@@ -109,9 +104,7 @@ declare function parseDeadlineBeijing(rawInput: string, nowMs?: number): ParsedD
 declare function parseCourseListHtml(html: string): Course[];
 /**
  * 解析希冀平台活跃作业列表
- * 支持结构：
- * 1. 侧边栏结构：精准切分当前作业（fas fa-clock）与历史作业（fas fa-history），只抓取当前作业
- * 2. 标准活跃容器：div.main-zy 或包含 assignID 的链接列表
+ * 侧边栏结构：精准切分当前作业（fas fa-clock）与历史作业（fas fa-history），只抓取当前作业
  */
 declare function parseActiveAssignmentsHtml(html: string, courseName?: string, nowMs?: number): Assignment[];
 /**

@@ -147,11 +147,11 @@ function calculateUrgency(remainingHours) {
 }
 function formatRemainingTime(remainingHours) {
   if (remainingHours <= 0) {
-    const passedHours = Math.abs(remainingHours);
-    if (passedHours < 24) {
-      return `\u5DF2\u8D85 DDL ${Math.max(1, Math.round(passedHours))} \u5C0F\u65F6`;
+    const passed = Math.abs(remainingHours);
+    if (passed < 24) {
+      return `\u5DF2\u8D85 DDL ${Math.max(1, Math.round(passed))} \u5C0F\u65F6`;
     }
-    return `\u5DF2\u8D85 DDL ${Math.floor(passedHours / 24)} \u5929`;
+    return `\u5DF2\u8D85 DDL ${Math.floor(passed / 24)} \u5929`;
   }
   if (remainingHours < 1) {
     const mins = Math.max(1, Math.round(remainingHours * 60));
@@ -168,23 +168,38 @@ function formatRemainingTime(remainingHours) {
 }
 function extractDeadlineFromText(text) {
   if (!text) return "";
-  const range = text.split(/\s*(?:至|到|~|-{2,})\s*/);
-  if (range.length > 1) {
-    return range[range.length - 1].trim();
+  const xijiTagMatch = text.match(/作业时间[：:\s]*<b[^>]*>[^<]*<\/b>\s*(?:至|到|~)\s*<b[^>]*>([^<]+)<\/b>/i);
+  if (xijiTagMatch && xijiTagMatch[1]) {
+    return xijiTagMatch[1].trim();
   }
-  const kw = text.match(/(?:截止|结束)(?:时间|日期)?[:：\s]*([^\n<]+)/i);
-  if (kw) return kw[1].trim();
+  const tagRangeMatch = text.match(/<b[^>]*>[^<]*<\/b>\s*(?:至|到|~)\s*<b[^>]*>([\d\-/年月日. :]+)<\/b>/i);
+  if (tagRangeMatch && tagRangeMatch[1]) {
+    return tagRangeMatch[1].trim();
+  }
+  const rangeParts = text.split(/\s*(?:至|到|~|-{2,})\s*/);
+  if (rangeParts.length > 1) {
+    const candidate = rangeParts[rangeParts.length - 1].trim();
+    const dateM = candidate.match(/\b(?:\d{4}[-/.年])?\d{1,2}[-/.月]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\b/);
+    if (dateM) return dateM[0].trim();
+  }
+  const kwMatch = text.match(/(?:截止|结束)(?:时间|日期)?[:：\s]*([\d\-/年月日. :]+)/i);
+  if (kwMatch && kwMatch[1]) {
+    return kwMatch[1].trim();
+  }
   const cleaned = text.replace(/[年月日]/g, (m) => m === "\u65E5" ? " " : "-");
-  const dates = cleaned.match(/\b(?:\d{4}[-/.])?\d{1,2}[-/.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\b/g);
-  return dates ? dates[dates.length - 1].trim() : text.trim();
+  const allDates = cleaned.match(/\b(?:\d{4}[-/.])?\d{1,2}[-/.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\b/g);
+  return allDates ? allDates[allDates.length - 1].trim() : "";
 }
 function parseDeadlineBeijing(rawInput, nowMs = Date.now()) {
   const raw = rawInput.trim();
   if (!raw) {
     return emptyDeadline("\u672A\u6807\u6CE8\u622A\u6B62\u65F6\u95F4");
   }
-  const target = extractDeadlineFromText(raw);
-  const clean = target.replace(/[年月]/g, "-").replace(/[日号]/g, " ").replace(/[./]/g, "-").replace(/\s+/g, " ").trim();
+  const extracted = extractDeadlineFromText(raw);
+  if (!extracted) {
+    return emptyDeadline(raw);
+  }
+  const clean = extracted.replace(/[年月]/g, "-").replace(/[日号]/g, " ").replace(/[./]/g, "-").replace(/\s+/g, " ").trim();
   const m = clean.match(/(?:(\d{4})-)?(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
   if (!m) {
     return emptyDeadline(raw);
@@ -316,8 +331,18 @@ function parseActiveAssignmentsHtml(html, courseName = "\u5F53\u524D\u8BFE\u7A0B
 }
 function parseAssignmentDetailHtml(html, nowMs = Date.now()) {
   const ddl = parseDeadlineBeijing(html, nowMs);
-  const titleM = html.match(/(?:当前作业|作业名称)[：:\s]*<b>([^<]+)<\/b>/i) || html.match(/<b>([^<]{2,40})<\/b>\s*<p>[^<]*作业时间/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
-  const title = titleM ? titleM[1].replace(/<[^>]+>/g, "").trim() : void 0;
+  const breadcrumbM = html.match(/<ol[^>]*class=["'][^"']*breadcrumb[^"']*["'][^>]*>([\s\S]*?)<\/ol>/i);
+  let title;
+  if (breadcrumbM) {
+    const items = [...breadcrumbM[1].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map((i) => i[1].replace(/<[^>]+>/g, "").trim());
+    if (items.length > 0) {
+      title = items[items.length - 1];
+    }
+  }
+  if (!title) {
+    const titleM = html.match(/(?:当前作业|作业名称)[：:\s]*<b>([^<]+)<\/b>/i) || html.match(/<b>([^<]{2,40})<\/b>\s*<p>[^<]*作业时间/i) || html.match(/<h[2-4][^>]*>([^<]+)<\/h[2-4]>/i);
+    if (titleM) title = titleM[1].replace(/<[^>]+>/g, "").trim();
+  }
   return {
     title,
     deadline: ddl.timestamp > 0 ? ddl.normalized : void 0,
