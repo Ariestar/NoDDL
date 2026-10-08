@@ -2,15 +2,42 @@ import { Assignment, Course, ProblemDetail, SubmissionResult, TestCase } from '.
 import { parseDeadlineBeijing } from './time';
 
 /**
- * 解析希冀平台课程列表（仅用于只读展示，严禁后台静默切换课程上下文）
+ * 解析希冀平台当前激活课程信息
+ * 真实结构: <span class="... dropdown-item-course font-weight-bold" value="184">离散数学</span>
+ */
+export function parseActiveCourseInfo(html: string): { id?: string; name?: string } {
+  const activeCourseM = html.match(/<span[^>]*class=["'][^"']*dropdown-item-course[^"']*font-weight-bold[^"']*["'][^>]*value=["']([^"']+)["'][^>]*>([\s\S]*?)<\/span>/i);
+  if (activeCourseM) {
+    return {
+      id: activeCourseM[1],
+      name: activeCourseM[2].replace(/<[^>]+>/g, '').trim()
+    };
+  }
+
+  // 备用：任意课程项
+  const anyCourseM = html.match(/<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([^"']+)["'][^>]*>([\s\S]*?)<\/span>/i);
+  if (anyCourseM) {
+    return {
+      id: anyCourseM[1],
+      name: anyCourseM[2].replace(/<[^>]+>/g, '').trim()
+    };
+  }
+
+  return {};
+}
+
+/**
+ * 解析希冀平台课程列表
+ * 真实结构: <span class="dropdown-item dropdown-item-course..." value="184">离散数学</span>
+ * 或 <a href="courselist.jsp?courseID=184">离散数学</a>
  */
 export function parseCourseListHtml(html: string): Course[] {
   const list: Course[] = [];
   const seen = new Set<string>();
 
-  const linkRe = /<a[^>]*href=["'][^"']*courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const spanRe = /<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/span>/gi;
   let m: RegExpExecArray | null;
-  while ((m = linkRe.exec(html)) !== null) {
+  while ((m = spanRe.exec(html)) !== null) {
     const id = m[1];
     const name = m[2].replace(/<[^>]+>/g, '').trim();
     if (id && name && !seen.has(id)) {
@@ -19,8 +46,8 @@ export function parseCourseListHtml(html: string): Course[] {
     }
   }
 
-  const spanRe = /<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/span>/gi;
-  while ((m = spanRe.exec(html)) !== null) {
+  const linkRe = /<a[^>]*href=["'][^"']*courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  while ((m = linkRe.exec(html)) !== null) {
     const id = m[1];
     const name = m[2].replace(/<[^>]+>/g, '').trim();
     if (id && name && !seen.has(id)) {
@@ -33,18 +60,24 @@ export function parseCourseListHtml(html: string): Course[] {
 }
 
 /**
- * 解析希冀平台活跃作业列表
- * 侧边栏结构：精准切分当前作业（fas fa-clock）与历史作业（fas fa-history），只抓取当前作业
+ * 解析希冀平台侧边栏中的作业列表
+ * 真实结构:
+ * <span class="text-muted"><strong><i class="fas fa-clock"></i> 当前作业</strong></span>
+ * <div class="list-group list-group-flush mb-4">
+ *     <a href="index.jsp?courseID=184&assignID=3548" class="list-group-item list-group-item-action active">第四周作业</a>
+ * </div>
+ * <span class="text-muted"><strong><i class="fas fa-history"></i> 历史作业</strong></span>
+ * <div class="list-group list-group-flush">...</div>
  */
 export function parseActiveAssignmentsHtml(html: string, courseName = '当前课程', nowMs = Date.now()): Assignment[] {
   const list: Assignment[] = [];
   const seen = new Set<string>();
 
-  // 1. 若存在侧边栏 "历史作业" (fas fa-history)，仅截取前面的当前进行中作业区域
+  // 1. 尝试按希冀平台原生物理锚点切分（仅提取 "当前作业" 区域，截断于 "历史作业"）
   let activeSection = html;
   const historyIdx = html.search(/fas\s+fa-history|历史作业/i);
   if (historyIdx !== -1) {
-    const clockIdx = html.search(/fas\s+fa-clock|当前作业|进行中/i);
+    const clockIdx = html.search(/fas\s+fa-clock|当前作业/i);
     if (clockIdx !== -1 && clockIdx < historyIdx) {
       activeSection = html.slice(clockIdx, historyIdx);
     } else {
@@ -52,7 +85,7 @@ export function parseActiveAssignmentsHtml(html: string, courseName = '当前课
     }
   }
 
-  // 2. 匹配作业链接（支持 index.jsp?assignID=..., fileUploadList.jsp?proNum=1&assignID=..., programList.jsp?...）
+  // 2. 匹配侧边栏或列表中的作业链接: a[href*="assignID="]
   const linkRe = /<a[^>]*href=["']([^"']*assignID=([a-zA-Z0-9_-]+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let m: RegExpExecArray | null;
 
@@ -62,11 +95,12 @@ export function parseActiveAssignmentsHtml(html: string, courseName = '当前课
     const title = m[3].replace(/<[^>]+>/g, '').trim();
 
     if (!title || seen.has(id)) continue;
-    if (/^(?:详细|提交|查看|重做|编辑|删除)$/.test(title)) continue;
+    // 过滤操作辅助按钮（如 "返回文件上传题列表", "详细", "1", "文件上传题" 等）
+    if (/^(?:返回|详细|提交|查看|重做|编辑|删除|\d+|文件上传题|程序题)$/.test(title)) continue;
 
     seen.add(id);
 
-    // 仅从同级/就近结构提取日期，若没有显式日期绝不猜测，保留为待查
+    // 尝试提取同级/就近结构中的日期（通常在 assignment/index.jsp 详情中才有，侧边栏一般不含）
     const matchPos = m.index;
     const ctx = activeSection.slice(Math.max(0, matchPos - 200), Math.min(activeSection.length, matchPos + 350));
     const ddl = parseDeadlineBeijing(ctx, nowMs);
@@ -85,45 +119,16 @@ export function parseActiveAssignmentsHtml(html: string, courseName = '当前课
     });
   }
 
-  // 3. 兜底扫描: div.main-zy 容器结构
-  if (list.length === 0) {
-    const blockRe = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
-    let bm: RegExpExecArray | null;
-
-    while ((bm = blockRe.exec(html)) !== null) {
-      const block = bm[1];
-      const linkM = block.match(/href=["']([^"']*assignID=([a-zA-Z0-9_-]+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/i);
-      if (!linkM) continue;
-
-      const rawUrl = linkM[1];
-      const id = linkM[2];
-      if (seen.has(id)) continue;
-      seen.add(id);
-
-      const title = linkM[3].replace(/<[^>]+>/g, '').trim() || `作业 ${id}`;
-      const ddl = parseDeadlineBeijing(block, nowMs);
-
-      list.push({
-        id,
-        courseName,
-        title,
-        deadline: ddl.timestamp > 0 ? ddl.normalized : '请查看详情',
-        deadlineTimestamp: ddl.timestamp,
-        remainingHours: ddl.remainingHours,
-        remainingText: ddl.remainingText,
-        status: 'pending',
-        urgency: ddl.urgency,
-        url: rawUrl.startsWith('/') ? rawUrl : `/assignment/${rawUrl}`
-      });
-    }
-  }
-
   return list;
 }
 
 /**
- * 解析希冀平台作业详情页与题目列表
- * 来源：/assignment/index.jsp?assignID={id} 或 fileUploadList.jsp / programList.jsp
+ * 解析希冀平台作业主卡片（包含作业标题、作业时间与满分）
+ * 真实结构:
+ * <div class="shadow-sm p-3 mb-3 bg-light rounded">
+ *     <h4>第四周作业</h4>
+ *     <p>作业时间：<b>2026-09-30 21:28:00</b> 至 <b>2026-10-11 23:59:00</b></p>
+ * </div>
  */
 export function parseAssignmentDetailHtml(html: string, nowMs = Date.now()): {
   title?: string;
@@ -132,25 +137,25 @@ export function parseAssignmentDetailHtml(html: string, nowMs = Date.now()): {
   remainingHours: number;
   remainingText: string;
 } {
-  const ddl = parseDeadlineBeijing(html, nowMs);
+  // 1. 精准提取卡片标题 h4 (例如 "第四周作业")
+  const h4Match = html.match(/<div[^>]*class=["'][^"']*bg-light[^"']*["'][^>]*>[\s\S]*?<h[3-5][^>]*>([\s\S]*?)<\/h[3-5]>/i) ||
+                  html.match(/<h[3-5][^>]*>([\s\S]*?)<\/h[3-5]>\s*<p>[^<]*作业时间/i);
+  let title = h4Match ? h4Match[1].replace(/<[^>]+>/g, '').trim() : undefined;
 
-  // 提取作业名称：优先匹配面包屑导航、<b>作业名</b>、或 h3/h4
-  const breadcrumbM = html.match(/<ol[^>]*class=["'][^"']*breadcrumb[^"']*["'][^>]*>([\s\S]*?)<\/ol>/i);
-  let title: string | undefined;
-
-  if (breadcrumbM) {
-    const items = [...breadcrumbM[1].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map(i => i[1].replace(/<[^>]+>/g, '').trim());
-    if (items.length > 0) {
-      title = items[items.length - 1];
+  // 2. 备用面包屑提取 (如 fileUploadList.jsp 中的 breadcrumb)
+  if (!title) {
+    const breadcrumbM = html.match(/<ol[^>]*class=["'][^"']*breadcrumb[^"']*["'][^>]*>([\s\S]*?)<\/ol>/i);
+    if (breadcrumbM) {
+      const items = [...breadcrumbM[1].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map(i => i[1].replace(/<[^>]+>/g, '').trim());
+      // 面包屑首项通常是作业名（如 "第四周作业"）
+      if (items.length > 0) {
+        title = items[0].replace(/<[^>]+>/g, '').trim();
+      }
     }
   }
 
-  if (!title) {
-    const titleM = html.match(/(?:当前作业|作业名称)[：:\s]*<b>([^<]+)<\/b>/i) ||
-                   html.match(/<b>([^<]{2,40})<\/b>\s*<p>[^<]*作业时间/i) ||
-                   html.match(/<h[2-4][^>]*>([^<]+)<\/h[2-4]>/i);
-    if (titleM) title = titleM[1].replace(/<[^>]+>/g, '').trim();
-  }
+  // 3. 精准提取截止时间（希冀平台: 作业时间：<b>...</b> 至 <b>2026-10-11 23:59:00</b>）
+  const ddl = parseDeadlineBeijing(html, nowMs);
 
   return {
     title,

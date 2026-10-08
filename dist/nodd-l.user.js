@@ -6806,12 +6806,29 @@
       urgency: "normal"
     };
   }
+  function parseActiveCourseInfo(html) {
+    const activeCourseM = html.match(/<span[^>]*class=["'][^"']*dropdown-item-course[^"']*font-weight-bold[^"']*["'][^>]*value=["']([^"']+)["'][^>]*>([\s\S]*?)<\/span>/i);
+    if (activeCourseM) {
+      return {
+        id: activeCourseM[1],
+        name: activeCourseM[2].replace(/<[^>]+>/g, "").trim()
+      };
+    }
+    const anyCourseM = html.match(/<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([^"']+)["'][^>]*>([\s\S]*?)<\/span>/i);
+    if (anyCourseM) {
+      return {
+        id: anyCourseM[1],
+        name: anyCourseM[2].replace(/<[^>]+>/g, "").trim()
+      };
+    }
+    return {};
+  }
   function parseCourseListHtml(html) {
     const list = [];
     const seen = /* @__PURE__ */ new Set();
-    const linkRe = /<a[^>]*href=["'][^"']*courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    const spanRe = /<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/span>/gi;
     let m2;
-    while ((m2 = linkRe.exec(html)) !== null) {
+    while ((m2 = spanRe.exec(html)) !== null) {
       const id = m2[1];
       const name = m2[2].replace(/<[^>]+>/g, "").trim();
       if (id && name && !seen.has(id)) {
@@ -6819,8 +6836,8 @@
         list.push({ id, name });
       }
     }
-    const spanRe = /<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/span>/gi;
-    while ((m2 = spanRe.exec(html)) !== null) {
+    const linkRe = /<a[^>]*href=["'][^"']*courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    while ((m2 = linkRe.exec(html)) !== null) {
       const id = m2[1];
       const name = m2[2].replace(/<[^>]+>/g, "").trim();
       if (id && name && !seen.has(id)) {
@@ -6836,7 +6853,7 @@
     let activeSection = html;
     const historyIdx = html.search(/fas\s+fa-history|历史作业/i);
     if (historyIdx !== -1) {
-      const clockIdx = html.search(/fas\s+fa-clock|当前作业|进行中/i);
+      const clockIdx = html.search(/fas\s+fa-clock|当前作业/i);
       if (clockIdx !== -1 && clockIdx < historyIdx) {
         activeSection = html.slice(clockIdx, historyIdx);
       } else {
@@ -6850,7 +6867,7 @@
       const id = m2[2];
       const title = m2[3].replace(/<[^>]+>/g, "").trim();
       if (!title || seen.has(id)) continue;
-      if (/^(?:详细|提交|查看|重做|编辑|删除)$/.test(title)) continue;
+      if (/^(?:返回|详细|提交|查看|重做|编辑|删除|\d+|文件上传题|程序题)$/.test(title)) continue;
       seen.add(id);
       const matchPos = m2.index;
       const ctx = activeSection.slice(Math.max(0, matchPos - 200), Math.min(activeSection.length, matchPos + 350));
@@ -6868,49 +6885,21 @@
         url: rawUrl.startsWith("/") ? rawUrl : `/assignment/${rawUrl}`
       });
     }
-    if (list.length === 0) {
-      const blockRe = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
-      let bm;
-      while ((bm = blockRe.exec(html)) !== null) {
-        const block = bm[1];
-        const linkM = block.match(/href=["']([^"']*assignID=([a-zA-Z0-9_-]+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/i);
-        if (!linkM) continue;
-        const rawUrl = linkM[1];
-        const id = linkM[2];
-        if (seen.has(id)) continue;
-        seen.add(id);
-        const title = linkM[3].replace(/<[^>]+>/g, "").trim() || `作业 ${id}`;
-        const ddl = parseDeadlineBeijing(block, nowMs);
-        list.push({
-          id,
-          courseName,
-          title,
-          deadline: ddl.timestamp > 0 ? ddl.normalized : "请查看详情",
-          deadlineTimestamp: ddl.timestamp,
-          remainingHours: ddl.remainingHours,
-          remainingText: ddl.remainingText,
-          status: "pending",
-          urgency: ddl.urgency,
-          url: rawUrl.startsWith("/") ? rawUrl : `/assignment/${rawUrl}`
-        });
-      }
-    }
     return list;
   }
   function parseAssignmentDetailHtml(html, nowMs = Date.now()) {
-    const ddl = parseDeadlineBeijing(html, nowMs);
-    const breadcrumbM = html.match(/<ol[^>]*class=["'][^"']*breadcrumb[^"']*["'][^>]*>([\s\S]*?)<\/ol>/i);
-    let title;
-    if (breadcrumbM) {
-      const items = [...breadcrumbM[1].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map((i2) => i2[1].replace(/<[^>]+>/g, "").trim());
-      if (items.length > 0) {
-        title = items[items.length - 1];
+    const h4Match = html.match(/<div[^>]*class=["'][^"']*bg-light[^"']*["'][^>]*>[\s\S]*?<h[3-5][^>]*>([\s\S]*?)<\/h[3-5]>/i) || html.match(/<h[3-5][^>]*>([\s\S]*?)<\/h[3-5]>\s*<p>[^<]*作业时间/i);
+    let title = h4Match ? h4Match[1].replace(/<[^>]+>/g, "").trim() : void 0;
+    if (!title) {
+      const breadcrumbM = html.match(/<ol[^>]*class=["'][^"']*breadcrumb[^"']*["'][^>]*>([\s\S]*?)<\/ol>/i);
+      if (breadcrumbM) {
+        const items = [...breadcrumbM[1].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map((i2) => i2[1].replace(/<[^>]+>/g, "").trim());
+        if (items.length > 0) {
+          title = items[0].replace(/<[^>]+>/g, "").trim();
+        }
       }
     }
-    if (!title) {
-      const titleM = html.match(/(?:当前作业|作业名称)[：:\s]*<b>([^<]+)<\/b>/i) || html.match(/<b>([^<]{2,40})<\/b>\s*<p>[^<]*作业时间/i) || html.match(/<h[2-4][^>]*>([^<]+)<\/h[2-4]>/i);
-      if (titleM) title = titleM[1].replace(/<[^>]+>/g, "").trim();
-    }
+    const ddl = parseDeadlineBeijing(html, nowMs);
     return {
       title,
       deadline: ddl.timestamp > 0 ? ddl.normalized : void 0,
@@ -8515,11 +8504,13 @@ ${markdown}` }
   const client = new CourseGradingClient({ baseUrl: window.location.origin }, http, storage);
   async function initNoDDL() {
     var _a;
-    console.log("[NoDDL] 启动希冀平台本地数据库与作业助手");
+    console.log("[NoDDL] 启动希冀平台原生解析适配");
     setupTestCaseCopyButtons();
     setupCodeAutoSave();
     const seenIds = /* @__PURE__ */ new Set();
     const pendingList = [];
+    const activeCourse = parseActiveCourseInfo(document.documentElement.innerHTML);
+    const currentCourseName = activeCourse.name || "当前课程";
     if (client.db) {
       try {
         const cached = await client.db.getAllAssignments();
@@ -8533,19 +8524,45 @@ ${markdown}` }
       }
     }
     try {
+      const domAssigns = parseActiveAssignmentsHtml(document.documentElement.innerHTML, currentCourseName);
+      for (const item of domAssigns) {
+        if (client.db) {
+          await client.db.upsertAssignment(item);
+        }
+        const existingIdx = pendingList.findIndex((a2) => a2.id === item.id);
+        if (existingIdx !== -1) {
+          pendingList[existingIdx] = { ...pendingList[existingIdx], ...item };
+        } else {
+          pendingList.push(item);
+          seenIds.add(item.id);
+        }
+      }
+    } catch {
+    }
+    try {
       const urlMatch = window.location.href.match(/assignID=([a-zA-Z0-9_-]+)/i);
       if (urlMatch) {
         const curAssignId = urlMatch[1];
-        const curDetail = parseAssignmentDetailHtml(document.documentElement.innerHTML);
+        let curDetail = parseAssignmentDetailHtml(document.documentElement.innerHTML);
+        if (!curDetail.deadline) {
+          try {
+            const mainAssignHtml = await http.get(`${window.location.origin}/assignment/index.jsp?assignID=${curAssignId}`);
+            const fetchedDetail = parseAssignmentDetailHtml(mainAssignHtml);
+            if (fetchedDetail.deadline) {
+              curDetail = fetchedDetail;
+            }
+          } catch {
+          }
+        }
         let title = curDetail.title;
         if (!title) {
-          const titleEl = document.querySelector(".breadcrumb li:last-child, .breadcrumb li.active, h4, h5, b");
-          if (titleEl) title = (_a = titleEl.textContent) == null ? void 0 : _a.trim();
+          const bc = document.querySelector(".breadcrumb li a, .breadcrumb li:first-child");
+          if (bc) title = (_a = bc.textContent) == null ? void 0 : _a.trim();
         }
         title = title || `作业 ${curAssignId}`;
         const item = {
           id: curAssignId,
-          courseName: "当前课程",
+          courseName: currentCourseName,
           title,
           deadline: curDetail.deadline || "未设截止时间",
           deadlineTimestamp: curDetail.deadlineTimestamp,
@@ -8564,22 +8581,6 @@ ${markdown}` }
         } else {
           pendingList.unshift(item);
           seenIds.add(curAssignId);
-        }
-      }
-    } catch {
-    }
-    try {
-      const domAssigns = parseActiveAssignmentsHtml(document.documentElement.innerHTML, "当前课程");
-      for (const item of domAssigns) {
-        if (client.db) {
-          await client.db.upsertAssignment(item);
-        }
-        const existingIdx = pendingList.findIndex((a2) => a2.id === item.id);
-        if (existingIdx !== -1) {
-          pendingList[existingIdx] = { ...pendingList[existingIdx], ...item };
-        } else {
-          pendingList.push(item);
-          seenIds.add(item.id);
         }
       }
     } catch {

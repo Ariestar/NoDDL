@@ -99,17 +99,37 @@ declare function extractDeadlineFromText(text: string): string;
 declare function parseDeadlineBeijing(rawInput: string, nowMs?: number): ParsedDeadline;
 
 /**
- * 解析希冀平台课程列表（仅用于只读展示，严禁后台静默切换课程上下文）
+ * 解析希冀平台当前激活课程信息
+ * 真实结构: <span class="... dropdown-item-course font-weight-bold" value="184">离散数学</span>
+ */
+declare function parseActiveCourseInfo(html: string): {
+    id?: string;
+    name?: string;
+};
+/**
+ * 解析希冀平台课程列表
+ * 真实结构: <span class="dropdown-item dropdown-item-course..." value="184">离散数学</span>
+ * 或 <a href="courselist.jsp?courseID=184">离散数学</a>
  */
 declare function parseCourseListHtml(html: string): Course[];
 /**
- * 解析希冀平台活跃作业列表
- * 侧边栏结构：精准切分当前作业（fas fa-clock）与历史作业（fas fa-history），只抓取当前作业
+ * 解析希冀平台侧边栏中的作业列表
+ * 真实结构:
+ * <span class="text-muted"><strong><i class="fas fa-clock"></i> 当前作业</strong></span>
+ * <div class="list-group list-group-flush mb-4">
+ *     <a href="index.jsp?courseID=184&assignID=3548" class="list-group-item list-group-item-action active">第四周作业</a>
+ * </div>
+ * <span class="text-muted"><strong><i class="fas fa-history"></i> 历史作业</strong></span>
+ * <div class="list-group list-group-flush">...</div>
  */
 declare function parseActiveAssignmentsHtml(html: string, courseName?: string, nowMs?: number): Assignment[];
 /**
- * 解析希冀平台作业详情页与题目列表
- * 来源：/assignment/index.jsp?assignID={id} 或 fileUploadList.jsp / programList.jsp
+ * 解析希冀平台作业主卡片（包含作业标题、作业时间与满分）
+ * 真实结构:
+ * <div class="shadow-sm p-3 mb-3 bg-light rounded">
+ *     <h4>第四周作业</h4>
+ *     <p>作业时间：<b>2026-09-30 21:28:00</b> 至 <b>2026-10-11 23:59:00</b></p>
+ * </div>
  */
 declare function parseAssignmentDetailHtml(html: string, nowMs?: number): {
     title?: string;
@@ -211,4 +231,4 @@ declare class CourseGradingClient {
     }>;
 }
 
-export { type Assignment, COURSE_GRADING_SECRET_KEY, type CachedCourse, type Course, CourseGradingClient, FetchHttpClient, HomeworkDB, type HomeworkDBData, type HttpClient, type ParsedDeadline, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, extractDeadlineFromText, formatRemainingTime, parseActiveAssignmentsHtml, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };
+export { type Assignment, COURSE_GRADING_SECRET_KEY, type CachedCourse, type Course, CourseGradingClient, FetchHttpClient, HomeworkDB, type HomeworkDBData, type HttpClient, type ParsedDeadline, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, extractDeadlineFromText, formatRemainingTime, parseActiveAssignmentsHtml, parseActiveCourseInfo, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };

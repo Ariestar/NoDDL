@@ -241,9 +241,9 @@ function emptyDeadline(rawText) {
 function parseCourseListHtml(html) {
   const list = [];
   const seen = /* @__PURE__ */ new Set();
-  const linkRe = /<a[^>]*href=["'][^"']*courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const spanRe = /<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/span>/gi;
   let m;
-  while ((m = linkRe.exec(html)) !== null) {
+  while ((m = spanRe.exec(html)) !== null) {
     const id = m[1];
     const name = m[2].replace(/<[^>]+>/g, "").trim();
     if (id && name && !seen.has(id)) {
@@ -251,8 +251,8 @@ function parseCourseListHtml(html) {
       list.push({ id, name });
     }
   }
-  const spanRe = /<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/span>/gi;
-  while ((m = spanRe.exec(html)) !== null) {
+  const linkRe = /<a[^>]*href=["'][^"']*courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  while ((m = linkRe.exec(html)) !== null) {
     const id = m[1];
     const name = m[2].replace(/<[^>]+>/g, "").trim();
     if (id && name && !seen.has(id)) {
@@ -268,7 +268,7 @@ function parseActiveAssignmentsHtml(html, courseName = "\u5F53\u524D\u8BFE\u7A0B
   let activeSection = html;
   const historyIdx = html.search(/fas\s+fa-history|历史作业/i);
   if (historyIdx !== -1) {
-    const clockIdx = html.search(/fas\s+fa-clock|当前作业|进行中/i);
+    const clockIdx = html.search(/fas\s+fa-clock|当前作业/i);
     if (clockIdx !== -1 && clockIdx < historyIdx) {
       activeSection = html.slice(clockIdx, historyIdx);
     } else {
@@ -282,7 +282,7 @@ function parseActiveAssignmentsHtml(html, courseName = "\u5F53\u524D\u8BFE\u7A0B
     const id = m[2];
     const title = m[3].replace(/<[^>]+>/g, "").trim();
     if (!title || seen.has(id)) continue;
-    if (/^(?:详细|提交|查看|重做|编辑|删除)$/.test(title)) continue;
+    if (/^(?:返回|详细|提交|查看|重做|编辑|删除|\d+|文件上传题|程序题)$/.test(title)) continue;
     seen.add(id);
     const matchPos = m.index;
     const ctx = activeSection.slice(Math.max(0, matchPos - 200), Math.min(activeSection.length, matchPos + 350));
@@ -300,49 +300,21 @@ function parseActiveAssignmentsHtml(html, courseName = "\u5F53\u524D\u8BFE\u7A0B
       url: rawUrl.startsWith("/") ? rawUrl : `/assignment/${rawUrl}`
     });
   }
-  if (list.length === 0) {
-    const blockRe = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
-    let bm;
-    while ((bm = blockRe.exec(html)) !== null) {
-      const block = bm[1];
-      const linkM = block.match(/href=["']([^"']*assignID=([a-zA-Z0-9_-]+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/i);
-      if (!linkM) continue;
-      const rawUrl = linkM[1];
-      const id = linkM[2];
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const title = linkM[3].replace(/<[^>]+>/g, "").trim() || `\u4F5C\u4E1A ${id}`;
-      const ddl = parseDeadlineBeijing(block, nowMs);
-      list.push({
-        id,
-        courseName,
-        title,
-        deadline: ddl.timestamp > 0 ? ddl.normalized : "\u8BF7\u67E5\u770B\u8BE6\u60C5",
-        deadlineTimestamp: ddl.timestamp,
-        remainingHours: ddl.remainingHours,
-        remainingText: ddl.remainingText,
-        status: "pending",
-        urgency: ddl.urgency,
-        url: rawUrl.startsWith("/") ? rawUrl : `/assignment/${rawUrl}`
-      });
-    }
-  }
   return list;
 }
 function parseAssignmentDetailHtml(html, nowMs = Date.now()) {
-  const ddl = parseDeadlineBeijing(html, nowMs);
-  const breadcrumbM = html.match(/<ol[^>]*class=["'][^"']*breadcrumb[^"']*["'][^>]*>([\s\S]*?)<\/ol>/i);
-  let title;
-  if (breadcrumbM) {
-    const items = [...breadcrumbM[1].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map((i) => i[1].replace(/<[^>]+>/g, "").trim());
-    if (items.length > 0) {
-      title = items[items.length - 1];
+  const h4Match = html.match(/<div[^>]*class=["'][^"']*bg-light[^"']*["'][^>]*>[\s\S]*?<h[3-5][^>]*>([\s\S]*?)<\/h[3-5]>/i) || html.match(/<h[3-5][^>]*>([\s\S]*?)<\/h[3-5]>\s*<p>[^<]*作业时间/i);
+  let title = h4Match ? h4Match[1].replace(/<[^>]+>/g, "").trim() : void 0;
+  if (!title) {
+    const breadcrumbM = html.match(/<ol[^>]*class=["'][^"']*breadcrumb[^"']*["'][^>]*>([\s\S]*?)<\/ol>/i);
+    if (breadcrumbM) {
+      const items = [...breadcrumbM[1].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map((i) => i[1].replace(/<[^>]+>/g, "").trim());
+      if (items.length > 0) {
+        title = items[0].replace(/<[^>]+>/g, "").trim();
+      }
     }
   }
-  if (!title) {
-    const titleM = html.match(/(?:当前作业|作业名称)[：:\s]*<b>([^<]+)<\/b>/i) || html.match(/<b>([^<]{2,40})<\/b>\s*<p>[^<]*作业时间/i) || html.match(/<h[2-4][^>]*>([^<]+)<\/h[2-4]>/i);
-    if (titleM) title = titleM[1].replace(/<[^>]+>/g, "").trim();
-  }
+  const ddl = parseDeadlineBeijing(html, nowMs);
   return {
     title,
     deadline: ddl.timestamp > 0 ? ddl.normalized : void 0,
