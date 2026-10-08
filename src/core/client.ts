@@ -235,7 +235,7 @@ export class CourseGradingClient {
   }
 
   /**
-   * 触发 DDL 告警推送
+   * 触发 DDL 告警推送（支持微信 PushPlus、Bark iOS 以及短信提醒 SMS）
    */
   async triggerPushAlert(config: PushConfig): Promise<{ sent: boolean; count: number; error?: string }> {
     const threshold = config.hoursThreshold ?? 48;
@@ -243,7 +243,7 @@ export class CourseGradingClient {
 
     const activeUrgent = allPending.filter(a => a.remainingHours > 0 && a.remainingHours <= threshold);
     if (activeUrgent.length === 0) {
-      return { sent: false, count: 0 };
+      return { sent: false, count: 0, error: '当前暂无即将截止的作业' };
     }
 
     const title = `【NoDDL 提醒】有 ${activeUrgent.length} 项作业即将到达 DDL`;
@@ -254,6 +254,13 @@ export class CourseGradingClient {
       ...activeUrgent.map((item, idx) => `${idx + 1}. [${item.courseName}] ${item.title} (截止: ${item.deadline}, ${item.remainingText})`)
     ].join('\n');
 
+    const smsText = `【NoDDL】您有${activeUrgent.length}项作业即将截止：` +
+      activeUrgent.slice(0, 3).map(i => `${i.courseName}-${i.title}(${i.remainingText})`).join('；') +
+      (activeUrgent.length > 3 ? `等共${activeUrgent.length}项` : '') +
+      '，请及时提交！';
+
+    let triggeredAny = false;
+
     try {
       if (config.pushplusToken) {
         await this.http.post('https://www.pushplus.plus/send', {
@@ -262,11 +269,33 @@ export class CourseGradingClient {
           content: markdown.replace(/\n/g, '<br>'),
           template: 'html'
         });
+        triggeredAny = true;
       }
 
       if (config.barkUrl) {
         const barkBase = config.barkUrl.replace(/\/+$/, '');
         await this.http.get(`${barkBase}/${encodeURIComponent(title)}/${encodeURIComponent(markdown)}?group=NoDDL`);
+        triggeredAny = true;
+      }
+
+      if (config.smsWebhookUrl) {
+        let targetUrl = config.smsWebhookUrl;
+        const phone = config.smsPhone || '';
+        if (targetUrl.includes('{phone}') || targetUrl.includes('{msg}')) {
+          targetUrl = targetUrl
+            .replace(/\{phone\}/g, encodeURIComponent(phone))
+            .replace(/\{msg\}/g, encodeURIComponent(smsText));
+          await this.http.get(targetUrl);
+        } else {
+          await this.http.post(targetUrl, {
+            phone,
+            to: phone,
+            msg: smsText,
+            message: smsText,
+            text: smsText
+          });
+        }
+        triggeredAny = true;
       }
 
       if (config.customWebhookUrl) {
@@ -274,6 +303,11 @@ export class CourseGradingClient {
           msg_type: 'text',
           content: { text: `${title}\n\n${markdown}` }
         });
+        triggeredAny = true;
+      }
+
+      if (!triggeredAny) {
+        return { sent: false, count: activeUrgent.length, error: '未配置任何有效推送凭据（微信 / Bark / 短信）' };
       }
 
       return { sent: true, count: activeUrgent.length };

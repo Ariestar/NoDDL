@@ -296,6 +296,29 @@ export const PANEL_STYLES = `
   gap: 8px;
 }
 
+.tutorial-link {
+  font-size: 11px;
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.tutorial-link:hover {
+  text-decoration: underline;
+}
+
+.tutorial-tip {
+  font-size: 11px;
+  color: var(--text-sub);
+  line-height: 1.4;
+  background: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border-left: 3px solid var(--primary);
+}
+
 /* 顶部通知 Toast */
 .nodd-toast {
   position: absolute;

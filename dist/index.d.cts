@@ -41,6 +41,8 @@ interface SubmissionResult {
 interface PushConfig {
     pushplusToken?: string;
     barkUrl?: string;
+    smsWebhookUrl?: string;
+    smsPhone?: string;
     customWebhookUrl?: string;
     hoursThreshold?: number;
 }
@@ -246,7 +248,7 @@ declare class CourseGradingClient {
      */
     getLatestSubmissions(): Promise<SubmissionResult[]>;
     /**
-     * 触发 DDL 告警推送
+     * 触发 DDL 告警推送（支持微信 PushPlus、Bark iOS 以及短信提醒 SMS）
      */
     triggerPushAlert(config: PushConfig): Promise<{
         sent: boolean;

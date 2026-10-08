@@ -12,22 +12,21 @@ interface AppProps {
 
 export function App({ client, storage, initialAssignments }: AppProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'homework' | 'settings' | 'toolbox' | 'eval'>('homework');
+  const [activeTab, setActiveTab] = useState<'homework' | 'settings' | 'eval'>('homework');
   const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'active' | 'overdue' | 'all'>('active');
 
-  // Push Config State
+  // Push & Alert Config State
   const [pushplusToken, setPushplusToken] = useState('');
   const [barkUrl, setBarkUrl] = useState('');
+  const [smsPhone, setSmsPhone] = useState('');
+  const [smsWebhookUrl, setSmsWebhookUrl] = useState('');
   const [threshold, setThreshold] = useState(72);
 
   // Submissions State
   const [submissions, setSubmissions] = useState<SubmissionResult[]>([]);
   const [evalLoading, setEvalLoading] = useState(false);
-
-  // Code drafts State
-  const [drafts, setDrafts] = useState<{ key: string; time: string; length: number; code: string }[]>([]);
 
   // Toast State
   const [toast, setToast] = useState<string | null>(null);
@@ -41,9 +40,13 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     (async () => {
       const token = (await storage.get('nodd_pushplus_token')) || '';
       const bark = (await storage.get('nodd_bark_url')) || '';
+      const phone = (await storage.get('nodd_sms_phone')) || '';
+      const smsUrl = (await storage.get('nodd_sms_webhook_url')) || '';
       const th = parseInt((await storage.get('nodd_hours_threshold')) || '72', 10);
       setPushplusToken(token);
       setBarkUrl(bark);
+      setSmsPhone(phone);
+      setSmsWebhookUrl(smsUrl);
       setThreshold(th);
     })();
   }, []);
@@ -94,61 +97,33 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     }
   };
 
-  // 加载本地草稿历史
-  const loadDrafts = () => {
-    const list: { key: string; time: string; length: number; code: string }[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('nodd_autosave_')) {
-        try {
-          const item = JSON.parse(localStorage.getItem(key) || '{}');
-          if (item.code) {
-            list.push({
-              key,
-              time: item.time || '未知时间',
-              length: item.code.length,
-              code: item.code
-            });
-          }
-        } catch {}
-      }
-    }
-    setDrafts(list);
-  };
-
   const savePushConfig = async () => {
     await storage.set('nodd_pushplus_token', pushplusToken.trim());
     await storage.set('nodd_bark_url', barkUrl.trim());
+    await storage.set('nodd_sms_phone', smsPhone.trim());
+    await storage.set('nodd_sms_webhook_url', smsWebhookUrl.trim());
     await storage.set('nodd_hours_threshold', String(threshold));
-    showToast('推送配置已保存！');
+    showToast('推送与提醒配置已保存！');
   };
 
   const testPush = async () => {
-    if (!pushplusToken && !barkUrl) {
-      showToast('请先配置 PushPlus Token 或 Bark URL');
+    if (!pushplusToken && !barkUrl && !smsWebhookUrl) {
+      showToast('请先配置至少一种提醒方式（微信 / Bark / 短信）');
       return;
     }
     showToast('正在发送测试推送...');
     const res = await client.triggerPushAlert({
       pushplusToken,
       barkUrl,
+      smsPhone,
+      smsWebhookUrl,
       hoursThreshold: threshold
     });
     if (res.sent) {
-      showToast(`测试推送成功！包含 ${res.count} 项即将到期作业`);
+      showToast(`测试成功！已向设置渠道发送 ${res.count} 项即将到期作业提醒`);
     } else {
       showToast(`推送失败: ${res.error || '无即将截止作业或网络错误'}`);
     }
-  };
-
-  const copyCookie = () => {
-    const cookie = document.cookie;
-    if (typeof GM_setClipboard !== 'undefined') {
-      GM_setClipboard(cookie);
-    } else {
-      navigator.clipboard.writeText(cookie);
-    }
-    showToast('平台 Cookie 凭据已复制到剪贴板！');
   };
 
   const activeCount = assignments.filter((a) => a.remainingHours > 0).length;
@@ -198,7 +173,6 @@ export function App({ client, storage, initialAssignments }: AppProps) {
                 onClick={() => {
                   if (activeTab === 'homework') refreshAssignments();
                   if (activeTab === 'eval') refreshSubmissions();
-                  if (activeTab === 'toolbox') loadDrafts();
                 }}
               >
                 🔄
@@ -221,16 +195,7 @@ export function App({ client, storage, initialAssignments }: AppProps) {
               className={`nodd-tab-item ${activeTab === 'settings' ? 'active' : ''}`}
               onClick={() => setActiveTab('settings')}
             >
-              ⚙️ 推送配置
-            </div>
-            <div
-              className={`nodd-tab-item ${activeTab === 'toolbox' ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab('toolbox');
-                loadDrafts();
-              }}
-            >
-              🛠️ 实用工具
+              ⚙️ 推送与提醒
             </div>
             <div
               className={`nodd-tab-item ${activeTab === 'eval' ? 'active' : ''}`}
@@ -322,22 +287,82 @@ export function App({ client, storage, initialAssignments }: AppProps) {
               </div>
             )}
 
-            {/* Tab 2: 消息推送配置 */}
+            {/* Tab 2: 消息与短信提醒配置 */}
             {activeTab === 'settings' && (
               <div style="display:flex;flex-direction:column;gap:14px;">
+                {/* 1. PushPlus 微信推送 */}
                 <div className="form-group">
-                  <label className="form-label">PushPlus Token (微信推送通知)</label>
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <label className="form-label">微信推送 (PushPlus)</label>
+                    <a
+                      href="https://www.pushplus.plus/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="tutorial-link"
+                    >
+                      获取 Token / 官网 ↗
+                    </a>
+                  </div>
+                  <div className="tutorial-tip">
+                    ① 打开上方官网微信扫码登录；② 在「一对一推送」页面复制「你的 Token」填入下方。
+                  </div>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="在 pushplus.plus 获取的 Token"
+                    placeholder="例如 98a7b6c5d4e3..."
                     value={pushplusToken}
                     onInput={(e) => setPushplusToken((e.target as HTMLInputElement).value)}
                   />
                 </div>
 
+                {/* 2. 短信提醒 (SMS) */}
                 <div className="form-group">
-                  <label className="form-label">Bark URL (iOS 系统横幅通知)</label>
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <label className="form-label">短信提醒 (SMS)</label>
+                    <a
+                      href="https://github.com/pppscn/SmsForwarder"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="tutorial-link"
+                    >
+                      SmsForwarder 教程 ↗
+                    </a>
+                  </div>
+                  <div className="tutorial-tip">
+                    可配合安卓「短信转发器 (SmsForwarder)」的 Webhook 发送短信，或使用自建短信网关（支持 {'{phone}'} 与 {'{msg}'} 占位符或 POST JSON）。
+                  </div>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="接收短信的手机号码 (例如 13800138000)"
+                    value={smsPhone}
+                    onInput={(e) => setSmsPhone((e.target as HTMLInputElement).value)}
+                  />
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="短信网关 Webhook 地址 (例如 http://192.168.1.100:8080/send?to={phone}&msg={msg})"
+                    value={smsWebhookUrl}
+                    onInput={(e) => setSmsWebhookUrl((e.target as HTMLInputElement).value)}
+                  />
+                </div>
+
+                {/* 3. Bark 苹果设备推送 */}
+                <div className="form-group">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <label className="form-label">苹果设备横幅 (Bark)</label>
+                    <a
+                      href="https://github.com/Finb/Bark"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="tutorial-link"
+                    >
+                      Bark 官网与下载 ↗
+                    </a>
+                  </div>
+                  <div className="tutorial-tip">
+                    iPhone 安装 Bark App，复制首页给出的推送 URL（形如 https://api.day.app/YOUR_KEY）填入下方。
+                  </div>
                   <input
                     type="text"
                     className="form-input"
@@ -347,17 +372,18 @@ export function App({ client, storage, initialAssignments }: AppProps) {
                   />
                 </div>
 
+                {/* 4. 提醒时间提前量 */}
                 <div className="form-group">
-                  <label className="form-label">DDL 提醒阈值</label>
+                  <label className="form-label">DDL 提醒提前量</label>
                   <select
                     className="form-input"
                     value={threshold}
                     onChange={(e) => setThreshold(parseInt((e.target as HTMLSelectElement).value, 10))}
                   >
-                    <option value={24}>24 小时以内 (极紧急)</option>
-                    <option value={48}>48 小时以内 (2天)</option>
-                    <option value={72}>72 小时以内 (3天)</option>
-                    <option value={168}>168 小时以内 (1周)</option>
+                    <option value={24}>截止前 24 小时以内 (极紧急)</option>
+                    <option value={48}>截止前 48 小时以内 (2天)</option>
+                    <option value={72}>截止前 72 小时以内 (3天)</option>
+                    <option value={168}>截止前 168 小时以内 (1周)</option>
                   </select>
                 </div>
 
@@ -366,59 +392,8 @@ export function App({ client, storage, initialAssignments }: AppProps) {
                     💾 保存配置
                   </button>
                   <button className="btn btn-secondary" onClick={testPush}>
-                    🔔 发送测试推送
+                    🔔 发送测试提醒
                   </button>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 3: 实用工具箱 */}
-            {activeTab === 'toolbox' && (
-              <div style="display:flex;flex-direction:column;gap:14px;">
-                <div className="nodd-card">
-                  <div className="card-title">平台会话凭据</div>
-                  <div style="font-size:12px;color:var(--text-sub);">
-                    一键复制当前登录的 Cookie，供外部脚本或包管理器工具使用。
-                  </div>
-                  <button className="btn btn-secondary btn-sm" onClick={copyCookie}>
-                    📋 复制当前 Cookie 到剪贴板
-                  </button>
-                </div>
-
-                <div className="nodd-card">
-                  <div className="card-title">代码暂存草稿箱 ({drafts.length})</div>
-                  <div style="font-size:12px;color:var(--text-sub);">
-                    本地自动备份的代码记录，误刷新或关闭网页后可随时找回。
-                  </div>
-                  {drafts.length === 0 ? (
-                    <div style="font-size:12px;color:var(--text-sub);padding:8px 0;">
-                      暂无暂存记录（在代码编辑框输入时会自动备份）
-                    </div>
-                  ) : (
-                    <div style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-top:6px;">
-                      {drafts.map((d) => (
-                        <div
-                          key={d.key}
-                          style="display:flex;justify-content:space-between;align-items:center;background:#f1f5f9;padding:6px 10px;border-radius:6px;font-size:12px;"
-                        >
-                          <span>🕒 {d.time} ({d.length} 字符)</span>
-                          <button
-                            className="btn btn-sm btn-secondary"
-                            onClick={() => {
-                              if (typeof GM_setClipboard !== 'undefined') {
-                                GM_setClipboard(d.code);
-                              } else {
-                                navigator.clipboard.writeText(d.code);
-                              }
-                              showToast('已复制草稿代码到剪贴板！');
-                            }}
-                          >
-                            复制
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             )}

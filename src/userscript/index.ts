@@ -126,9 +126,17 @@ async function initNoDDL() {
 
     const pushplusToken = (await storage.get('nodd_pushplus_token')) || '';
     const barkUrl = (await storage.get('nodd_bark_url')) || '';
+    const smsWebhookUrl = (await storage.get('nodd_sms_webhook_url')) || '';
+    const smsPhone = (await storage.get('nodd_sms_phone')) || '';
     const hoursThreshold = parseInt((await storage.get('nodd_hours_threshold')) || '72', 10);
-    const pushConfig: PushConfig = { pushplusToken, barkUrl, hoursThreshold };
-    if (pushplusToken || barkUrl) {
+    const pushConfig: PushConfig = {
+      pushplusToken,
+      barkUrl,
+      smsWebhookUrl,
+      smsPhone,
+      hoursThreshold
+    };
+    if (pushplusToken || barkUrl || smsWebhookUrl) {
       client.triggerPushAlert(pushConfig).catch(console.error);
     }
   }

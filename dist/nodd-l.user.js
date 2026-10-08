@@ -7226,14 +7226,14 @@
       return parseSubmissionsHtml(html);
     }
     /**
-     * 触发 DDL 告警推送
+     * 触发 DDL 告警推送（支持微信 PushPlus、Bark iOS 以及短信提醒 SMS）
      */
     async triggerPushAlert(config) {
       const threshold = config.hoursThreshold ?? 48;
       const allPending = this.db ? await this.db.getAllAssignments() : await this.getPendingAssignments(threshold);
       const activeUrgent = allPending.filter((a2) => a2.remainingHours > 0 && a2.remainingHours <= threshold);
       if (activeUrgent.length === 0) {
-        return { sent: false, count: 0 };
+        return { sent: false, count: 0, error: "当前暂无即将截止的作业" };
       }
       const title = `【NoDDL 提醒】有 ${activeUrgent.length} 项作业即将到达 DDL`;
       const markdown = [
@@ -7242,6 +7242,8 @@
         "",
         ...activeUrgent.map((item, idx) => `${idx + 1}. [${item.courseName}] ${item.title} (截止: ${item.deadline}, ${item.remainingText})`)
       ].join("\n");
+      const smsText = `【NoDDL】您有${activeUrgent.length}项作业即将截止：` + activeUrgent.slice(0, 3).map((i2) => `${i2.courseName}-${i2.title}(${i2.remainingText})`).join("；") + (activeUrgent.length > 3 ? `等共${activeUrgent.length}项` : "") + "，请及时提交！";
+      let triggeredAny = false;
       try {
         if (config.pushplusToken) {
           await this.http.post("https://www.pushplus.plus/send", {
@@ -7250,10 +7252,29 @@
             content: markdown.replace(/\n/g, "<br>"),
             template: "html"
           });
+          triggeredAny = true;
         }
         if (config.barkUrl) {
           const barkBase = config.barkUrl.replace(/\/+$/, "");
           await this.http.get(`${barkBase}/${encodeURIComponent(title)}/${encodeURIComponent(markdown)}?group=NoDDL`);
+          triggeredAny = true;
+        }
+        if (config.smsWebhookUrl) {
+          let targetUrl = config.smsWebhookUrl;
+          const phone = config.smsPhone || "";
+          if (targetUrl.includes("{phone}") || targetUrl.includes("{msg}")) {
+            targetUrl = targetUrl.replace(/\{phone\}/g, encodeURIComponent(phone)).replace(/\{msg\}/g, encodeURIComponent(smsText));
+            await this.http.get(targetUrl);
+          } else {
+            await this.http.post(targetUrl, {
+              phone,
+              to: phone,
+              msg: smsText,
+              message: smsText,
+              text: smsText
+            });
+          }
+          triggeredAny = true;
         }
         if (config.customWebhookUrl) {
           await this.http.post(config.customWebhookUrl, {
@@ -7262,6 +7283,10 @@
 
 ${markdown}` }
           });
+          triggeredAny = true;
+        }
+        if (!triggeredAny) {
+          return { sent: false, count: activeUrgent.length, error: "未配置任何有效推送凭据（微信 / Bark / 短信）" };
         }
         return { sent: true, count: activeUrgent.length };
       } catch (err) {
@@ -7755,10 +7780,11 @@ ${markdown}` }
     const [filter, setFilter] = d("active");
     const [pushplusToken, setPushplusToken] = d("");
     const [barkUrl, setBarkUrl] = d("");
+    const [smsPhone, setSmsPhone] = d("");
+    const [smsWebhookUrl, setSmsWebhookUrl] = d("");
     const [threshold, setThreshold] = d(72);
     const [submissions, setSubmissions] = d([]);
     const [evalLoading, setEvalLoading] = d(false);
-    const [drafts, setDrafts] = d([]);
     const [toast, setToast] = d(null);
     const showToast = (msg) => {
       setToast(msg);
@@ -7768,9 +7794,13 @@ ${markdown}` }
       (async () => {
         const token = await storage2.get("nodd_pushplus_token") || "";
         const bark = await storage2.get("nodd_bark_url") || "";
+        const phone = await storage2.get("nodd_sms_phone") || "";
+        const smsUrl = await storage2.get("nodd_sms_webhook_url") || "";
         const th = parseInt(await storage2.get("nodd_hours_threshold") || "72", 10);
         setPushplusToken(token);
         setBarkUrl(bark);
+        setSmsPhone(phone);
+        setSmsWebhookUrl(smsUrl);
         setThreshold(th);
       })();
     }, []);
@@ -7812,58 +7842,32 @@ ${markdown}` }
         setEvalLoading(false);
       }
     };
-    const loadDrafts = () => {
-      const list = [];
-      for (let i2 = 0; i2 < localStorage.length; i2++) {
-        const key = localStorage.key(i2);
-        if (key && key.startsWith("nodd_autosave_")) {
-          try {
-            const item = JSON.parse(localStorage.getItem(key) || "{}");
-            if (item.code) {
-              list.push({
-                key,
-                time: item.time || "未知时间",
-                length: item.code.length,
-                code: item.code
-              });
-            }
-          } catch {
-          }
-        }
-      }
-      setDrafts(list);
-    };
     const savePushConfig = async () => {
       await storage2.set("nodd_pushplus_token", pushplusToken.trim());
       await storage2.set("nodd_bark_url", barkUrl.trim());
+      await storage2.set("nodd_sms_phone", smsPhone.trim());
+      await storage2.set("nodd_sms_webhook_url", smsWebhookUrl.trim());
       await storage2.set("nodd_hours_threshold", String(threshold));
-      showToast("推送配置已保存！");
+      showToast("推送与提醒配置已保存！");
     };
     const testPush = async () => {
-      if (!pushplusToken && !barkUrl) {
-        showToast("请先配置 PushPlus Token 或 Bark URL");
+      if (!pushplusToken && !barkUrl && !smsWebhookUrl) {
+        showToast("请先配置至少一种提醒方式（微信 / Bark / 短信）");
         return;
       }
       showToast("正在发送测试推送...");
       const res = await client2.triggerPushAlert({
         pushplusToken,
         barkUrl,
+        smsPhone,
+        smsWebhookUrl,
         hoursThreshold: threshold
       });
       if (res.sent) {
-        showToast(`测试推送成功！包含 ${res.count} 项即将到期作业`);
+        showToast(`测试成功！已向设置渠道发送 ${res.count} 项即将到期作业提醒`);
       } else {
         showToast(`推送失败: ${res.error || "无即将截止作业或网络错误"}`);
       }
-    };
-    const copyCookie = () => {
-      const cookie = document.cookie;
-      if (typeof GM_setClipboard !== "undefined") {
-        GM_setClipboard(cookie);
-      } else {
-        navigator.clipboard.writeText(cookie);
-      }
-      showToast("平台 Cookie 凭据已复制到剪贴板！");
     };
     const activeCount = assignments.filter((a2) => a2.remainingHours > 0).length;
     const overdueCount = assignments.filter((a2) => a2.remainingHours <= 0).length;
@@ -7901,7 +7905,6 @@ ${markdown}` }
                 onClick: () => {
                   if (activeTab === "homework") refreshAssignments();
                   if (activeTab === "eval") refreshSubmissions();
-                  if (activeTab === "toolbox") loadDrafts();
                 },
                 children: "🔄"
               }
@@ -7927,18 +7930,7 @@ ${markdown}` }
             {
               className: `nodd-tab-item ${activeTab === "settings" ? "active" : ""}`,
               onClick: () => setActiveTab("settings"),
-              children: "⚙️ 推送配置"
-            }
-          ),
-          /* @__PURE__ */ u$1(
-            "div",
-            {
-              className: `nodd-tab-item ${activeTab === "toolbox" ? "active" : ""}`,
-              onClick: () => {
-                setActiveTab("toolbox");
-                loadDrafts();
-              },
-              children: "🛠️ 实用工具"
+              children: "⚙️ 推送与提醒"
             }
           ),
           /* @__PURE__ */ u$1(
@@ -8027,20 +8019,88 @@ ${markdown}` }
           ] }),
           activeTab === "settings" && /* @__PURE__ */ u$1("div", { style: "display:flex;flex-direction:column;gap:14px;", children: [
             /* @__PURE__ */ u$1("div", { className: "form-group", children: [
-              /* @__PURE__ */ u$1("label", { className: "form-label", children: "PushPlus Token (微信推送通知)" }),
+              /* @__PURE__ */ u$1("div", { style: "display:flex;justify-content:space-between;align-items:center;", children: [
+                /* @__PURE__ */ u$1("label", { className: "form-label", children: "微信推送 (PushPlus)" }),
+                /* @__PURE__ */ u$1(
+                  "a",
+                  {
+                    href: "https://www.pushplus.plus/",
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                    className: "tutorial-link",
+                    children: "获取 Token / 官网 ↗"
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ u$1("div", { className: "tutorial-tip", children: "① 打开上方官网微信扫码登录；② 在「一对一推送」页面复制「你的 Token」填入下方。" }),
               /* @__PURE__ */ u$1(
                 "input",
                 {
                   type: "text",
                   className: "form-input",
-                  placeholder: "在 pushplus.plus 获取的 Token",
+                  placeholder: "例如 98a7b6c5d4e3...",
                   value: pushplusToken,
                   onInput: (e2) => setPushplusToken(e2.target.value)
                 }
               )
             ] }),
             /* @__PURE__ */ u$1("div", { className: "form-group", children: [
-              /* @__PURE__ */ u$1("label", { className: "form-label", children: "Bark URL (iOS 系统横幅通知)" }),
+              /* @__PURE__ */ u$1("div", { style: "display:flex;justify-content:space-between;align-items:center;", children: [
+                /* @__PURE__ */ u$1("label", { className: "form-label", children: "短信提醒 (SMS)" }),
+                /* @__PURE__ */ u$1(
+                  "a",
+                  {
+                    href: "https://github.com/pppscn/SmsForwarder",
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                    className: "tutorial-link",
+                    children: "SmsForwarder 教程 ↗"
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ u$1("div", { className: "tutorial-tip", children: [
+                "可配合安卓「短信转发器 (SmsForwarder)」的 Webhook 发送短信，或使用自建短信网关（支持 ",
+                "{phone}",
+                " 与 ",
+                "{msg}",
+                " 占位符或 POST JSON）。"
+              ] }),
+              /* @__PURE__ */ u$1(
+                "input",
+                {
+                  type: "text",
+                  className: "form-input",
+                  placeholder: "接收短信的手机号码 (例如 13800138000)",
+                  value: smsPhone,
+                  onInput: (e2) => setSmsPhone(e2.target.value)
+                }
+              ),
+              /* @__PURE__ */ u$1(
+                "input",
+                {
+                  type: "text",
+                  className: "form-input",
+                  placeholder: "短信网关 Webhook 地址 (例如 http://192.168.1.100:8080/send?to={phone}&msg={msg})",
+                  value: smsWebhookUrl,
+                  onInput: (e2) => setSmsWebhookUrl(e2.target.value)
+                }
+              )
+            ] }),
+            /* @__PURE__ */ u$1("div", { className: "form-group", children: [
+              /* @__PURE__ */ u$1("div", { style: "display:flex;justify-content:space-between;align-items:center;", children: [
+                /* @__PURE__ */ u$1("label", { className: "form-label", children: "苹果设备横幅 (Bark)" }),
+                /* @__PURE__ */ u$1(
+                  "a",
+                  {
+                    href: "https://github.com/Finb/Bark",
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                    className: "tutorial-link",
+                    children: "Bark 官网与下载 ↗"
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ u$1("div", { className: "tutorial-tip", children: "iPhone 安装 Bark App，复制首页给出的推送 URL（形如 https://api.day.app/YOUR_KEY）填入下方。" }),
               /* @__PURE__ */ u$1(
                 "input",
                 {
@@ -8053,7 +8113,7 @@ ${markdown}` }
               )
             ] }),
             /* @__PURE__ */ u$1("div", { className: "form-group", children: [
-              /* @__PURE__ */ u$1("label", { className: "form-label", children: "DDL 提醒阈值" }),
+              /* @__PURE__ */ u$1("label", { className: "form-label", children: "DDL 提醒提前量" }),
               /* @__PURE__ */ u$1(
                 "select",
                 {
@@ -8061,63 +8121,17 @@ ${markdown}` }
                   value: threshold,
                   onChange: (e2) => setThreshold(parseInt(e2.target.value, 10)),
                   children: [
-                    /* @__PURE__ */ u$1("option", { value: 24, children: "24 小时以内 (极紧急)" }),
-                    /* @__PURE__ */ u$1("option", { value: 48, children: "48 小时以内 (2天)" }),
-                    /* @__PURE__ */ u$1("option", { value: 72, children: "72 小时以内 (3天)" }),
-                    /* @__PURE__ */ u$1("option", { value: 168, children: "168 小时以内 (1周)" })
+                    /* @__PURE__ */ u$1("option", { value: 24, children: "截止前 24 小时以内 (极紧急)" }),
+                    /* @__PURE__ */ u$1("option", { value: 48, children: "截止前 48 小时以内 (2天)" }),
+                    /* @__PURE__ */ u$1("option", { value: 72, children: "截止前 72 小时以内 (3天)" }),
+                    /* @__PURE__ */ u$1("option", { value: 168, children: "截止前 168 小时以内 (1周)" })
                   ]
                 }
               )
             ] }),
             /* @__PURE__ */ u$1("div", { style: "display:flex;gap:8px;margin-top:8px;", children: [
               /* @__PURE__ */ u$1("button", { className: "btn btn-primary", style: "flex:1;", onClick: savePushConfig, children: "💾 保存配置" }),
-              /* @__PURE__ */ u$1("button", { className: "btn btn-secondary", onClick: testPush, children: "🔔 发送测试推送" })
-            ] })
-          ] }),
-          activeTab === "toolbox" && /* @__PURE__ */ u$1("div", { style: "display:flex;flex-direction:column;gap:14px;", children: [
-            /* @__PURE__ */ u$1("div", { className: "nodd-card", children: [
-              /* @__PURE__ */ u$1("div", { className: "card-title", children: "平台会话凭据" }),
-              /* @__PURE__ */ u$1("div", { style: "font-size:12px;color:var(--text-sub);", children: "一键复制当前登录的 Cookie，供外部脚本或包管理器工具使用。" }),
-              /* @__PURE__ */ u$1("button", { className: "btn btn-secondary btn-sm", onClick: copyCookie, children: "📋 复制当前 Cookie 到剪贴板" })
-            ] }),
-            /* @__PURE__ */ u$1("div", { className: "nodd-card", children: [
-              /* @__PURE__ */ u$1("div", { className: "card-title", children: [
-                "代码暂存草稿箱 (",
-                drafts.length,
-                ")"
-              ] }),
-              /* @__PURE__ */ u$1("div", { style: "font-size:12px;color:var(--text-sub);", children: "本地自动备份的代码记录，误刷新或关闭网页后可随时找回。" }),
-              drafts.length === 0 ? /* @__PURE__ */ u$1("div", { style: "font-size:12px;color:var(--text-sub);padding:8px 0;", children: "暂无暂存记录（在代码编辑框输入时会自动备份）" }) : /* @__PURE__ */ u$1("div", { style: "max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-top:6px;", children: drafts.map((d2) => /* @__PURE__ */ u$1(
-                "div",
-                {
-                  style: "display:flex;justify-content:space-between;align-items:center;background:#f1f5f9;padding:6px 10px;border-radius:6px;font-size:12px;",
-                  children: [
-                    /* @__PURE__ */ u$1("span", { children: [
-                      "🕒 ",
-                      d2.time,
-                      " (",
-                      d2.length,
-                      " 字符)"
-                    ] }),
-                    /* @__PURE__ */ u$1(
-                      "button",
-                      {
-                        className: "btn btn-sm btn-secondary",
-                        onClick: () => {
-                          if (typeof GM_setClipboard !== "undefined") {
-                            GM_setClipboard(d2.code);
-                          } else {
-                            navigator.clipboard.writeText(d2.code);
-                          }
-                          showToast("已复制草稿代码到剪贴板！");
-                        },
-                        children: "复制"
-                      }
-                    )
-                  ]
-                },
-                d2.key
-              )) })
+              /* @__PURE__ */ u$1("button", { className: "btn btn-secondary", onClick: testPush, children: "🔔 发送测试提醒" })
             ] })
           ] }),
           activeTab === "eval" && /* @__PURE__ */ u$1("div", { children: evalLoading ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: "正在查询最新评测结果..." }) : submissions.length === 0 ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: /* @__PURE__ */ u$1("span", { children: "暂无评测记录或页面未开放评测列表" }) }) : /* @__PURE__ */ u$1("div", { style: "display:flex;flex-direction:column;gap:8px;", children: submissions.map((sub) => /* @__PURE__ */ u$1("div", { className: "nodd-card", children: [
@@ -8441,6 +8455,29 @@ ${markdown}` }
   gap: 8px;
 }
 
+.tutorial-link {
+  font-size: 11px;
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.tutorial-link:hover {
+  text-decoration: underline;
+}
+
+.tutorial-tip {
+  font-size: 11px;
+  color: var(--text-sub);
+  line-height: 1.4;
+  background: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border-left: 3px solid var(--primary);
+}
+
 /* 顶部通知 Toast */
 .nodd-toast {
   position: absolute;
@@ -8671,9 +8708,17 @@ ${markdown}` }
       }
       const pushplusToken = await storage.get("nodd_pushplus_token") || "";
       const barkUrl = await storage.get("nodd_bark_url") || "";
+      const smsWebhookUrl = await storage.get("nodd_sms_webhook_url") || "";
+      const smsPhone = await storage.get("nodd_sms_phone") || "";
       const hoursThreshold = parseInt(await storage.get("nodd_hours_threshold") || "72", 10);
-      const pushConfig = { pushplusToken, barkUrl, hoursThreshold };
-      if (pushplusToken || barkUrl) {
+      const pushConfig = {
+        pushplusToken,
+        barkUrl,
+        smsWebhookUrl,
+        smsPhone,
+        hoursThreshold
+      };
+      if (pushplusToken || barkUrl || smsWebhookUrl) {
         client.triggerPushAlert(pushConfig).catch(console.error);
       }
     }

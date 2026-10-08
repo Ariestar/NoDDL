@@ -10,13 +10,31 @@ import {
   parseTestCases
 } from '../src/core/parsers';
 import { HomeworkDB } from '../src/core/db';
-import { StorageAdapter, Assignment } from '../src/core/types';
+import { CourseGradingClient } from '../src/core/client';
+import { StorageAdapter, Assignment, HttpClient } from '../src/core/types';
 
 class MemoryStorage implements StorageAdapter {
   private map = new Map<string, string>();
   async get(k: string) { return this.map.get(k) || null; }
   async set(k: string, v: string) { this.map.set(k, v); }
   async remove(k: string) { this.map.delete(k); }
+}
+
+class MockHttpClient implements HttpClient {
+  public lastGetUrl = '';
+  public lastPostUrl = '';
+  public lastPostData: any = null;
+
+  async get(url: string): Promise<string> {
+    this.lastGetUrl = url;
+    return 'ok';
+  }
+
+  async post(url: string, data?: unknown): Promise<string> {
+    this.lastPostUrl = url;
+    this.lastPostData = data;
+    return 'ok';
+  }
 }
 
 test('AES-ECB 密码加密与解密一致性', () => {
@@ -192,4 +210,36 @@ test('归一化结构存储：彻底杜绝重复课程，规范解析与排序',
   assert.strictEqual(item.courseName, '离散数学'); // 课程名称必须关联为规范名称
   assert.strictEqual(item.deadline, '2026-10-11 23:59:00'); // 合法 DDL 得到保留
   assert.strictEqual(item.url, '/assignment/index.jsp?courseID=184&assignID=3548'); // 链接必须带有 courseID
+});
+
+test('短信提醒 (SMS)：占位符解析与触发支持', async () => {
+  const http = new MockHttpClient();
+  const storage = new MemoryStorage();
+  const client = new CourseGradingClient({}, http, storage);
+
+  // 写入一条临近截止的测试作业
+  await client.db?.upsertAssignment({
+    id: '1001',
+    courseId: '10',
+    courseName: '操作系统',
+    title: '进程管理实验',
+    deadline: '2026-10-10 12:00:00',
+    deadlineTimestamp: Date.now() + 10 * 3600 * 1000,
+    remainingHours: 10,
+    remainingText: '剩 10 小时',
+    status: 'pending',
+    urgency: 'urgent',
+    url: '/assignment/index.jsp?courseID=10&assignID=1001'
+  });
+
+  const res = await client.triggerPushAlert({
+    smsPhone: '13812345678',
+    smsWebhookUrl: 'http://127.0.0.1:8080/sms?phone={phone}&text={msg}',
+    hoursThreshold: 24
+  });
+
+  assert.strictEqual(res.sent, true);
+  assert.strictEqual(res.count, 1);
+  assert.ok(http.lastGetUrl.includes('phone=13812345678'));
+  assert.ok(decodeURIComponent(http.lastGetUrl).includes('操作系统'));
 });

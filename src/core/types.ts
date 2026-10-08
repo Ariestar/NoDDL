@@ -57,6 +57,8 @@ export interface SubmissionResult {
 export interface PushConfig {
   pushplusToken?: string;
   barkUrl?: string;
+  smsWebhookUrl?: string;
+  smsPhone?: string;
   customWebhookUrl?: string;
   hoursThreshold?: number;
 }

@@ -662,14 +662,14 @@ var CourseGradingClient = class {
     return parseSubmissionsHtml(html);
   }
   /**
-   * 触发 DDL 告警推送
+   * 触发 DDL 告警推送（支持微信 PushPlus、Bark iOS 以及短信提醒 SMS）
    */
   async triggerPushAlert(config) {
     const threshold = config.hoursThreshold ?? 48;
     const allPending = this.db ? await this.db.getAllAssignments() : await this.getPendingAssignments(threshold);
     const activeUrgent = allPending.filter((a) => a.remainingHours > 0 && a.remainingHours <= threshold);
     if (activeUrgent.length === 0) {
-      return { sent: false, count: 0 };
+      return { sent: false, count: 0, error: "\u5F53\u524D\u6682\u65E0\u5373\u5C06\u622A\u6B62\u7684\u4F5C\u4E1A" };
     }
     const title = `\u3010NoDDL \u63D0\u9192\u3011\u6709 ${activeUrgent.length} \u9879\u4F5C\u4E1A\u5373\u5C06\u5230\u8FBE DDL`;
     const markdown = [
@@ -678,6 +678,8 @@ var CourseGradingClient = class {
       "",
       ...activeUrgent.map((item, idx) => `${idx + 1}. [${item.courseName}] ${item.title} (\u622A\u6B62: ${item.deadline}, ${item.remainingText})`)
     ].join("\n");
+    const smsText = `\u3010NoDDL\u3011\u60A8\u6709${activeUrgent.length}\u9879\u4F5C\u4E1A\u5373\u5C06\u622A\u6B62\uFF1A` + activeUrgent.slice(0, 3).map((i) => `${i.courseName}-${i.title}(${i.remainingText})`).join("\uFF1B") + (activeUrgent.length > 3 ? `\u7B49\u5171${activeUrgent.length}\u9879` : "") + "\uFF0C\u8BF7\u53CA\u65F6\u63D0\u4EA4\uFF01";
+    let triggeredAny = false;
     try {
       if (config.pushplusToken) {
         await this.http.post("https://www.pushplus.plus/send", {
@@ -686,10 +688,29 @@ var CourseGradingClient = class {
           content: markdown.replace(/\n/g, "<br>"),
           template: "html"
         });
+        triggeredAny = true;
       }
       if (config.barkUrl) {
         const barkBase = config.barkUrl.replace(/\/+$/, "");
         await this.http.get(`${barkBase}/${encodeURIComponent(title)}/${encodeURIComponent(markdown)}?group=NoDDL`);
+        triggeredAny = true;
+      }
+      if (config.smsWebhookUrl) {
+        let targetUrl = config.smsWebhookUrl;
+        const phone = config.smsPhone || "";
+        if (targetUrl.includes("{phone}") || targetUrl.includes("{msg}")) {
+          targetUrl = targetUrl.replace(/\{phone\}/g, encodeURIComponent(phone)).replace(/\{msg\}/g, encodeURIComponent(smsText));
+          await this.http.get(targetUrl);
+        } else {
+          await this.http.post(targetUrl, {
+            phone,
+            to: phone,
+            msg: smsText,
+            message: smsText,
+            text: smsText
+          });
+        }
+        triggeredAny = true;
       }
       if (config.customWebhookUrl) {
         await this.http.post(config.customWebhookUrl, {
@@ -698,6 +719,10 @@ var CourseGradingClient = class {
 
 ${markdown}` }
         });
+        triggeredAny = true;
+      }
+      if (!triggeredAny) {
+        return { sent: false, count: activeUrgent.length, error: "\u672A\u914D\u7F6E\u4EFB\u4F55\u6709\u6548\u63A8\u9001\u51ED\u636E\uFF08\u5FAE\u4FE1 / Bark / \u77ED\u4FE1\uFF09" };
       }
       return { sent: true, count: activeUrgent.length };
     } catch (err) {
