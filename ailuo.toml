@@ -1,0 +1,15 @@
+[package]
+id = "nodd-l"
+version = "1.0.0"
+description = "NoDDL: 武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 工具包与体验补全插件"
+pin = true
+
+[[component]]
+id = "cli"
+mode = "isolated"
+role = "executor"
+entrypoint = "cli.cjs"
+
+[component.process]
+path = "cli.cjs"
+address = "127.0.0.1:50075"

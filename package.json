@@ -1,0 +1,56 @@
+{
+  "name": "@projectluojia/nodd-l",
+  "version": "1.0.0",
+  "description": "NoDDL (Not Only DDL) - 武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补全与 Agent 工具包",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "ailuo.toml",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "pnpm build:package && pnpm build:userscript",
+    "build:package": "tsup",
+    "build:userscript": "vite build",
+    "dev:userscript": "vite",
+    "test": "tsx --test tests/**/*.test.ts"
+  },
+  "keywords": [
+    "userscript",
+    "tampermonkey",
+    "ailuo",
+    "agent",
+    "whu",
+    "coursegrading",
+    "ddl",
+    "nodd-l"
+  ],
+  "author": "projectluojia",
+  "license": "MIT",
+  "dependencies": {
+    "crypto-js": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
+    "@types/node": "^22.5.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2",
+    "vite-plugin-monkey": "^5.0.4"
+  }
+}
