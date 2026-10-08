@@ -8062,8 +8062,7 @@ ${markdown}` }
                     ")"
                   ]
                 }
-              ),
-              /* @__PURE__ */ u$1("button", { className: "btn btn-sm btn-secondary", onClick: exportCalendar, children: "导出日历" })
+              )
             ] }),
             loading ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: "正在同步作业数据..." }) : filteredAssignments.length === 0 ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: [
               /* @__PURE__ */ u$1("span", { style: "font-size:24px;", children: "🎉" }),
@@ -8164,6 +8163,7 @@ ${markdown}` }
                 }
               )
             ] }),
+            /* @__PURE__ */ u$1("button", { className: "btn btn-secondary", style: "width:100%;", onClick: exportCalendar, children: "📅 导出日历 (.ics)" }),
             /* @__PURE__ */ u$1("div", { style: "display:flex;gap:8px;margin-top:8px;", children: [
               /* @__PURE__ */ u$1("button", { className: "btn btn-primary", style: "flex:1;", onClick: savePushConfig, children: "💾 保存配置" }),
               /* @__PURE__ */ u$1("button", { className: "btn btn-secondary", onClick: testPush, children: "🔔 发送测试提醒" })

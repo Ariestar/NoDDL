@@ -251,9 +251,6 @@ export function App({ client, storage, initialAssignments }: AppProps) {
                   >
                     全部 ({assignments.length})
                   </button>
-                  <button className="btn btn-sm btn-secondary" onClick={exportCalendar}>
-                    导出日历
-                  </button>
                 </div>
 
                 {loading ? (
@@ -369,6 +366,10 @@ export function App({ client, storage, initialAssignments }: AppProps) {
                     <option value={168}>截止前 168 小时以内 (1周)</option>
                   </select>
                 </div>
+
+                <button className="btn btn-secondary" style="width:100%;" onClick={exportCalendar}>
+                  📅 导出日历 (.ics)
+                </button>
 
                 <div style="display:flex;gap:8px;margin-top:8px;">
                   <button className="btn btn-primary" style="flex:1;" onClick={savePushConfig}>
