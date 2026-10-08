@@ -6735,23 +6735,31 @@
     }
     return list;
   }
-  function parseActiveAssignmentsHtml(html, courseName = "专业课程", nowMs = Date.now()) {
+  function parseActiveAssignmentsHtml(html, courseName = "当前课程", nowMs = Date.now()) {
     const list = [];
     const seen = /* @__PURE__ */ new Set();
-    const blockRe = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+    let activeSection = html;
+    const historyIdx = html.search(/fas\s+fa-history|历史作业/i);
+    if (historyIdx !== -1) {
+      const clockIdx = html.search(/fas\s+fa-clock|当前作业|进行中/i);
+      if (clockIdx !== -1 && clockIdx < historyIdx) {
+        activeSection = html.slice(clockIdx, historyIdx);
+      } else {
+        activeSection = html.slice(0, historyIdx);
+      }
+    }
+    const linkRe = /<a[^>]*href=["']([^"']*assignID=([a-zA-Z0-9_-]+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
     let m2;
-    while ((m2 = blockRe.exec(html)) !== null) {
-      const block = m2[1];
-      const linkM = block.match(/href=["'][^"']*assignID=([a-zA-Z0-9_-]+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
-      if (!linkM) continue;
-      const id = linkM[1];
-      if (seen.has(id)) continue;
+    while ((m2 = linkRe.exec(activeSection)) !== null) {
+      const rawUrl = m2[1];
+      const id = m2[2];
+      const title = m2[3].replace(/<[^>]+>/g, "").trim();
+      if (!title || seen.has(id)) continue;
+      if (/^(?:详细|提交|查看|重做|编辑|删除)$/.test(title)) continue;
       seen.add(id);
-      const title = linkM[2].replace(/<[^>]+>/g, "").trim() || `作业 ${id}`;
-      const ddl = parseDeadlineBeijing(block, nowMs);
-      let status = "pending";
-      if (/已打分|得分|满分/i.test(block)) status = "graded";
-      else if (/已提交|评测中/i.test(block)) status = "submitted";
+      const matchPos = m2.index;
+      const ctx = activeSection.slice(Math.max(0, matchPos - 200), Math.min(activeSection.length, matchPos + 350));
+      const ddl = parseDeadlineBeijing(ctx, nowMs);
       list.push({
         id,
         courseName,
@@ -6760,16 +6768,43 @@
         deadlineTimestamp: ddl.timestamp,
         remainingHours: ddl.remainingHours,
         remainingText: ddl.remainingText,
-        status,
+        status: "pending",
         urgency: ddl.urgency,
-        url: `/assignment/index.jsp?assignID=${id}`
+        url: rawUrl.startsWith("/") ? rawUrl : `/assignment/${rawUrl}`
       });
+    }
+    if (list.length === 0) {
+      const blockRe = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+      let bm;
+      while ((bm = blockRe.exec(html)) !== null) {
+        const block = bm[1];
+        const linkM = block.match(/href=["']([^"']*assignID=([a-zA-Z0-9_-]+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/i);
+        if (!linkM) continue;
+        const rawUrl = linkM[1];
+        const id = linkM[2];
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const title = linkM[3].replace(/<[^>]+>/g, "").trim() || `作业 ${id}`;
+        const ddl = parseDeadlineBeijing(block, nowMs);
+        list.push({
+          id,
+          courseName,
+          title,
+          deadline: ddl.timestamp > 0 ? ddl.normalized : "请查看详情",
+          deadlineTimestamp: ddl.timestamp,
+          remainingHours: ddl.remainingHours,
+          remainingText: ddl.remainingText,
+          status: "pending",
+          urgency: ddl.urgency,
+          url: rawUrl.startsWith("/") ? rawUrl : `/assignment/${rawUrl}`
+        });
+      }
     }
     return list;
   }
   function parseAssignmentDetailHtml(html, nowMs = Date.now()) {
     const ddl = parseDeadlineBeijing(html, nowMs);
-    const titleM = html.match(/<b>([\s\S]*?)<\/b>/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
+    const titleM = html.match(/(?:当前作业|作业名称)[：:\s]*<b>([^<]+)<\/b>/i) || html.match(/<b>([^<]{2,40})<\/b>\s*<p>[^<]*作业时间/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
     const title = titleM ? titleM[1].replace(/<[^>]+>/g, "").trim() : void 0;
     return {
       title,
@@ -6877,7 +6912,7 @@
       return { success: true, message: "登录成功" };
     }
     /**
-     * 获取学生加入的课程列表
+     * 获取学生加入的课程列表（只读查询）
      */
     async getCourses() {
       try {
@@ -6893,67 +6928,57 @@
       }
     }
     /**
-     * 切换当前激活课程上下文
-     */
-    async enterCourse(courseId) {
-      await this.http.get(`${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`, this.getAuthHeaders());
-    }
-    /**
-     * 汇聚所有课程中未完成的作业与实训
-     * 默认排序：未截止的按 DDL 紧迫度升序排在最前，已逾期的排在后面
+     * 查询当前激活课程中的活跃作业与实训
+     * 【核心原则】严禁在后台静默请求 /courselist.jsp?courseID=xxx 篡改用户的会话上下文，
+     * 仅只读请求当前课程作业页面，绝不影响浏览器当前课程状态。
      */
     async getPendingAssignments(hoursThreshold = 72) {
       const allAssignments = [];
       const seenIds = /* @__PURE__ */ new Set();
-      const courses = await this.getCourses();
-      if (courses.length > 0) {
-        for (const course of courses) {
+      try {
+        const indexHtml = await this.http.get(
+          `${this.baseUrl}/assignment/index.jsp`,
+          this.getAuthHeaders()
+        );
+        const list = parseActiveAssignmentsHtml(indexHtml, "当前课程");
+        for (const item of list) {
+          if (!seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            allAssignments.push(item);
+          }
+        }
+      } catch {
+      }
+      try {
+        const activeHtml = await this.http.get(
+          `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
+          this.getAuthHeaders()
+        );
+        const list = parseActiveAssignmentsHtml(activeHtml, "当前课程");
+        for (const item of list) {
+          if (!seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            allAssignments.push(item);
+          }
+        }
+      } catch {
+      }
+      for (const item of allAssignments) {
+        if (item.deadline === "请查看详情" || item.deadlineTimestamp === 0) {
           try {
-            await this.enterCourse(course.id);
-            const activeHtml = await this.http.get(
-              `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
+            const detailHtml = await this.http.get(
+              `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`,
               this.getAuthHeaders()
             );
-            const list = parseActiveAssignmentsHtml(activeHtml, course.name);
-            for (const item of list) {
-              if (!seenIds.has(item.id)) {
-                seenIds.add(item.id);
-                if (item.deadline === "请查看详情" || item.deadlineTimestamp === 0) {
-                  try {
-                    const detailHtml = await this.http.get(
-                      `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`,
-                      this.getAuthHeaders()
-                    );
-                    const detail = parseAssignmentDetailHtml(detailHtml);
-                    if (detail.deadline) {
-                      item.deadline = detail.deadline;
-                      item.deadlineTimestamp = detail.deadlineTimestamp;
-                      item.remainingHours = detail.remainingHours;
-                      item.remainingText = detail.remainingText;
-                    }
-                  } catch {
-                  }
-                }
-                allAssignments.push(item);
-              }
+            const detail = parseAssignmentDetailHtml(detailHtml);
+            if (detail.deadline) {
+              item.deadline = detail.deadline;
+              item.deadlineTimestamp = detail.deadlineTimestamp;
+              item.remainingHours = detail.remainingHours;
+              item.remainingText = detail.remainingText;
             }
           } catch {
           }
-        }
-      } else {
-        try {
-          const activeHtml = await this.http.get(
-            `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
-            this.getAuthHeaders()
-          );
-          const list = parseActiveAssignmentsHtml(activeHtml, "当前课程");
-          for (const item of list) {
-            if (!seenIds.has(item.id)) {
-              seenIds.add(item.id);
-              allAssignments.push(item);
-            }
-          }
-        } catch {
         }
       }
       return allAssignments.filter((item) => item.status === "pending").sort((a2, b2) => {
@@ -6966,7 +6991,7 @@
       });
     }
     /**
-     * 获取题目详情与测试用例
+     * 获取题目详情与测试用例（兼容 programList.jsp 与 fileUploadList.jsp）
      */
     async getProblemDetail(assignId, proNum = 1) {
       const url = `${this.baseUrl}/assignment/programList.jsp?proNum=${proNum}&assignID=${encodeURIComponent(assignId)}`;
@@ -8306,34 +8331,73 @@ ${markdown}` }
   const http = new BrowserHttpClient();
   const client = new CourseGradingClient({ baseUrl: window.location.origin }, http);
   async function initNoDDL() {
-    console.log("[NoDDL] 启动悬浮控制面板 (无侵入模式)");
+    console.log("[NoDDL] 启动希冀平台只读监听助手");
     setupTestCaseCopyButtons();
     setupCodeAutoSave();
     const hoursThreshold = parseInt(await storage.get("nodd_hours_threshold") || "72", 10);
-    let pendingList = [];
+    const seenIds = /* @__PURE__ */ new Set();
+    const pendingList = [];
     try {
-      const domAssigns = parseActiveAssignmentsHtml(document.body.innerHTML, "当前课程");
-      if (domAssigns.length > 0) {
-        pendingList = domAssigns;
+      const domAssigns = parseActiveAssignmentsHtml(document.documentElement.innerHTML, "当前课程");
+      for (const item of domAssigns) {
+        if (!seenIds.has(item.id)) {
+          seenIds.add(item.id);
+          pendingList.push(item);
+        }
+      }
+    } catch {
+    }
+    try {
+      const urlMatch = window.location.href.match(/assignID=([a-zA-Z0-9_-]+)/i);
+      if (urlMatch) {
+        const curAssignId = urlMatch[1];
+        const curDetail = parseAssignmentDetailHtml(document.documentElement.innerHTML);
+        if (curDetail.deadline) {
+          const existing = pendingList.find((a2) => a2.id === curAssignId);
+          if (existing) {
+            existing.deadline = curDetail.deadline;
+            existing.deadlineTimestamp = curDetail.deadlineTimestamp;
+            existing.remainingHours = curDetail.remainingHours;
+            existing.remainingText = curDetail.remainingText;
+            if (curDetail.title) existing.title = curDetail.title;
+          } else {
+            pendingList.unshift({
+              id: curAssignId,
+              courseName: "当前课程",
+              title: curDetail.title || `当前作业 (${curAssignId})`,
+              deadline: curDetail.deadline,
+              deadlineTimestamp: curDetail.deadlineTimestamp,
+              remainingHours: curDetail.remainingHours,
+              remainingText: curDetail.remainingText,
+              status: "pending",
+              urgency: curDetail.remainingHours <= 6 ? "critical" : curDetail.remainingHours <= 24 ? "urgent" : "normal",
+              url: window.location.pathname + window.location.search
+            });
+            seenIds.add(curAssignId);
+          }
+        }
       }
     } catch {
     }
     try {
       const apiAssigns = await client.getPendingAssignments(hoursThreshold);
-      if (apiAssigns.length > 0) {
-        pendingList = apiAssigns;
+      for (const item of apiAssigns) {
+        if (!seenIds.has(item.id)) {
+          seenIds.add(item.id);
+          pendingList.push(item);
+        }
       }
     } catch (err) {
-      console.warn("[NoDDL] 接口拉取作业列表异常:", err);
+      console.warn("[NoDDL] 接口只读拉取作业异常:", err);
     }
     mountNoDDLUI(client, storage, pendingList);
     if (pendingList.length > 0) {
-      const mostUrgent = pendingList[0];
-      if (mostUrgent.urgency === "critical" || mostUrgent.urgency === "urgent") {
+      const mostUrgent = pendingList.find((a2) => a2.remainingHours > 0);
+      if (mostUrgent && (mostUrgent.urgency === "critical" || mostUrgent.urgency === "urgent")) {
         if (typeof GM_notification !== "undefined") {
           GM_notification({
-            title: "🚨 NoDDL 待交作业提醒",
-            text: `【${mostUrgent.courseName}】${mostUrgent.title} ${mostUrgent.remainingText}，请尽快提交！`,
+            title: "🚨 NoDDL DDL 提醒",
+            text: `【${mostUrgent.courseName}】${mostUrgent.title} ${mostUrgent.remainingText}，请尽快完成！`,
             timeout: 8e3
           });
         }

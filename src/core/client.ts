@@ -56,7 +56,7 @@ export class CourseGradingClient {
   }
 
   /**
-   * 获取学生加入的课程列表
+   * 获取学生加入的课程列表（只读查询）
    */
   async getCourses(): Promise<Course[]> {
     try {
@@ -73,71 +73,61 @@ export class CourseGradingClient {
   }
 
   /**
-   * 切换当前激活课程上下文
-   */
-  async enterCourse(courseId: string): Promise<void> {
-    await this.http.get(`${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`, this.getAuthHeaders());
-  }
-
-  /**
-   * 汇聚所有课程中未完成的作业与实训
-   * 默认排序：未截止的按 DDL 紧迫度升序排在最前，已逾期的排在后面
+   * 查询当前激活课程中的活跃作业与实训
+   * 【核心原则】严禁在后台静默请求 /courselist.jsp?courseID=xxx 篡改用户的会话上下文，
+   * 仅只读请求当前课程作业页面，绝不影响浏览器当前课程状态。
    */
   async getPendingAssignments(hoursThreshold = 72): Promise<Assignment[]> {
     const allAssignments: Assignment[] = [];
     const seenIds = new Set<string>();
 
-    const courses = await this.getCourses();
+    // 1. 只读读取当前活跃课程的作业主页 (/assignment/index.jsp)
+    try {
+      const indexHtml = await this.http.get(
+        `${this.baseUrl}/assignment/index.jsp`,
+        this.getAuthHeaders()
+      );
+      const list = parseActiveAssignmentsHtml(indexHtml, '当前课程');
+      for (const item of list) {
+        if (!seenIds.has(item.id)) {
+          seenIds.add(item.id);
+          allAssignments.push(item);
+        }
+      }
+    } catch {}
 
-    if (courses.length > 0) {
-      for (const course of courses) {
+    // 2. 只读读取活跃作业组件 (/assignment/mainActiveAssigns.jsp)
+    try {
+      const activeHtml = await this.http.get(
+        `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
+        this.getAuthHeaders()
+      );
+      const list = parseActiveAssignmentsHtml(activeHtml, '当前课程');
+      for (const item of list) {
+        if (!seenIds.has(item.id)) {
+          seenIds.add(item.id);
+          allAssignments.push(item);
+        }
+      }
+    } catch {}
+
+    // 3. 针对未带 DDL 的项目，定向只读查询详情补齐
+    for (const item of allAssignments) {
+      if (item.deadline === '请查看详情' || item.deadlineTimestamp === 0) {
         try {
-          await this.enterCourse(course.id);
-          const activeHtml = await this.http.get(
-            `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
+          const detailHtml = await this.http.get(
+            `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`,
             this.getAuthHeaders()
           );
-          const list = parseActiveAssignmentsHtml(activeHtml, course.name);
-
-          for (const item of list) {
-            if (!seenIds.has(item.id)) {
-              seenIds.add(item.id);
-
-              if (item.deadline === '请查看详情' || item.deadlineTimestamp === 0) {
-                try {
-                  const detailHtml = await this.http.get(
-                    `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`,
-                    this.getAuthHeaders()
-                  );
-                  const detail = parseAssignmentDetailHtml(detailHtml);
-                  if (detail.deadline) {
-                    item.deadline = detail.deadline;
-                    item.deadlineTimestamp = detail.deadlineTimestamp;
-                    item.remainingHours = detail.remainingHours;
-                    item.remainingText = detail.remainingText;
-                  }
-                } catch {}
-              }
-
-              allAssignments.push(item);
-            }
+          const detail = parseAssignmentDetailHtml(detailHtml);
+          if (detail.deadline) {
+            item.deadline = detail.deadline;
+            item.deadlineTimestamp = detail.deadlineTimestamp;
+            item.remainingHours = detail.remainingHours;
+            item.remainingText = detail.remainingText;
           }
         } catch {}
       }
-    } else {
-      try {
-        const activeHtml = await this.http.get(
-          `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
-          this.getAuthHeaders()
-        );
-        const list = parseActiveAssignmentsHtml(activeHtml, '当前课程');
-        for (const item of list) {
-          if (!seenIds.has(item.id)) {
-            seenIds.add(item.id);
-            allAssignments.push(item);
-          }
-        }
-      } catch {}
     }
 
     return allAssignments
@@ -155,7 +145,7 @@ export class CourseGradingClient {
   }
 
   /**
-   * 获取题目详情与测试用例
+   * 获取题目详情与测试用例（兼容 programList.jsp 与 fileUploadList.jsp）
    */
   async getProblemDetail(assignId: string, proNum = 1): Promise<ProblemDetail> {
     const url = `${this.baseUrl}/assignment/programList.jsp?proNum=${proNum}&assignID=${encodeURIComponent(assignId)}`;
@@ -179,7 +169,6 @@ export class CourseGradingClient {
     const threshold = config.hoursThreshold ?? 48;
     const allPending = await this.getPendingAssignments(threshold);
 
-    // 仅针对在阈值时间内的未截止作业或最新逾期作业发送
     const activeUrgent = allPending.filter(a => a.remainingHours > 0 && a.remainingHours <= threshold);
     if (activeUrgent.length === 0) {
       return { sent: false, count: 0 };

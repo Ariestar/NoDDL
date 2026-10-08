@@ -106,18 +106,19 @@ declare function extractDeadlineFromText(text: string): string;
 declare function parseDeadlineBeijing(rawInput: string, nowMs?: number): ParsedDeadline;
 
 /**
- * 解析 CourseGrading 课程列表
- * 结构: a[href*="courselist.jsp?courseID="] 或 span.dropdown-item-course[value]
+ * 解析希冀平台课程列表（仅用于只读展示，严禁后台静默切换课程上下文）
  */
 declare function parseCourseListHtml(html: string): Course[];
 /**
- * 解析 CourseGrading 活跃作业列表
- * 结构: div.main-zy > a[href*="assignID="]
+ * 解析希冀平台活跃作业列表
+ * 支持结构：
+ * 1. 侧边栏结构：精准切分当前作业（fas fa-clock）与历史作业（fas fa-history），只抓取当前作业
+ * 2. 标准活跃容器：div.main-zy 或包含 assignID 的链接列表
  */
 declare function parseActiveAssignmentsHtml(html: string, courseName?: string, nowMs?: number): Assignment[];
 /**
- * 解析 CourseGrading 作业详情页
- * 结构: 包含截止时间与题目
+ * 解析希冀平台作业详情页与题目列表
+ * 来源：/assignment/index.jsp?assignID={id} 或 fileUploadList.jsp / programList.jsp
  */
 declare function parseAssignmentDetailHtml(html: string, nowMs?: number): {
     title?: string;
@@ -131,7 +132,7 @@ declare function parseAssignmentDetailHtml(html: string, nowMs?: number): {
  */
 declare function parseTestCases(html: string): TestCase[];
 /**
- * 解析题目详情与代码
+ * 解析题目详情（兼容编程题 programList.jsp 与文件上传题 fileUploadList.jsp）
  */
 declare function parseProblemDetailHtml(problemId: string, html: string): ProblemDetail;
 /**
@@ -155,20 +156,17 @@ declare class CourseGradingClient {
         message: string;
     }>;
     /**
-     * 获取学生加入的课程列表
+     * 获取学生加入的课程列表（只读查询）
      */
     getCourses(): Promise<Course[]>;
     /**
-     * 切换当前激活课程上下文
-     */
-    enterCourse(courseId: string): Promise<void>;
-    /**
-     * 汇聚所有课程中未完成的作业与实训
-     * 默认排序：未截止的按 DDL 紧迫度升序排在最前，已逾期的排在后面
+     * 查询当前激活课程中的活跃作业与实训
+     * 【核心原则】严禁在后台静默请求 /courselist.jsp?courseID=xxx 篡改用户的会话上下文，
+     * 仅只读请求当前课程作业页面，绝不影响浏览器当前课程状态。
      */
     getPendingAssignments(hoursThreshold?: number): Promise<Assignment[]>;
     /**
-     * 获取题目详情与测试用例
+     * 获取题目详情与测试用例（兼容 programList.jsp 与 fileUploadList.jsp）
      */
     getProblemDetail(assignId: string, proNum?: number): Promise<ProblemDetail>;
     /**

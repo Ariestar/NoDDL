@@ -159,23 +159,31 @@ function parseCourseListHtml(html) {
   }
   return list;
 }
-function parseActiveAssignmentsHtml(html, courseName = "\u4E13\u4E1A\u8BFE\u7A0B", nowMs = Date.now()) {
+function parseActiveAssignmentsHtml(html, courseName = "\u5F53\u524D\u8BFE\u7A0B", nowMs = Date.now()) {
   const list = [];
   const seen = /* @__PURE__ */ new Set();
-  const blockRe = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+  let activeSection = html;
+  const historyIdx = html.search(/fas\s+fa-history|历史作业/i);
+  if (historyIdx !== -1) {
+    const clockIdx = html.search(/fas\s+fa-clock|当前作业|进行中/i);
+    if (clockIdx !== -1 && clockIdx < historyIdx) {
+      activeSection = html.slice(clockIdx, historyIdx);
+    } else {
+      activeSection = html.slice(0, historyIdx);
+    }
+  }
+  const linkRe = /<a[^>]*href=["']([^"']*assignID=([a-zA-Z0-9_-]+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let m;
-  while ((m = blockRe.exec(html)) !== null) {
-    const block = m[1];
-    const linkM = block.match(/href=["'][^"']*assignID=([a-zA-Z0-9_-]+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
-    if (!linkM) continue;
-    const id = linkM[1];
-    if (seen.has(id)) continue;
+  while ((m = linkRe.exec(activeSection)) !== null) {
+    const rawUrl = m[1];
+    const id = m[2];
+    const title = m[3].replace(/<[^>]+>/g, "").trim();
+    if (!title || seen.has(id)) continue;
+    if (/^(?:详细|提交|查看|重做|编辑|删除)$/.test(title)) continue;
     seen.add(id);
-    const title = linkM[2].replace(/<[^>]+>/g, "").trim() || `\u4F5C\u4E1A ${id}`;
-    const ddl = parseDeadlineBeijing(block, nowMs);
-    let status = "pending";
-    if (/已打分|得分|满分/i.test(block)) status = "graded";
-    else if (/已提交|评测中/i.test(block)) status = "submitted";
+    const matchPos = m.index;
+    const ctx = activeSection.slice(Math.max(0, matchPos - 200), Math.min(activeSection.length, matchPos + 350));
+    const ddl = parseDeadlineBeijing(ctx, nowMs);
     list.push({
       id,
       courseName,
@@ -184,16 +192,43 @@ function parseActiveAssignmentsHtml(html, courseName = "\u4E13\u4E1A\u8BFE\u7A0B
       deadlineTimestamp: ddl.timestamp,
       remainingHours: ddl.remainingHours,
       remainingText: ddl.remainingText,
-      status,
+      status: "pending",
       urgency: ddl.urgency,
-      url: `/assignment/index.jsp?assignID=${id}`
+      url: rawUrl.startsWith("/") ? rawUrl : `/assignment/${rawUrl}`
     });
+  }
+  if (list.length === 0) {
+    const blockRe = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+    let bm;
+    while ((bm = blockRe.exec(html)) !== null) {
+      const block = bm[1];
+      const linkM = block.match(/href=["']([^"']*assignID=([a-zA-Z0-9_-]+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/i);
+      if (!linkM) continue;
+      const rawUrl = linkM[1];
+      const id = linkM[2];
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const title = linkM[3].replace(/<[^>]+>/g, "").trim() || `\u4F5C\u4E1A ${id}`;
+      const ddl = parseDeadlineBeijing(block, nowMs);
+      list.push({
+        id,
+        courseName,
+        title,
+        deadline: ddl.timestamp > 0 ? ddl.normalized : "\u8BF7\u67E5\u770B\u8BE6\u60C5",
+        deadlineTimestamp: ddl.timestamp,
+        remainingHours: ddl.remainingHours,
+        remainingText: ddl.remainingText,
+        status: "pending",
+        urgency: ddl.urgency,
+        url: rawUrl.startsWith("/") ? rawUrl : `/assignment/${rawUrl}`
+      });
+    }
   }
   return list;
 }
 function parseAssignmentDetailHtml(html, nowMs = Date.now()) {
   const ddl = parseDeadlineBeijing(html, nowMs);
-  const titleM = html.match(/<b>([\s\S]*?)<\/b>/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
+  const titleM = html.match(/(?:当前作业|作业名称)[：:\s]*<b>([^<]+)<\/b>/i) || html.match(/<b>([^<]{2,40})<\/b>\s*<p>[^<]*作业时间/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
   const title = titleM ? titleM[1].replace(/<[^>]+>/g, "").trim() : void 0;
   return {
     title,
@@ -303,7 +338,7 @@ var CourseGradingClient = class {
     return { success: true, message: "\u767B\u5F55\u6210\u529F" };
   }
   /**
-   * 获取学生加入的课程列表
+   * 获取学生加入的课程列表（只读查询）
    */
   async getCourses() {
     try {
@@ -319,67 +354,57 @@ var CourseGradingClient = class {
     }
   }
   /**
-   * 切换当前激活课程上下文
-   */
-  async enterCourse(courseId) {
-    await this.http.get(`${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`, this.getAuthHeaders());
-  }
-  /**
-   * 汇聚所有课程中未完成的作业与实训
-   * 默认排序：未截止的按 DDL 紧迫度升序排在最前，已逾期的排在后面
+   * 查询当前激活课程中的活跃作业与实训
+   * 【核心原则】严禁在后台静默请求 /courselist.jsp?courseID=xxx 篡改用户的会话上下文，
+   * 仅只读请求当前课程作业页面，绝不影响浏览器当前课程状态。
    */
   async getPendingAssignments(hoursThreshold = 72) {
     const allAssignments = [];
     const seenIds = /* @__PURE__ */ new Set();
-    const courses = await this.getCourses();
-    if (courses.length > 0) {
-      for (const course of courses) {
+    try {
+      const indexHtml = await this.http.get(
+        `${this.baseUrl}/assignment/index.jsp`,
+        this.getAuthHeaders()
+      );
+      const list = parseActiveAssignmentsHtml(indexHtml, "\u5F53\u524D\u8BFE\u7A0B");
+      for (const item of list) {
+        if (!seenIds.has(item.id)) {
+          seenIds.add(item.id);
+          allAssignments.push(item);
+        }
+      }
+    } catch {
+    }
+    try {
+      const activeHtml = await this.http.get(
+        `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
+        this.getAuthHeaders()
+      );
+      const list = parseActiveAssignmentsHtml(activeHtml, "\u5F53\u524D\u8BFE\u7A0B");
+      for (const item of list) {
+        if (!seenIds.has(item.id)) {
+          seenIds.add(item.id);
+          allAssignments.push(item);
+        }
+      }
+    } catch {
+    }
+    for (const item of allAssignments) {
+      if (item.deadline === "\u8BF7\u67E5\u770B\u8BE6\u60C5" || item.deadlineTimestamp === 0) {
         try {
-          await this.enterCourse(course.id);
-          const activeHtml = await this.http.get(
-            `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
+          const detailHtml = await this.http.get(
+            `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`,
             this.getAuthHeaders()
           );
-          const list = parseActiveAssignmentsHtml(activeHtml, course.name);
-          for (const item of list) {
-            if (!seenIds.has(item.id)) {
-              seenIds.add(item.id);
-              if (item.deadline === "\u8BF7\u67E5\u770B\u8BE6\u60C5" || item.deadlineTimestamp === 0) {
-                try {
-                  const detailHtml = await this.http.get(
-                    `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`,
-                    this.getAuthHeaders()
-                  );
-                  const detail = parseAssignmentDetailHtml(detailHtml);
-                  if (detail.deadline) {
-                    item.deadline = detail.deadline;
-                    item.deadlineTimestamp = detail.deadlineTimestamp;
-                    item.remainingHours = detail.remainingHours;
-                    item.remainingText = detail.remainingText;
-                  }
-                } catch {
-                }
-              }
-              allAssignments.push(item);
-            }
+          const detail = parseAssignmentDetailHtml(detailHtml);
+          if (detail.deadline) {
+            item.deadline = detail.deadline;
+            item.deadlineTimestamp = detail.deadlineTimestamp;
+            item.remainingHours = detail.remainingHours;
+            item.remainingText = detail.remainingText;
           }
         } catch {
         }
-      }
-    } else {
-      try {
-        const activeHtml = await this.http.get(
-          `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
-          this.getAuthHeaders()
-        );
-        const list = parseActiveAssignmentsHtml(activeHtml, "\u5F53\u524D\u8BFE\u7A0B");
-        for (const item of list) {
-          if (!seenIds.has(item.id)) {
-            seenIds.add(item.id);
-            allAssignments.push(item);
-          }
-        }
-      } catch {
       }
     }
     return allAssignments.filter((item) => item.status === "pending").sort((a, b) => {
@@ -392,7 +417,7 @@ var CourseGradingClient = class {
     });
   }
   /**
-   * 获取题目详情与测试用例
+   * 获取题目详情与测试用例（兼容 programList.jsp 与 fileUploadList.jsp）
    */
   async getProblemDetail(assignId, proNum = 1) {
     const url = `${this.baseUrl}/assignment/programList.jsp?proNum=${proNum}&assignID=${encodeURIComponent(assignId)}`;

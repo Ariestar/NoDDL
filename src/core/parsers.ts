@@ -2,14 +2,12 @@ import { Assignment, Course, ProblemDetail, SubmissionResult, TestCase } from '.
 import { parseDeadlineBeijing } from './time';
 
 /**
- * 解析 CourseGrading 课程列表
- * 结构: a[href*="courselist.jsp?courseID="] 或 span.dropdown-item-course[value]
+ * 解析希冀平台课程列表（仅用于只读展示，严禁后台静默切换课程上下文）
  */
 export function parseCourseListHtml(html: string): Course[] {
   const list: Course[] = [];
   const seen = new Set<string>();
 
-  // 1. 多课程列表
   const linkRe = /<a[^>]*href=["'][^"']*courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let m: RegExpExecArray | null;
   while ((m = linkRe.exec(html)) !== null) {
@@ -21,7 +19,6 @@ export function parseCourseListHtml(html: string): Course[] {
     }
   }
 
-  // 2. 单课程下拉
   const spanRe = /<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/span>/gi;
   while ((m = spanRe.exec(html)) !== null) {
     const id = m[1];
@@ -36,31 +33,45 @@ export function parseCourseListHtml(html: string): Course[] {
 }
 
 /**
- * 解析 CourseGrading 活跃作业列表
- * 结构: div.main-zy > a[href*="assignID="]
+ * 解析希冀平台活跃作业列表
+ * 支持结构：
+ * 1. 侧边栏结构：精准切分当前作业（fas fa-clock）与历史作业（fas fa-history），只抓取当前作业
+ * 2. 标准活跃容器：div.main-zy 或包含 assignID 的链接列表
  */
-export function parseActiveAssignmentsHtml(html: string, courseName = '专业课程', nowMs = Date.now()): Assignment[] {
+export function parseActiveAssignmentsHtml(html: string, courseName = '当前课程', nowMs = Date.now()): Assignment[] {
   const list: Assignment[] = [];
   const seen = new Set<string>();
 
-  const blockRe = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+  // 1. 若存在侧边栏 "历史作业" (fas fa-history)，仅截取历史作业前面的 "当前进行中作业" 区域
+  let activeSection = html;
+  const historyIdx = html.search(/fas\s+fa-history|历史作业/i);
+  if (historyIdx !== -1) {
+    const clockIdx = html.search(/fas\s+fa-clock|当前作业|进行中/i);
+    if (clockIdx !== -1 && clockIdx < historyIdx) {
+      activeSection = html.slice(clockIdx, historyIdx);
+    } else {
+      activeSection = html.slice(0, historyIdx);
+    }
+  }
+
+  // 2. 匹配作业链接（支持 index.jsp?assignID=..., fileUploadList.jsp?proNum=1&assignID=..., programList.jsp?...）
+  const linkRe = /<a[^>]*href=["']([^"']*assignID=([a-zA-Z0-9_-]+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let m: RegExpExecArray | null;
 
-  while ((m = blockRe.exec(html)) !== null) {
-    const block = m[1];
-    const linkM = block.match(/href=["'][^"']*assignID=([a-zA-Z0-9_-]+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
-    if (!linkM) continue;
+  while ((m = linkRe.exec(activeSection)) !== null) {
+    const rawUrl = m[1];
+    const id = m[2];
+    const title = m[3].replace(/<[^>]+>/g, '').trim();
 
-    const id = linkM[1];
-    if (seen.has(id)) continue;
+    if (!title || seen.has(id)) continue;
+    if (/^(?:详细|提交|查看|重做|编辑|删除)$/.test(title)) continue;
+
     seen.add(id);
 
-    const title = linkM[2].replace(/<[^>]+>/g, '').trim() || `作业 ${id}`;
-    const ddl = parseDeadlineBeijing(block, nowMs);
-
-    let status: Assignment['status'] = 'pending';
-    if (/已打分|得分|满分/i.test(block)) status = 'graded';
-    else if (/已提交|评测中/i.test(block)) status = 'submitted';
+    // 取该链接周围上下文解析 DDL
+    const matchPos = m.index;
+    const ctx = activeSection.slice(Math.max(0, matchPos - 200), Math.min(activeSection.length, matchPos + 350));
+    const ddl = parseDeadlineBeijing(ctx, nowMs);
 
     list.push({
       id,
@@ -70,18 +81,51 @@ export function parseActiveAssignmentsHtml(html: string, courseName = '专业课
       deadlineTimestamp: ddl.timestamp,
       remainingHours: ddl.remainingHours,
       remainingText: ddl.remainingText,
-      status,
+      status: 'pending',
       urgency: ddl.urgency,
-      url: `/assignment/index.jsp?assignID=${id}`
+      url: rawUrl.startsWith('/') ? rawUrl : `/assignment/${rawUrl}`
     });
+  }
+
+  // 3. 兜底扫描: div.main-zy 容器结构
+  if (list.length === 0) {
+    const blockRe = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+    let bm: RegExpExecArray | null;
+
+    while ((bm = blockRe.exec(html)) !== null) {
+      const block = bm[1];
+      const linkM = block.match(/href=["']([^"']*assignID=([a-zA-Z0-9_-]+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/i);
+      if (!linkM) continue;
+
+      const rawUrl = linkM[1];
+      const id = linkM[2];
+      if (seen.has(id)) continue;
+      seen.add(id);
+
+      const title = linkM[3].replace(/<[^>]+>/g, '').trim() || `作业 ${id}`;
+      const ddl = parseDeadlineBeijing(block, nowMs);
+
+      list.push({
+        id,
+        courseName,
+        title,
+        deadline: ddl.timestamp > 0 ? ddl.normalized : '请查看详情',
+        deadlineTimestamp: ddl.timestamp,
+        remainingHours: ddl.remainingHours,
+        remainingText: ddl.remainingText,
+        status: 'pending',
+        urgency: ddl.urgency,
+        url: rawUrl.startsWith('/') ? rawUrl : `/assignment/${rawUrl}`
+      });
+    }
   }
 
   return list;
 }
 
 /**
- * 解析 CourseGrading 作业详情页
- * 结构: 包含截止时间与题目
+ * 解析希冀平台作业详情页与题目列表
+ * 来源：/assignment/index.jsp?assignID={id} 或 fileUploadList.jsp / programList.jsp
  */
 export function parseAssignmentDetailHtml(html: string, nowMs = Date.now()): {
   title?: string;
@@ -90,8 +134,13 @@ export function parseAssignmentDetailHtml(html: string, nowMs = Date.now()): {
   remainingHours: number;
   remainingText: string;
 } {
+  // 提取 DDL：支持 "作业时间：<b>...</b> 至 <b>...</b>" 规范格式
   const ddl = parseDeadlineBeijing(html, nowMs);
-  const titleM = html.match(/<b>([\s\S]*?)<\/b>/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
+
+  // 提取作业名称：通常在 <b>作业名</b> 或 breadcrumb 中
+  const titleM = html.match(/(?:当前作业|作业名称)[：:\s]*<b>([^<]+)<\/b>/i) ||
+                 html.match(/<b>([^<]{2,40})<\/b>\s*<p>[^<]*作业时间/i) ||
+                 html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
   const title = titleM ? titleM[1].replace(/<[^>]+>/g, '').trim() : undefined;
 
   return {
@@ -135,7 +184,7 @@ function cleanCode(s: string): string {
 }
 
 /**
- * 解析题目详情与代码
+ * 解析题目详情（兼容编程题 programList.jsp 与文件上传题 fileUploadList.jsp）
  */
 export function parseProblemDetailHtml(problemId: string, html: string): ProblemDetail {
   const contentM = html.match(/<div[^>]*class=["'][^"']*cgProblemContentClass[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) ||
