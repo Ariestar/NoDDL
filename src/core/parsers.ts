@@ -1,20 +1,15 @@
-import { Assignment, ProblemDetail, SubmissionResult, TestCase } from './types';
-import { calculateUrgency, parseDeadline } from './ddl';
-
-export interface CourseInfo {
-  id: string;
-  name: string;
-}
+import { Assignment, Course, ProblemDetail, SubmissionResult, TestCase } from './types';
+import { parseDeadlineBeijing } from './time';
 
 /**
  * 解析 CourseGrading 课程列表
- * 来源：/courselist.jsp 或 /main.jsp 下拉菜单
+ * 来源：/courselist.jsp 或 /main.jsp
  */
-export function parseCourseListHtml(html: string): CourseInfo[] {
-  const courses: CourseInfo[] = [];
+export function parseCourseListHtml(html: string): Course[] {
+  const courses: Course[] = [];
   const seenIds = new Set<string>();
 
-  // 1. 多课程列表：<a href="courselist.jsp?courseID=1001"> 高等数学 </a>
+  // 1. 多课程链接: <a href="courselist.jsp?courseID=1001"> 高等数学 </a>
   const linkRegex = /<a[^>]*href=["'][^"']*courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let match: RegExpExecArray | null;
 
@@ -27,7 +22,7 @@ export function parseCourseListHtml(html: string): CourseInfo[] {
     }
   }
 
-  // 2. 单课程 / 下拉菜单：<span class="dropdown-item-course" value="1001">高等数学</span>
+  // 2. 单课程下拉菜单: <span class="dropdown-item-course" value="1001">高等数学</span>
   const spanRegex = /<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/span>/gi;
   while ((match = spanRegex.exec(html)) !== null) {
     const id = match[1];
@@ -43,13 +38,13 @@ export function parseCourseListHtml(html: string): CourseInfo[] {
 
 /**
  * 解析 CourseGrading 活跃作业列表
- * 来源：/assignment/mainActiveAssigns.jsp 或页面上的 .main-zy 容器
+ * 来源：/assignment/mainActiveAssigns.jsp 或当前页面中的 .main-zy 容器
  */
 export function parseActiveAssignmentsHtml(html: string, courseName = '专业课程', nowMs = Date.now()): Assignment[] {
   const assignments: Assignment[] = [];
   const seenIds = new Set<string>();
 
-  // CourseGrading 标准结构: <div class="main-zy"> ... <a href="...assignID=5001">作业名</a> ... </div>
+  // CourseGrading 核心容器: <div class="main-zy"> ... <a href="...assignID=5001">作业名</a> ... </div>
   const blockRegex = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
   let blockMatch: RegExpExecArray | null;
 
@@ -65,33 +60,32 @@ export function parseActiveAssignmentsHtml(html: string, courseName = '专业课
 
     const title = linkMatch[2].replace(/<[^>]+>/g, '').trim() || `作业 ${id}`;
 
-    // 匹配时间字符串（如 "2026-10-10 23:59:00" 或 "2026/10/10 23:59"）
-    const dateMatch = block.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
-    const deadlineStr = dateMatch ? dateMatch[1] : '';
+    // 提取时间字符串
+    const dateMatch = block.match(/(?:截止[：:\s]*)?(\d{4}[-/年.]\d{1,2}[-/月.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/) ||
+                      block.match(/(?:截止[：:\s]*)?(\d{1,2}[-/月.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/);
 
-    const { timestamp, remainingHours, remainingText } = deadlineStr
-      ? parseDeadline(deadlineStr, nowMs)
-      : { timestamp: 0, remainingHours: 9999, remainingText: '请查看详情' };
+    const rawDeadline = dateMatch ? dateMatch[1] : '';
+    const parsed = parseDeadlineBeijing(rawDeadline, nowMs);
 
     let status: Assignment['status'] = 'pending';
-    if (/已提交|评测中/i.test(block)) status = 'submitted';
-    else if (/已打分|得分|满分/i.test(block)) status = 'graded';
+    if (/已打分|得分|满分/i.test(block)) status = 'graded';
+    else if (/已提交|评测中/i.test(block)) status = 'submitted';
 
     assignments.push({
       id,
       courseName,
       title,
-      deadline: deadlineStr || '未标注明确截止时间',
-      deadlineTimestamp: timestamp,
-      remainingHours,
-      remainingText,
+      deadline: rawDeadline ? parsed.normalized : '请查看详情',
+      deadlineTimestamp: parsed.timestamp,
+      remainingHours: parsed.remainingHours,
+      remainingText: parsed.remainingText,
       status,
-      urgency: calculateUrgency(remainingHours),
+      urgency: parsed.urgency,
       url: `/assignment/index.jsp?assignID=${id}`
     });
   }
 
-  // 兜底：若未包含 .main-zy 外层，直接扫描包含 assignID 的链接
+  // 兜底扫描: 纯链接形式
   if (assignments.length === 0) {
     const directLinkRegex = /<a[^>]*href=["'][^"']*assignID=([a-zA-Z0-9_-]+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi;
     let linkM: RegExpExecArray | null;
@@ -122,73 +116,39 @@ export function parseActiveAssignmentsHtml(html: string, courseName = '专业课
 }
 
 /**
- * 解析 CourseGrading 作业详情页面
+ * 解析 CourseGrading 作业详情页
  * 来源：/assignment/index.jsp?assignID={id}
  */
-export function parseAssignmentIndexHtml(html: string, nowMs = Date.now()): {
+export function parseAssignmentDetailHtml(html: string, nowMs = Date.now()): {
   title?: string;
   deadline?: string;
   deadlineTimestamp: number;
   remainingHours: number;
   remainingText: string;
-  problems: { index: number; id: string; title: string; score?: number }[];
 } {
-  // 提取截止时间
-  const dateMatch = html.match(/截止时间[：:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/i) ||
-                    html.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
-  const deadline = dateMatch ? dateMatch[1] : undefined;
-  const { timestamp, remainingHours, remainingText } = deadline
-    ? parseDeadline(deadline, nowMs)
-    : { timestamp: 0, remainingHours: 9999, remainingText: '未设截止时间' };
+  const dateMatch = html.match(/截止时间[：:\s]*([\d\-/年. :]+)/i) ||
+                    html.match(/(\d{4}[-/年.]\d{1,2}[-/月.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/);
 
-  // 提取作业标题
+  const rawDeadline = dateMatch ? dateMatch[1].trim() : '';
+  const parsed = parseDeadlineBeijing(rawDeadline, nowMs);
+
   const titleMatch = html.match(/<b>([\s\S]*?)<\/b>/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
   const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : undefined;
 
-  // 提取题目列表 (<table class="table-striped">)
-  const problems: { index: number; id: string; title: string; score?: number }[] = [];
-  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let trMatch: RegExpExecArray | null;
-
-  while ((trMatch = trRegex.exec(html)) !== null) {
-    const row = trMatch[1];
-    if (/<th[^>]*>#<\/th>/i.test(row)) continue;
-
-    const proLinkMatch = row.match(/href=["'][^"']*programList\.jsp\?proNum=(\d+)&assignID=(\d+)["'][^>]*>([\s\S]*?)<\/a>/i);
-    const judgeLinkMatch = row.match(/problemID=(\d+)/i);
-
-    if (proLinkMatch) {
-      const index = parseInt(proLinkMatch[1], 10);
-      const proTitle = proLinkMatch[3].replace(/<[^>]+>/g, '').trim();
-      const problemId = judgeLinkMatch ? judgeLinkMatch[1] : `pro_${index}`;
-
-      const scoreMatch = row.match(/<td>\s*(\d+(?:\.\d+)?)\s*<\/td>/i);
-      const score = scoreMatch ? parseFloat(scoreMatch[1]) : undefined;
-
-      problems.push({
-        index,
-        id: problemId,
-        title: proTitle,
-        score
-      });
-    }
-  }
-
   return {
     title,
-    deadline,
-    deadlineTimestamp: timestamp,
-    remainingHours,
-    remainingText,
-    problems
+    deadline: rawDeadline ? parsed.normalized : undefined,
+    deadlineTimestamp: parsed.timestamp,
+    remainingHours: parsed.remainingHours,
+    remainingText: parsed.remainingText
   };
 }
 
 /**
- * 解析题目输入输出样例
+ * 解析题目输入输出用例
  * 来源：/assignment/programList.jsp 或 /acm/submit.jsp
  */
-export function parseProblemTestCases(html: string): TestCase[] {
+export function parseTestCases(html: string): TestCase[] {
   const testCases: TestCase[] = [];
 
   const sampleRegex = /(?:样例输入|输入样例|Sample Input)[\s\S]*?<pre[^>]*>([\s\S]*?)<\/pre>[\s\S]*?(?:样例输出|输出样例|Sample Output)[\s\S]*?<pre[^>]*>([\s\S]*?)<\/pre>/gi;
@@ -234,7 +194,7 @@ function cleanCodeBlock(raw: string): string {
 }
 
 /**
- * 解析题目详情与代码
+ * 解析题目描述与代码
  * 来源：/assignment/programList.jsp
  */
 export function parseProblemDetailHtml(problemId: string, html: string): ProblemDetail {
@@ -244,27 +204,24 @@ export function parseProblemDetailHtml(problemId: string, html: string): Problem
   const descHtml = contentMatch ? contentMatch[1] : html;
   const descText = descHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // 提取现有代码
   const codeMatch = html.match(/<textarea[^>]*id=["']cgsoucecode["'][^>]*>([\s\S]*?)<\/textarea>/i);
   const currentCode = codeMatch ? codeMatch[1].trim() : undefined;
-
-  const testCases = parseProblemTestCases(html);
 
   return {
     id: problemId,
     title: `题目 ${problemId}`,
     descriptionHtml: descHtml,
     descriptionText: descText,
-    testCases,
+    testCases: parseTestCases(html),
     currentCode
   };
 }
 
 /**
- * 解析评测结果状态表
+ * 解析评测记录表
  * 来源：/acm/problemset_stat.jsp
  */
-export function parseSubmissionResultHtml(html: string): SubmissionResult[] {
+export function parseSubmissionsHtml(html: string): SubmissionResult[] {
   const results: SubmissionResult[] = [];
   const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let trMatch: RegExpExecArray | null;
@@ -281,13 +238,12 @@ export function parseSubmissionResultHtml(html: string): SubmissionResult[] {
     }
 
     if (tds.length >= 6) {
-      // 表头: Run ID, 提交时间, 用户, 题目, 语言, 评测结果, 时间, 内存
       const runId = tds[0];
       const submitTime = tds[1];
       const problemTitle = tds[3];
       const rawStatus = tds[5];
 
-      let status = 'Unknown';
+      let status: SubmissionResult['status'] = 'Unknown';
       if (/Accepted|正确|通过|AC/i.test(rawStatus)) status = 'Accepted';
       else if (/Wrong Answer|答案错误|WA/i.test(rawStatus)) status = 'Wrong Answer';
       else if (/Time Limit|超时|TLE/i.test(rawStatus)) status = 'Time Limit Exceeded';
@@ -299,7 +255,7 @@ export function parseSubmissionResultHtml(html: string): SubmissionResult[] {
         id: runId,
         problemId: problemTitle,
         problemTitle,
-        status: status as SubmissionResult['status'],
+        status,
         submitTime
       });
     }

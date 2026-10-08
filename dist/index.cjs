@@ -25,7 +25,49 @@ function decryptPassword(ciphertext, secretKey = COURSE_GRADING_SECRET_KEY) {
   return decrypted.toString(CryptoJS__default.default.enc.Utf8);
 }
 
-// src/core/ddl.ts
+// src/core/http.ts
+var FetchHttpClient = class {
+  defaultHeaders;
+  constructor(defaultHeaders = {}) {
+    this.defaultHeaders = defaultHeaders;
+  }
+  async get(url, headers = {}) {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { ...this.defaultHeaders, ...headers }
+    });
+    if (!res.ok) {
+      throw new Error(`GET ${url} \u54CD\u5E94\u9519\u8BEF: ${res.status}`);
+    }
+    return res.text();
+  }
+  async post(url, data, headers = {}) {
+    let bodyStr;
+    const finalHeaders = { ...this.defaultHeaders, ...headers };
+    if (typeof data === "string") {
+      bodyStr = data;
+      if (!finalHeaders["Content-Type"]) {
+        finalHeaders["Content-Type"] = "application/x-www-form-urlencoded";
+      }
+    } else {
+      bodyStr = JSON.stringify(data);
+      if (!finalHeaders["Content-Type"]) {
+        finalHeaders["Content-Type"] = "application/json";
+      }
+    }
+    const res = await fetch(url, {
+      method: "POST",
+      headers: finalHeaders,
+      body: bodyStr
+    });
+    if (!res.ok) {
+      throw new Error(`POST ${url} \u54CD\u5E94\u9519\u8BEF: ${res.status}`);
+    }
+    return res.text();
+  }
+};
+
+// src/core/time.ts
 function calculateUrgency(remainingHours) {
   if (remainingHours <= 0) return "passed";
   if (remainingHours <= 6) return "critical";
@@ -37,7 +79,7 @@ function formatRemainingTime(remainingHours) {
   if (remainingHours <= 0) {
     const passedHours = Math.abs(remainingHours);
     if (passedHours < 24) {
-      return `\u5DF2\u622A\u6B62 ${Math.round(passedHours)} \u5C0F\u65F6`;
+      return `\u5DF2\u622A\u6B62 ${Math.max(1, Math.round(passedHours))} \u5C0F\u65F6`;
     }
     return `\u5DF2\u622A\u6B62 ${Math.floor(passedHours / 24)} \u5929`;
   }
@@ -54,55 +96,66 @@ function formatRemainingTime(remainingHours) {
   const hrs = Math.round(remainingHours % 24);
   return hrs > 0 ? `\u5269\u4F59 ${days} \u5929 ${hrs} \u5C0F\u65F6` : `\u5269\u4F59 ${days} \u5929`;
 }
-function parseDeadline(deadlineStr, nowMs = Date.now()) {
-  const cleanStr = deadlineStr.trim().replace(/-/g, "/");
-  const timestamp = new Date(cleanStr).getTime();
-  if (isNaN(timestamp)) {
-    return {
-      timestamp: 0,
-      remainingHours: 9999,
-      remainingText: "\u672A\u77E5\u622A\u6B62\u65F6\u95F4"
-    };
+function parseDeadlineBeijing(rawDeadlineStr, nowMs = Date.now()) {
+  const raw = rawDeadlineStr.trim();
+  if (!raw) {
+    return createEmptyDeadline("\u672A\u6807\u6CE8\u622A\u6B62\u65F6\u95F4");
   }
-  const diffMs = timestamp - nowMs;
+  let cleaned = raw.replace(/[年月]/g, "-").replace(/[日号]/g, " ").replace(/\./g, "-").replace(/\//g, "-").replace(/\s+/g, " ").trim();
+  const fullMatch = cleaned.match(/(?:截止[：:\s]*)?(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  const noYearMatch = cleaned.match(/(?:截止[：:\s]*)?(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  let year;
+  let month;
+  let day;
+  let hour = 23;
+  let minute = 59;
+  let second = 0;
+  const currentYear = new Date(nowMs).getFullYear();
+  if (fullMatch && fullMatch[1]) {
+    year = parseInt(fullMatch[1], 10);
+    month = parseInt(fullMatch[2], 10);
+    day = parseInt(fullMatch[3], 10);
+    if (fullMatch[4] !== void 0) hour = parseInt(fullMatch[4], 10);
+    if (fullMatch[5] !== void 0) minute = parseInt(fullMatch[5], 10);
+    if (fullMatch[6] !== void 0) second = parseInt(fullMatch[6], 10);
+  } else if (noYearMatch && noYearMatch[1]) {
+    year = currentYear;
+    month = parseInt(noYearMatch[1], 10);
+    day = parseInt(noYearMatch[2], 10);
+    if (noYearMatch[3] !== void 0) hour = parseInt(noYearMatch[3], 10);
+    if (noYearMatch[4] !== void 0) minute = parseInt(noYearMatch[4], 10);
+    if (noYearMatch[5] !== void 0) second = parseInt(noYearMatch[5], 10);
+  } else {
+    return createEmptyDeadline(raw);
+  }
+  const beijingTimestamp = Date.UTC(year, month - 1, day, hour, minute, second) - 8 * 3600 * 1e3;
+  const diffMs = beijingTimestamp - nowMs;
   const remainingHours = Number((diffMs / (1e3 * 60 * 60)).toFixed(1));
   const remainingText = formatRemainingTime(remainingHours);
-  return { timestamp, remainingHours, remainingText };
-}
-function formatNotificationContent(assignments) {
-  const pendingCount = assignments.length;
-  const urgentCount = assignments.filter((a) => a.urgency === "critical" || a.urgency === "urgent").length;
-  const title = `\u3010NoDDL \u9884\u8B66\u3011\u6709 ${pendingCount} \u9879\u4F5C\u4E1A\u5F85\u63D0\u4EA4\uFF08${urgentCount} \u9879\u7D27\u6025\uFF09`;
-  const markdownLines = [
-    `### \u{1F514} NoDDL (Not Only DDL) \u4F5C\u4E1A\u6B7B\u7EBF\u63D0\u9192`,
-    `\u5F53\u524D\u5171\u6709 **${pendingCount}** \u9879\u4F5C\u4E1A\u5C1A\u672A\u63D0\u4EA4\uFF0C\u5176\u4E2D **${urgentCount}** \u9879\u5373\u5C06\u622A\u6B62\uFF1A`,
-    "",
-    ...assignments.map((item, idx) => {
-      const emoji = item.urgency === "critical" ? "\u{1F6A8}" : item.urgency === "urgent" ? "\u26A0\uFE0F" : "\u23F3";
-      return `${idx + 1}. ${emoji} **${item.courseName}** - ${item.title}
-   - \u622A\u6B62\u65F6\u95F4\uFF1A\`${item.deadline}\` (${item.remainingText})`;
-    }),
-    "",
-    `*\u6765\u6E90\uFF1A\u6B66\u6C49\u5927\u5B66\u4EBA\u5DE5\u667A\u80FD\u5B66\u9662\u4E00\u4F53\u5316\u4E13\u4E1A\u8BFE\u5E73\u53F0 (115.156.107.145)*`
-  ];
-  const htmlLines = [
-    `<h3>\u{1F514} NoDDL \u4F5C\u4E1A\u6B7B\u7EBF\u50AC\u547D\u7B26</h3>`,
-    `<p>\u5F53\u524D\u6709 <b>${pendingCount}</b> \u9879\u672A\u63D0\u4EA4\u4F5C\u4E1A\uFF1A</p>`,
-    `<ul>`,
-    ...assignments.map((item) => {
-      const color = item.urgency === "critical" ? "#e53e3e" : item.urgency === "urgent" ? "#dd6b20" : "#3182ce";
-      return `<li><b>[${item.courseName}]</b> ${item.title} <span style="color:${color};font-weight:bold;">(${item.remainingText})</span><br><small>\u622A\u6B62\uFF1A${item.deadline}</small></li>`;
-    }),
-    `</ul>`
-  ];
+  const urgency = calculateUrgency(remainingHours);
+  const pad = (n) => String(n).padStart(2, "0");
+  const normalized = `${year}-${pad(month)}-${pad(day)} ${pad(hour)}:${pad(minute)}:${pad(second)}`;
   return {
-    title,
-    markdown: markdownLines.join("\n"),
-    html: htmlLines.join("\n")
+    raw,
+    normalized,
+    timestamp: beijingTimestamp,
+    remainingHours,
+    remainingText,
+    urgency
+  };
+}
+function createEmptyDeadline(rawText) {
+  return {
+    raw: rawText,
+    normalized: rawText,
+    timestamp: 0,
+    remainingHours: 9999,
+    remainingText: "\u5F85\u5B9A",
+    urgency: "normal"
   };
 }
 
-// src/core/parser.ts
+// src/core/parsers.ts
 function parseCourseListHtml(html) {
   const courses = [];
   const seenIds = /* @__PURE__ */ new Set();
@@ -140,22 +193,22 @@ function parseActiveAssignmentsHtml(html, courseName = "\u4E13\u4E1A\u8BFE\u7A0B
     if (seenIds.has(id)) continue;
     seenIds.add(id);
     const title = linkMatch[2].replace(/<[^>]+>/g, "").trim() || `\u4F5C\u4E1A ${id}`;
-    const dateMatch = block.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
-    const deadlineStr = dateMatch ? dateMatch[1] : "";
-    const { timestamp, remainingHours, remainingText } = deadlineStr ? parseDeadline(deadlineStr, nowMs) : { timestamp: 0, remainingHours: 9999, remainingText: "\u8BF7\u67E5\u770B\u8BE6\u60C5" };
+    const dateMatch = block.match(/(?:截止[：:\s]*)?(\d{4}[-/年.]\d{1,2}[-/月.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/) || block.match(/(?:截止[：:\s]*)?(\d{1,2}[-/月.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/);
+    const rawDeadline = dateMatch ? dateMatch[1] : "";
+    const parsed = parseDeadlineBeijing(rawDeadline, nowMs);
     let status = "pending";
-    if (/已提交|评测中/i.test(block)) status = "submitted";
-    else if (/已打分|得分|满分/i.test(block)) status = "graded";
+    if (/已打分|得分|满分/i.test(block)) status = "graded";
+    else if (/已提交|评测中/i.test(block)) status = "submitted";
     assignments.push({
       id,
       courseName,
       title,
-      deadline: deadlineStr || "\u672A\u6807\u6CE8\u660E\u786E\u622A\u6B62\u65F6\u95F4",
-      deadlineTimestamp: timestamp,
-      remainingHours,
-      remainingText,
+      deadline: rawDeadline ? parsed.normalized : "\u8BF7\u67E5\u770B\u8BE6\u60C5",
+      deadlineTimestamp: parsed.timestamp,
+      remainingHours: parsed.remainingHours,
+      remainingText: parsed.remainingText,
       status,
-      urgency: calculateUrgency(remainingHours),
+      urgency: parsed.urgency,
       url: `/assignment/index.jsp?assignID=${id}`
     });
   }
@@ -184,44 +237,21 @@ function parseActiveAssignmentsHtml(html, courseName = "\u4E13\u4E1A\u8BFE\u7A0B
   }
   return assignments;
 }
-function parseAssignmentIndexHtml(html, nowMs = Date.now()) {
-  const dateMatch = html.match(/截止时间[：:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/i) || html.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
-  const deadline = dateMatch ? dateMatch[1] : void 0;
-  const { timestamp, remainingHours, remainingText } = deadline ? parseDeadline(deadline, nowMs) : { timestamp: 0, remainingHours: 9999, remainingText: "\u672A\u8BBE\u622A\u6B62\u65F6\u95F4" };
+function parseAssignmentDetailHtml(html, nowMs = Date.now()) {
+  const dateMatch = html.match(/截止时间[：:\s]*([\d\-/年. :]+)/i) || html.match(/(\d{4}[-/年.]\d{1,2}[-/月.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/);
+  const rawDeadline = dateMatch ? dateMatch[1].trim() : "";
+  const parsed = parseDeadlineBeijing(rawDeadline, nowMs);
   const titleMatch = html.match(/<b>([\s\S]*?)<\/b>/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
   const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : void 0;
-  const problems = [];
-  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let trMatch;
-  while ((trMatch = trRegex.exec(html)) !== null) {
-    const row = trMatch[1];
-    if (/<th[^>]*>#<\/th>/i.test(row)) continue;
-    const proLinkMatch = row.match(/href=["'][^"']*programList\.jsp\?proNum=(\d+)&assignID=(\d+)["'][^>]*>([\s\S]*?)<\/a>/i);
-    const judgeLinkMatch = row.match(/problemID=(\d+)/i);
-    if (proLinkMatch) {
-      const index = parseInt(proLinkMatch[1], 10);
-      const proTitle = proLinkMatch[3].replace(/<[^>]+>/g, "").trim();
-      const problemId = judgeLinkMatch ? judgeLinkMatch[1] : `pro_${index}`;
-      const scoreMatch = row.match(/<td>\s*(\d+(?:\.\d+)?)\s*<\/td>/i);
-      const score = scoreMatch ? parseFloat(scoreMatch[1]) : void 0;
-      problems.push({
-        index,
-        id: problemId,
-        title: proTitle,
-        score
-      });
-    }
-  }
   return {
     title,
-    deadline,
-    deadlineTimestamp: timestamp,
-    remainingHours,
-    remainingText,
-    problems
+    deadline: rawDeadline ? parsed.normalized : void 0,
+    deadlineTimestamp: parsed.timestamp,
+    remainingHours: parsed.remainingHours,
+    remainingText: parsed.remainingText
   };
 }
-function parseProblemTestCases(html) {
+function parseTestCases(html) {
   const testCases = [];
   const sampleRegex = /(?:样例输入|输入样例|Sample Input)[\s\S]*?<pre[^>]*>([\s\S]*?)<\/pre>[\s\S]*?(?:样例输出|输出样例|Sample Output)[\s\S]*?<pre[^>]*>([\s\S]*?)<\/pre>/gi;
   let match;
@@ -259,17 +289,16 @@ function parseProblemDetailHtml(problemId, html) {
   const descText = descHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const codeMatch = html.match(/<textarea[^>]*id=["']cgsoucecode["'][^>]*>([\s\S]*?)<\/textarea>/i);
   const currentCode = codeMatch ? codeMatch[1].trim() : void 0;
-  const testCases = parseProblemTestCases(html);
   return {
     id: problemId,
     title: `\u9898\u76EE ${problemId}`,
     descriptionHtml: descHtml,
     descriptionText: descText,
-    testCases,
+    testCases: parseTestCases(html),
     currentCode
   };
 }
-function parseSubmissionResultHtml(html) {
+function parseSubmissionsHtml(html) {
   const results = [];
   const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let trMatch;
@@ -306,50 +335,6 @@ function parseSubmissionResultHtml(html) {
   return results;
 }
 
-// src/core/adapter.ts
-var FetchHttpClient = class {
-  defaultHeaders;
-  constructor(defaultHeaders = {}) {
-    this.defaultHeaders = defaultHeaders;
-  }
-  async get(url, headers = {}) {
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { ...this.defaultHeaders, ...headers }
-    });
-    if (!res.ok) {
-      throw new Error(`HTTP GET ${url} \u5931\u8D25: ${res.status} ${res.statusText}`);
-    }
-    return res.text();
-  }
-  async post(url, data, headers = {}) {
-    const isFormData = typeof FormData !== "undefined" && data instanceof FormData;
-    const isUrlEncoded = typeof data === "string" && data.includes("=");
-    let body;
-    const finalHeaders = { ...this.defaultHeaders, ...headers };
-    if (isFormData || typeof data === "string") {
-      body = data;
-    } else if (isUrlEncoded) {
-      body = data;
-      finalHeaders["Content-Type"] = "application/x-www-form-urlencoded";
-    } else {
-      body = JSON.stringify(data);
-      if (!finalHeaders["Content-Type"]) {
-        finalHeaders["Content-Type"] = "application/json";
-      }
-    }
-    const res = await fetch(url, {
-      method: "POST",
-      headers: finalHeaders,
-      body
-    });
-    if (!res.ok) {
-      throw new Error(`HTTP POST ${url} \u5931\u8D25: ${res.status} ${res.statusText}`);
-    }
-    return res.text();
-  }
-};
-
 // src/core/client.ts
 var CourseGradingClient = class {
   baseUrl;
@@ -370,7 +355,7 @@ var CourseGradingClient = class {
     return this.sessionCookie ? { Cookie: this.sessionCookie } : {};
   }
   /**
-   * 登录一体化平台（自动加密密码）
+   * 登录平台（自动使用固定 AES 密钥加密）
    */
   async login(stid, plainPwd) {
     const encryptedPwd = encryptPassword(plainPwd);
@@ -379,20 +364,17 @@ var CourseGradingClient = class {
       stid,
       pwd: encryptedPwd
     }).toString();
-    const responseText = await this.http.post(`${this.baseUrl}/login/loginproc.jsp`, body, {
-      "Content-Type": "application/x-www-form-urlencoded"
-    });
+    const responseText = await this.http.post(`${this.baseUrl}/login/loginproc.jsp`, body);
     if (responseText.includes("loginErr=1") || responseText.includes("\u5BC6\u7801\u9519\u8BEF")) {
       return { success: false, message: "\u8D26\u53F7\u6216\u5BC6\u7801\u9519\u8BEF" };
     }
     if (responseText.includes("loginErr=6")) {
-      return { success: false, message: "\u9700\u8981\u8F93\u5165\u9A8C\u8BC1\u7801" };
+      return { success: false, message: "\u9700\u8981\u8F93\u5165\u56FE\u5F62\u9A8C\u8BC1\u7801" };
     }
     return { success: true, message: "\u767B\u5F55\u6210\u529F" };
   }
   /**
-   * 获取当前学生加入的所有课程列表
-   * 接口: GET /courselist.jsp 或 /main.jsp
+   * 获取学生加入的课程列表
    */
   async getCourses() {
     try {
@@ -409,14 +391,12 @@ var CourseGradingClient = class {
   }
   /**
    * 切换当前激活课程上下文
-   * 接口: GET /courselist.jsp?courseID={id}
    */
   async enterCourse(courseId) {
     await this.http.get(`${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`, this.getAuthHeaders());
   }
   /**
-   * 查询所有课程中当前未完成的作业与实训
-   * 接口: GET /assignment/mainActiveAssigns.jsp 及 /assignment/index.jsp
+   * 汇聚所有课程中未完成的作业与实训
    */
   async getPendingAssignments(hoursThreshold = 72) {
     const allAssignments = [];
@@ -434,13 +414,13 @@ var CourseGradingClient = class {
           for (const item of list) {
             if (!seenIds.has(item.id)) {
               seenIds.add(item.id);
-              if (item.deadline === "\u672A\u6807\u6CE8\u660E\u786E\u622A\u6B62\u65F6\u95F4" || item.deadline === "\u8BF7\u67E5\u770B\u8BE6\u60C5") {
+              if (item.deadline === "\u8BF7\u67E5\u770B\u8BE6\u60C5" || item.deadlineTimestamp === 0) {
                 try {
                   const detailHtml = await this.http.get(
                     `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`,
                     this.getAuthHeaders()
                   );
-                  const detail = parseAssignmentIndexHtml(detailHtml);
+                  const detail = parseAssignmentDetailHtml(detailHtml);
                   if (detail.deadline) {
                     item.deadline = detail.deadline;
                     item.deadlineTimestamp = detail.deadlineTimestamp;
@@ -476,7 +456,6 @@ var CourseGradingClient = class {
   }
   /**
    * 获取题目详情与测试用例
-   * 接口: GET /assignment/programList.jsp?proNum={proNum}&assignID={assignId}
    */
   async getProblemDetail(assignId, proNum = 1) {
     const url = `${this.baseUrl}/assignment/programList.jsp?proNum=${proNum}&assignID=${encodeURIComponent(assignId)}`;
@@ -485,12 +464,11 @@ var CourseGradingClient = class {
   }
   /**
    * 查询最新评测结果
-   * 接口: GET /acm/problemset_stat.jsp
    */
   async getLatestSubmissions() {
     const url = `${this.baseUrl}/acm/problemset_stat.jsp`;
     const html = await this.http.get(url, this.getAuthHeaders());
-    return parseSubmissionResultHtml(html);
+    return parseSubmissionsHtml(html);
   }
   /**
    * 触发死线告警推送
@@ -501,13 +479,20 @@ var CourseGradingClient = class {
     if (pending.length === 0) {
       return { sent: false, count: 0 };
     }
-    const { title, markdown, html } = formatNotificationContent(pending);
+    const urgentCount = pending.filter((a) => a.urgency === "critical" || a.urgency === "urgent").length;
+    const title = `\u3010NoDDL \u9884\u8B66\u3011\u6709 ${pending.length} \u9879\u4F5C\u4E1A\u5F85\u63D0\u4EA4\uFF08${urgentCount} \u9879\u7D27\u6025\uFF09`;
+    const markdown = [
+      `### \u{1F514} NoDDL \u4F5C\u4E1A\u6B7B\u7EBF\u63D0\u9192`,
+      `\u5F53\u524D\u6709 **${pending.length}** \u9879\u672A\u4EA4\u4F5C\u4E1A\uFF1A`,
+      "",
+      ...pending.map((item, idx) => `${idx + 1}. [${item.courseName}] ${item.title} (\u622A\u6B62: ${item.deadline}, ${item.remainingText})`)
+    ].join("\n");
     try {
       if (config.pushplusToken) {
         await this.http.post("https://www.pushplus.plus/send", {
           token: config.pushplusToken,
           title,
-          content: html,
+          content: markdown.replace(/\n/g, "<br>"),
           template: "html"
         });
       }
@@ -536,14 +521,13 @@ exports.FetchHttpClient = FetchHttpClient;
 exports.calculateUrgency = calculateUrgency;
 exports.decryptPassword = decryptPassword;
 exports.encryptPassword = encryptPassword;
-exports.formatNotificationContent = formatNotificationContent;
 exports.formatRemainingTime = formatRemainingTime;
 exports.parseActiveAssignmentsHtml = parseActiveAssignmentsHtml;
-exports.parseAssignmentIndexHtml = parseAssignmentIndexHtml;
+exports.parseAssignmentDetailHtml = parseAssignmentDetailHtml;
 exports.parseCourseListHtml = parseCourseListHtml;
-exports.parseDeadline = parseDeadline;
+exports.parseDeadlineBeijing = parseDeadlineBeijing;
 exports.parseProblemDetailHtml = parseProblemDetailHtml;
-exports.parseProblemTestCases = parseProblemTestCases;
-exports.parseSubmissionResultHtml = parseSubmissionResultHtml;
+exports.parseSubmissionsHtml = parseSubmissionsHtml;
+exports.parseTestCases = parseTestCases;
 //# sourceMappingURL=index.cjs.map
 //# sourceMappingURL=index.cjs.map

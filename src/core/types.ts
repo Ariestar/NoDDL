@@ -11,19 +11,22 @@ export type SubmissionStatus =
   | 'Pending'
   | 'Unknown';
 
+export interface Course {
+  id: string;
+  name: string;
+}
+
 export interface Assignment {
   id: string;
   courseName: string;
   title: string;
-  deadline: string;            // 格式化时间字符串，例如 "2026-10-10 23:59:00"
-  deadlineTimestamp: number;   // 毫秒时间戳
-  remainingHours: number;      // 剩余小时数 (可为负数表示已逾期)
-  remainingText: string;       // 例如 "剩余 12 小时 30 分"
+  deadline: string;
+  deadlineTimestamp: number;
+  remainingHours: number;
+  remainingText: string;
   status: 'pending' | 'submitted' | 'graded';
   urgency: UrgencyLevel;
-  score?: number;
-  maxScore?: number;
-  url?: string;
+  url: string;
 }
 
 export interface TestCase {
@@ -36,38 +39,30 @@ export interface TestCase {
 export interface ProblemDetail {
   id: string;
   title: string;
-  course?: string;
   descriptionHtml: string;
   descriptionText: string;
   testCases: TestCase[];
-  deadline?: string;
   currentCode?: string;
 }
 
 export interface SubmissionResult {
   id: string;
   problemId: string;
-  problemTitle?: string;
+  problemTitle: string;
   status: SubmissionStatus;
-  score?: number;
-  memoryKb?: number;
-  timeMs?: number;
   submitTime: string;
-  detailUrl?: string;
 }
 
 export interface PushConfig {
   pushplusToken?: string;
   barkUrl?: string;
   customWebhookUrl?: string;
-  hoursThreshold?: number;     // 低于此小时数触发提醒，默认 48
+  hoursThreshold?: number;
 }
 
 export interface PlatformConfig {
-  baseUrl?: string;            // 默认 http://115.156.107.145
-  stid?: string;               // 学号
-  pwd?: string;                // 明文密码
-  sessionCookie?: string;      // 现有登录 Cookie
+  baseUrl?: string;
+  sessionCookie?: string;
   push?: PushConfig;
 }
 

@@ -30,22 +30,20 @@
         headers: { ...this.defaultHeaders, ...headers }
       });
       if (!res.ok) {
-        throw new Error(`HTTP GET ${url} 失败: ${res.status} ${res.statusText}`);
+        throw new Error(`GET ${url} 响应错误: ${res.status}`);
       }
       return res.text();
     }
     async post(url, data, headers = {}) {
-      const isFormData = typeof FormData !== "undefined" && data instanceof FormData;
-      const isUrlEncoded = typeof data === "string" && data.includes("=");
-      let body;
+      let bodyStr;
       const finalHeaders = { ...this.defaultHeaders, ...headers };
-      if (isFormData || typeof data === "string") {
-        body = data;
-      } else if (isUrlEncoded) {
-        body = data;
-        finalHeaders["Content-Type"] = "application/x-www-form-urlencoded";
+      if (typeof data === "string") {
+        bodyStr = data;
+        if (!finalHeaders["Content-Type"]) {
+          finalHeaders["Content-Type"] = "application/x-www-form-urlencoded";
+        }
       } else {
-        body = JSON.stringify(data);
+        bodyStr = JSON.stringify(data);
         if (!finalHeaders["Content-Type"]) {
           finalHeaders["Content-Type"] = "application/json";
         }
@@ -53,10 +51,10 @@
       const res = await fetch(url, {
         method: "POST",
         headers: finalHeaders,
-        body
+        body: bodyStr
       });
       if (!res.ok) {
-        throw new Error(`HTTP POST ${url} 失败: ${res.status} ${res.statusText}`);
+        throw new Error(`POST ${url} 响应错误: ${res.status}`);
       }
       return res.text();
     }
@@ -6644,7 +6642,7 @@
     if (remainingHours <= 0) {
       const passedHours = Math.abs(remainingHours);
       if (passedHours < 24) {
-        return `已截止 ${Math.round(passedHours)} 小时`;
+        return `已截止 ${Math.max(1, Math.round(passedHours))} 小时`;
       }
       return `已截止 ${Math.floor(passedHours / 24)} 天`;
     }
@@ -6661,51 +6659,62 @@
     const hrs = Math.round(remainingHours % 24);
     return hrs > 0 ? `剩余 ${days} 天 ${hrs} 小时` : `剩余 ${days} 天`;
   }
-  function parseDeadline(deadlineStr, nowMs = Date.now()) {
-    const cleanStr = deadlineStr.trim().replace(/-/g, "/");
-    const timestamp = new Date(cleanStr).getTime();
-    if (isNaN(timestamp)) {
-      return {
-        timestamp: 0,
-        remainingHours: 9999,
-        remainingText: "未知截止时间"
-      };
+  function parseDeadlineBeijing(rawDeadlineStr, nowMs = Date.now()) {
+    const raw = rawDeadlineStr.trim();
+    if (!raw) {
+      return createEmptyDeadline("未标注截止时间");
     }
-    const diffMs = timestamp - nowMs;
+    let cleaned = raw.replace(/[年月]/g, "-").replace(/[日号]/g, " ").replace(/\./g, "-").replace(/\//g, "-").replace(/\s+/g, " ").trim();
+    const fullMatch = cleaned.match(/(?:截止[：:\s]*)?(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    const noYearMatch = cleaned.match(/(?:截止[：:\s]*)?(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    let year;
+    let month;
+    let day;
+    let hour = 23;
+    let minute = 59;
+    let second = 0;
+    const currentYear = new Date(nowMs).getFullYear();
+    if (fullMatch && fullMatch[1]) {
+      year = parseInt(fullMatch[1], 10);
+      month = parseInt(fullMatch[2], 10);
+      day = parseInt(fullMatch[3], 10);
+      if (fullMatch[4] !== void 0) hour = parseInt(fullMatch[4], 10);
+      if (fullMatch[5] !== void 0) minute = parseInt(fullMatch[5], 10);
+      if (fullMatch[6] !== void 0) second = parseInt(fullMatch[6], 10);
+    } else if (noYearMatch && noYearMatch[1]) {
+      year = currentYear;
+      month = parseInt(noYearMatch[1], 10);
+      day = parseInt(noYearMatch[2], 10);
+      if (noYearMatch[3] !== void 0) hour = parseInt(noYearMatch[3], 10);
+      if (noYearMatch[4] !== void 0) minute = parseInt(noYearMatch[4], 10);
+      if (noYearMatch[5] !== void 0) second = parseInt(noYearMatch[5], 10);
+    } else {
+      return createEmptyDeadline(raw);
+    }
+    const beijingTimestamp = Date.UTC(year, month - 1, day, hour, minute, second) - 8 * 3600 * 1e3;
+    const diffMs = beijingTimestamp - nowMs;
     const remainingHours = Number((diffMs / (1e3 * 60 * 60)).toFixed(1));
     const remainingText = formatRemainingTime(remainingHours);
-    return { timestamp, remainingHours, remainingText };
-  }
-  function formatNotificationContent(assignments) {
-    const pendingCount = assignments.length;
-    const urgentCount = assignments.filter((a2) => a2.urgency === "critical" || a2.urgency === "urgent").length;
-    const title = `【NoDDL 预警】有 ${pendingCount} 项作业待提交（${urgentCount} 项紧急）`;
-    const markdownLines = [
-      `### 🔔 NoDDL (Not Only DDL) 作业死线提醒`,
-      `当前共有 **${pendingCount}** 项作业尚未提交，其中 **${urgentCount}** 项即将截止：`,
-      "",
-      ...assignments.map((item, idx) => {
-        const emoji = item.urgency === "critical" ? "🚨" : item.urgency === "urgent" ? "⚠️" : "⏳";
-        return `${idx + 1}. ${emoji} **${item.courseName}** - ${item.title}
-   - 截止时间：\`${item.deadline}\` (${item.remainingText})`;
-      }),
-      "",
-      `*来源：武汉大学人工智能学院一体化专业课平台 (115.156.107.145)*`
-    ];
-    const htmlLines = [
-      `<h3>🔔 NoDDL 作业死线催命符</h3>`,
-      `<p>当前有 <b>${pendingCount}</b> 项未提交作业：</p>`,
-      `<ul>`,
-      ...assignments.map((item) => {
-        const color = item.urgency === "critical" ? "#e53e3e" : item.urgency === "urgent" ? "#dd6b20" : "#3182ce";
-        return `<li><b>[${item.courseName}]</b> ${item.title} <span style="color:${color};font-weight:bold;">(${item.remainingText})</span><br><small>截止：${item.deadline}</small></li>`;
-      }),
-      `</ul>`
-    ];
+    const urgency = calculateUrgency(remainingHours);
+    const pad = (n2) => String(n2).padStart(2, "0");
+    const normalized = `${year}-${pad(month)}-${pad(day)} ${pad(hour)}:${pad(minute)}:${pad(second)}`;
     return {
-      title,
-      markdown: markdownLines.join("\n"),
-      html: htmlLines.join("\n")
+      raw,
+      normalized,
+      timestamp: beijingTimestamp,
+      remainingHours,
+      remainingText,
+      urgency
+    };
+  }
+  function createEmptyDeadline(rawText) {
+    return {
+      raw: rawText,
+      normalized: rawText,
+      timestamp: 0,
+      remainingHours: 9999,
+      remainingText: "待定",
+      urgency: "normal"
     };
   }
   function parseCourseListHtml(html) {
@@ -6745,22 +6754,22 @@
       if (seenIds.has(id)) continue;
       seenIds.add(id);
       const title = linkMatch[2].replace(/<[^>]+>/g, "").trim() || `作业 ${id}`;
-      const dateMatch = block.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
-      const deadlineStr = dateMatch ? dateMatch[1] : "";
-      const { timestamp, remainingHours, remainingText } = deadlineStr ? parseDeadline(deadlineStr, nowMs) : { timestamp: 0, remainingHours: 9999, remainingText: "请查看详情" };
+      const dateMatch = block.match(/(?:截止[：:\s]*)?(\d{4}[-/年.]\d{1,2}[-/月.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/) || block.match(/(?:截止[：:\s]*)?(\d{1,2}[-/月.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/);
+      const rawDeadline = dateMatch ? dateMatch[1] : "";
+      const parsed = parseDeadlineBeijing(rawDeadline, nowMs);
       let status = "pending";
-      if (/已提交|评测中/i.test(block)) status = "submitted";
-      else if (/已打分|得分|满分/i.test(block)) status = "graded";
+      if (/已打分|得分|满分/i.test(block)) status = "graded";
+      else if (/已提交|评测中/i.test(block)) status = "submitted";
       assignments.push({
         id,
         courseName,
         title,
-        deadline: deadlineStr || "未标注明确截止时间",
-        deadlineTimestamp: timestamp,
-        remainingHours,
-        remainingText,
+        deadline: rawDeadline ? parsed.normalized : "请查看详情",
+        deadlineTimestamp: parsed.timestamp,
+        remainingHours: parsed.remainingHours,
+        remainingText: parsed.remainingText,
         status,
-        urgency: calculateUrgency(remainingHours),
+        urgency: parsed.urgency,
         url: `/assignment/index.jsp?assignID=${id}`
       });
     }
@@ -6789,44 +6798,21 @@
     }
     return assignments;
   }
-  function parseAssignmentIndexHtml(html, nowMs = Date.now()) {
-    const dateMatch = html.match(/截止时间[：:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/i) || html.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
-    const deadline = dateMatch ? dateMatch[1] : void 0;
-    const { timestamp, remainingHours, remainingText } = deadline ? parseDeadline(deadline, nowMs) : { timestamp: 0, remainingHours: 9999, remainingText: "未设截止时间" };
+  function parseAssignmentDetailHtml(html, nowMs = Date.now()) {
+    const dateMatch = html.match(/截止时间[：:\s]*([\d\-/年. :]+)/i) || html.match(/(\d{4}[-/年.]\d{1,2}[-/月.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/);
+    const rawDeadline = dateMatch ? dateMatch[1].trim() : "";
+    const parsed = parseDeadlineBeijing(rawDeadline, nowMs);
     const titleMatch = html.match(/<b>([\s\S]*?)<\/b>/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
     const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : void 0;
-    const problems = [];
-    const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-    let trMatch;
-    while ((trMatch = trRegex.exec(html)) !== null) {
-      const row = trMatch[1];
-      if (/<th[^>]*>#<\/th>/i.test(row)) continue;
-      const proLinkMatch = row.match(/href=["'][^"']*programList\.jsp\?proNum=(\d+)&assignID=(\d+)["'][^>]*>([\s\S]*?)<\/a>/i);
-      const judgeLinkMatch = row.match(/problemID=(\d+)/i);
-      if (proLinkMatch) {
-        const index = parseInt(proLinkMatch[1], 10);
-        const proTitle = proLinkMatch[3].replace(/<[^>]+>/g, "").trim();
-        const problemId = judgeLinkMatch ? judgeLinkMatch[1] : `pro_${index}`;
-        const scoreMatch = row.match(/<td>\s*(\d+(?:\.\d+)?)\s*<\/td>/i);
-        const score = scoreMatch ? parseFloat(scoreMatch[1]) : void 0;
-        problems.push({
-          index,
-          id: problemId,
-          title: proTitle,
-          score
-        });
-      }
-    }
     return {
       title,
-      deadline,
-      deadlineTimestamp: timestamp,
-      remainingHours,
-      remainingText,
-      problems
+      deadline: rawDeadline ? parsed.normalized : void 0,
+      deadlineTimestamp: parsed.timestamp,
+      remainingHours: parsed.remainingHours,
+      remainingText: parsed.remainingText
     };
   }
-  function parseProblemTestCases(html) {
+  function parseTestCases(html) {
     const testCases = [];
     const sampleRegex = /(?:样例输入|输入样例|Sample Input)[\s\S]*?<pre[^>]*>([\s\S]*?)<\/pre>[\s\S]*?(?:样例输出|输出样例|Sample Output)[\s\S]*?<pre[^>]*>([\s\S]*?)<\/pre>/gi;
     let match;
@@ -6864,17 +6850,16 @@
     const descText = descHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     const codeMatch = html.match(/<textarea[^>]*id=["']cgsoucecode["'][^>]*>([\s\S]*?)<\/textarea>/i);
     const currentCode = codeMatch ? codeMatch[1].trim() : void 0;
-    const testCases = parseProblemTestCases(html);
     return {
       id: problemId,
       title: `题目 ${problemId}`,
       descriptionHtml: descHtml,
       descriptionText: descText,
-      testCases,
+      testCases: parseTestCases(html),
       currentCode
     };
   }
-  function parseSubmissionResultHtml(html) {
+  function parseSubmissionsHtml(html) {
     const results = [];
     const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
     let trMatch;
@@ -6929,7 +6914,7 @@
       return this.sessionCookie ? { Cookie: this.sessionCookie } : {};
     }
     /**
-     * 登录一体化平台（自动加密密码）
+     * 登录平台（自动使用固定 AES 密钥加密）
      */
     async login(stid, plainPwd) {
       const encryptedPwd = encryptPassword(plainPwd);
@@ -6938,20 +6923,17 @@
         stid,
         pwd: encryptedPwd
       }).toString();
-      const responseText = await this.http.post(`${this.baseUrl}/login/loginproc.jsp`, body, {
-        "Content-Type": "application/x-www-form-urlencoded"
-      });
+      const responseText = await this.http.post(`${this.baseUrl}/login/loginproc.jsp`, body);
       if (responseText.includes("loginErr=1") || responseText.includes("密码错误")) {
         return { success: false, message: "账号或密码错误" };
       }
       if (responseText.includes("loginErr=6")) {
-        return { success: false, message: "需要输入验证码" };
+        return { success: false, message: "需要输入图形验证码" };
       }
       return { success: true, message: "登录成功" };
     }
     /**
-     * 获取当前学生加入的所有课程列表
-     * 接口: GET /courselist.jsp 或 /main.jsp
+     * 获取学生加入的课程列表
      */
     async getCourses() {
       try {
@@ -6968,14 +6950,12 @@
     }
     /**
      * 切换当前激活课程上下文
-     * 接口: GET /courselist.jsp?courseID={id}
      */
     async enterCourse(courseId) {
       await this.http.get(`${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`, this.getAuthHeaders());
     }
     /**
-     * 查询所有课程中当前未完成的作业与实训
-     * 接口: GET /assignment/mainActiveAssigns.jsp 及 /assignment/index.jsp
+     * 汇聚所有课程中未完成的作业与实训
      */
     async getPendingAssignments(hoursThreshold = 72) {
       const allAssignments = [];
@@ -6993,13 +6973,13 @@
             for (const item of list) {
               if (!seenIds.has(item.id)) {
                 seenIds.add(item.id);
-                if (item.deadline === "未标注明确截止时间" || item.deadline === "请查看详情") {
+                if (item.deadline === "请查看详情" || item.deadlineTimestamp === 0) {
                   try {
                     const detailHtml = await this.http.get(
                       `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`,
                       this.getAuthHeaders()
                     );
-                    const detail = parseAssignmentIndexHtml(detailHtml);
+                    const detail = parseAssignmentDetailHtml(detailHtml);
                     if (detail.deadline) {
                       item.deadline = detail.deadline;
                       item.deadlineTimestamp = detail.deadlineTimestamp;
@@ -7035,7 +7015,6 @@
     }
     /**
      * 获取题目详情与测试用例
-     * 接口: GET /assignment/programList.jsp?proNum={proNum}&assignID={assignId}
      */
     async getProblemDetail(assignId, proNum = 1) {
       const url = `${this.baseUrl}/assignment/programList.jsp?proNum=${proNum}&assignID=${encodeURIComponent(assignId)}`;
@@ -7044,12 +7023,11 @@
     }
     /**
      * 查询最新评测结果
-     * 接口: GET /acm/problemset_stat.jsp
      */
     async getLatestSubmissions() {
       const url = `${this.baseUrl}/acm/problemset_stat.jsp`;
       const html = await this.http.get(url, this.getAuthHeaders());
-      return parseSubmissionResultHtml(html);
+      return parseSubmissionsHtml(html);
     }
     /**
      * 触发死线告警推送
@@ -7060,13 +7038,20 @@
       if (pending.length === 0) {
         return { sent: false, count: 0 };
       }
-      const { title, markdown, html } = formatNotificationContent(pending);
+      const urgentCount = pending.filter((a2) => a2.urgency === "critical" || a2.urgency === "urgent").length;
+      const title = `【NoDDL 预警】有 ${pending.length} 项作业待提交（${urgentCount} 项紧急）`;
+      const markdown = [
+        `### 🔔 NoDDL 作业死线提醒`,
+        `当前有 **${pending.length}** 项未交作业：`,
+        "",
+        ...pending.map((item, idx) => `${idx + 1}. [${item.courseName}] ${item.title} (截止: ${item.deadline}, ${item.remainingText})`)
+      ].join("\n");
       try {
         if (config.pushplusToken) {
           await this.http.post("https://www.pushplus.plus/send", {
             token: config.pushplusToken,
             title,
-            content: html,
+            content: markdown.replace(/\n/g, "<br>"),
             template: "html"
           });
         }
@@ -8265,59 +8250,6 @@ ${markdown}` }
     shadowRoot.appendChild(mountContainer);
     G$1(g$1(App, { client: client2, storage: storage2, initialAssignments }), mountContainer);
   }
-  function renderUrgentBanner(assignments, onBannerClick) {
-    const existing = document.getElementById("nodd-banner-container");
-    if (existing) existing.remove();
-    if (assignments.length === 0) return;
-    const mostUrgent = assignments[0];
-    const isCritical = mostUrgent.urgency === "critical";
-    const bgColor = isCritical ? "#e53e3e" : "#dd6b20";
-    const container = document.createElement("div");
-    container.id = "nodd-banner-container";
-    container.style.cssText = `
-    position: sticky;
-    top: 0;
-    left: 0;
-    width: 100%;
-    z-index: 99998;
-    background: ${bgColor};
-    color: #ffffff;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 14px;
-    padding: 8px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    transition: all 0.3s ease;
-  `;
-    const leftSpan = document.createElement("div");
-    leftSpan.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;";
-    leftSpan.innerHTML = `
-    <span>${isCritical ? "🚨" : "⏳"} [NoDDL]</span>
-    <span>【${mostUrgent.courseName}】${mostUrgent.title}</span>
-    <span style="background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:12px;font-size:12px;">
-      ${mostUrgent.remainingText} (截止: ${mostUrgent.deadline})
-    </span>
-    ${assignments.length > 1 ? `<span style="font-size:12px;opacity:0.9;">等共 ${assignments.length} 项未交</span>` : ""}
-  `;
-    leftSpan.onclick = onBannerClick;
-    const rightActions = document.createElement("div");
-    rightActions.style.cssText = "display:flex;align-items:center;gap:8px;";
-    const btnOpenPanel = document.createElement("button");
-    btnOpenPanel.innerText = "📊 展开控制面板";
-    btnOpenPanel.style.cssText = "background:#ffffff;color:#2d3748;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;";
-    btnOpenPanel.onclick = onBannerClick;
-    const btnClose = document.createElement("button");
-    btnClose.innerText = "✕";
-    btnClose.style.cssText = "background:none;border:none;color:#fff;font-size:16px;cursor:pointer;opacity:0.8;margin-left:8px;";
-    btnClose.onclick = () => container.remove();
-    rightActions.appendChild(btnOpenPanel);
-    rightActions.appendChild(btnClose);
-    container.appendChild(leftSpan);
-    container.appendChild(rightActions);
-    document.body.prepend(container);
-  }
   function setupTestCaseCopyButtons() {
     const codeBlocks = document.querySelectorAll("pre");
     if (codeBlocks.length === 0) return;
@@ -8416,7 +8348,7 @@ ${markdown}` }
   const http = new BrowserHttpClient();
   const client = new CourseGradingClient({ baseUrl: window.location.origin }, http);
   async function initNoDDL() {
-    console.log("[NoDDL] 启动 CourseGrading 原生接口适配");
+    console.log("[NoDDL] 启动悬浮控制面板 (无侵入模式)");
     setupTestCaseCopyButtons();
     setupCodeAutoSave();
     const hoursThreshold = parseInt(await storage.get("nodd_hours_threshold") || "72", 10);
@@ -8438,11 +8370,6 @@ ${markdown}` }
     }
     mountNoDDLUI(client, storage, pendingList);
     if (pendingList.length > 0) {
-      renderUrgentBanner(pendingList, () => {
-        var _a, _b;
-        const trigger = (_b = (_a = document.getElementById("nodd-shadow-root")) == null ? void 0 : _a.shadowRoot) == null ? void 0 : _b.querySelector(".nodd-trigger");
-        trigger == null ? void 0 : trigger.click();
-      });
       const mostUrgent = pendingList[0];
       if (mostUrgent.urgency === "critical" || mostUrgent.urgency === "urgent") {
         if (typeof GM_notification !== "undefined") {

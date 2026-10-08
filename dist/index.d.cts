@@ -1,5 +1,9 @@
 type UrgencyLevel = 'critical' | 'urgent' | 'warning' | 'normal' | 'passed';
 type SubmissionStatus = 'Accepted' | 'Wrong Answer' | 'Time Limit Exceeded' | 'Memory Limit Exceeded' | 'Compile Error' | 'Runtime Error' | 'Judging' | 'Pending' | 'Unknown';
+interface Course {
+    id: string;
+    name: string;
+}
 interface Assignment {
     id: string;
     courseName: string;
@@ -10,9 +14,7 @@ interface Assignment {
     remainingText: string;
     status: 'pending' | 'submitted' | 'graded';
     urgency: UrgencyLevel;
-    score?: number;
-    maxScore?: number;
-    url?: string;
+    url: string;
 }
 interface TestCase {
     index: number;
@@ -23,23 +25,17 @@ interface TestCase {
 interface ProblemDetail {
     id: string;
     title: string;
-    course?: string;
     descriptionHtml: string;
     descriptionText: string;
     testCases: TestCase[];
-    deadline?: string;
     currentCode?: string;
 }
 interface SubmissionResult {
     id: string;
     problemId: string;
-    problemTitle?: string;
+    problemTitle: string;
     status: SubmissionStatus;
-    score?: number;
-    memoryKb?: number;
-    timeMs?: number;
     submitTime: string;
-    detailUrl?: string;
 }
 interface PushConfig {
     pushplusToken?: string;
@@ -49,8 +45,6 @@ interface PushConfig {
 }
 interface PlatformConfig {
     baseUrl?: string;
-    stid?: string;
-    pwd?: string;
     sessionCookie?: string;
     push?: PushConfig;
 }
@@ -75,87 +69,73 @@ declare function encryptPassword(password: string, secretKey?: string): string;
  */
 declare function decryptPassword(ciphertext: string, secretKey?: string): string;
 
-/**
- * 根据剩余小时数评估紧急等级
- */
-declare function calculateUrgency(remainingHours: number): UrgencyLevel;
-/**
- * 格式化剩余时间为人性化中文
- */
-declare function formatRemainingTime(remainingHours: number): string;
-/**
- * 解析并标准化时间字符串为时间戳和剩余小时数
- */
-declare function parseDeadline(deadlineStr: string, nowMs?: number): {
-    timestamp: number;
-    remainingHours: number;
-    remainingText: string;
-};
-/**
- * 生成全渠道告警通知文本 (HTML / Markdown / 纯文本)
- */
-declare function formatNotificationContent(assignments: Assignment[]): {
-    title: string;
-    markdown: string;
-    html: string;
-};
-
-interface CourseInfo {
-    id: string;
-    name: string;
-}
-/**
- * 解析 CourseGrading 课程列表
- * 来源：/courselist.jsp 或 /main.jsp 下拉菜单
- */
-declare function parseCourseListHtml(html: string): CourseInfo[];
-/**
- * 解析 CourseGrading 活跃作业列表
- * 来源：/assignment/mainActiveAssigns.jsp 或页面上的 .main-zy 容器
- */
-declare function parseActiveAssignmentsHtml(html: string, courseName?: string, nowMs?: number): Assignment[];
-/**
- * 解析 CourseGrading 作业详情页面
- * 来源：/assignment/index.jsp?assignID={id}
- */
-declare function parseAssignmentIndexHtml(html: string, nowMs?: number): {
-    title?: string;
-    deadline?: string;
-    deadlineTimestamp: number;
-    remainingHours: number;
-    remainingText: string;
-    problems: {
-        index: number;
-        id: string;
-        title: string;
-        score?: number;
-    }[];
-};
-/**
- * 解析题目输入输出样例
- * 来源：/assignment/programList.jsp 或 /acm/submit.jsp
- */
-declare function parseProblemTestCases(html: string): TestCase[];
-/**
- * 解析题目详情与代码
- * 来源：/assignment/programList.jsp
- */
-declare function parseProblemDetailHtml(problemId: string, html: string): ProblemDetail;
-/**
- * 解析评测结果状态表
- * 来源：/acm/problemset_stat.jsp
- */
-declare function parseSubmissionResultHtml(html: string): SubmissionResult[];
-
-/**
- * 原生 Fetch HTTP 适配器（Node 18+ 或 浏览器均可使用）
- */
 declare class FetchHttpClient implements HttpClient {
     private defaultHeaders;
     constructor(defaultHeaders?: Record<string, string>);
     get(url: string, headers?: Record<string, string>): Promise<string>;
     post(url: string, data?: unknown, headers?: Record<string, string>): Promise<string>;
 }
+
+interface ParsedDeadline {
+    raw: string;
+    normalized: string;
+    timestamp: number;
+    remainingHours: number;
+    remainingText: string;
+    urgency: UrgencyLevel;
+}
+/**
+ * 评估截止时间紧急度等级
+ */
+declare function calculateUrgency(remainingHours: number): UrgencyLevel;
+/**
+ * 格式化剩余时间为人性化中文倒计时
+ */
+declare function formatRemainingTime(remainingHours: number): string;
+/**
+ * 健壮的北京时间 (UTC+8) 死线解析器
+ * 1. 自动处理缺少年份（如 "10-15 23:59" 或 "10月15日 23:59"）
+ * 2. 自动清洗中文字符（年月日、点分隔符、斜杠）
+ * 3. 强制锚定北京时间 (UTC+8)，杜绝本机时区导致偏差 8 小时
+ */
+declare function parseDeadlineBeijing(rawDeadlineStr: string, nowMs?: number): ParsedDeadline;
+
+/**
+ * 解析 CourseGrading 课程列表
+ * 来源：/courselist.jsp 或 /main.jsp
+ */
+declare function parseCourseListHtml(html: string): Course[];
+/**
+ * 解析 CourseGrading 活跃作业列表
+ * 来源：/assignment/mainActiveAssigns.jsp 或当前页面中的 .main-zy 容器
+ */
+declare function parseActiveAssignmentsHtml(html: string, courseName?: string, nowMs?: number): Assignment[];
+/**
+ * 解析 CourseGrading 作业详情页
+ * 来源：/assignment/index.jsp?assignID={id}
+ */
+declare function parseAssignmentDetailHtml(html: string, nowMs?: number): {
+    title?: string;
+    deadline?: string;
+    deadlineTimestamp: number;
+    remainingHours: number;
+    remainingText: string;
+};
+/**
+ * 解析题目输入输出用例
+ * 来源：/assignment/programList.jsp 或 /acm/submit.jsp
+ */
+declare function parseTestCases(html: string): TestCase[];
+/**
+ * 解析题目描述与代码
+ * 来源：/assignment/programList.jsp
+ */
+declare function parseProblemDetailHtml(problemId: string, html: string): ProblemDetail;
+/**
+ * 解析评测记录表
+ * 来源：/acm/problemset_stat.jsp
+ */
+declare function parseSubmissionsHtml(html: string): SubmissionResult[];
 
 declare class CourseGradingClient {
     private baseUrl;
@@ -166,35 +146,30 @@ declare class CourseGradingClient {
     getSessionCookie(): string;
     private getAuthHeaders;
     /**
-     * 登录一体化平台（自动加密密码）
+     * 登录平台（自动使用固定 AES 密钥加密）
      */
     login(stid: string, plainPwd: string): Promise<{
         success: boolean;
         message: string;
     }>;
     /**
-     * 获取当前学生加入的所有课程列表
-     * 接口: GET /courselist.jsp 或 /main.jsp
+     * 获取学生加入的课程列表
      */
-    getCourses(): Promise<CourseInfo[]>;
+    getCourses(): Promise<Course[]>;
     /**
      * 切换当前激活课程上下文
-     * 接口: GET /courselist.jsp?courseID={id}
      */
     enterCourse(courseId: string): Promise<void>;
     /**
-     * 查询所有课程中当前未完成的作业与实训
-     * 接口: GET /assignment/mainActiveAssigns.jsp 及 /assignment/index.jsp
+     * 汇聚所有课程中未完成的作业与实训
      */
     getPendingAssignments(hoursThreshold?: number): Promise<Assignment[]>;
     /**
      * 获取题目详情与测试用例
-     * 接口: GET /assignment/programList.jsp?proNum={proNum}&assignID={assignId}
      */
     getProblemDetail(assignId: string, proNum?: number): Promise<ProblemDetail>;
     /**
      * 查询最新评测结果
-     * 接口: GET /acm/problemset_stat.jsp
      */
     getLatestSubmissions(): Promise<SubmissionResult[]>;
     /**
@@ -207,4 +182,4 @@ declare class CourseGradingClient {
     }>;
 }
 
-export { type Assignment, COURSE_GRADING_SECRET_KEY, CourseGradingClient, type CourseInfo, FetchHttpClient, type HttpClient, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, formatNotificationContent, formatRemainingTime, parseActiveAssignmentsHtml, parseAssignmentIndexHtml, parseCourseListHtml, parseDeadline, parseProblemDetailHtml, parseProblemTestCases, parseSubmissionResultHtml };
+export { type Assignment, COURSE_GRADING_SECRET_KEY, type Course, CourseGradingClient, FetchHttpClient, type HttpClient, type ParsedDeadline, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, formatRemainingTime, parseActiveAssignmentsHtml, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };

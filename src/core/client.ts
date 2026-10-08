@@ -1,15 +1,13 @@
-import { Assignment, HttpClient, PlatformConfig, ProblemDetail, PushConfig, SubmissionResult } from './types';
-import { FetchHttpClient } from './adapter';
+import { Assignment, Course, HttpClient, PlatformConfig, ProblemDetail, PushConfig, SubmissionResult } from './types';
+import { FetchHttpClient } from './http';
 import { encryptPassword } from './crypto';
 import {
   parseActiveAssignmentsHtml,
-  parseAssignmentIndexHtml,
+  parseAssignmentDetailHtml,
   parseCourseListHtml,
   parseProblemDetailHtml,
-  parseSubmissionResultHtml,
-  CourseInfo
-} from './parser';
-import { formatNotificationContent } from './ddl';
+  parseSubmissionsHtml
+} from './parsers';
 
 export class CourseGradingClient {
   private baseUrl: string;
@@ -35,7 +33,7 @@ export class CourseGradingClient {
   }
 
   /**
-   * 登录一体化平台（自动加密密码）
+   * 登录平台（自动使用固定 AES 密钥加密）
    */
   async login(stid: string, plainPwd: string): Promise<{ success: boolean; message: string }> {
     const encryptedPwd = encryptPassword(plainPwd);
@@ -45,25 +43,22 @@ export class CourseGradingClient {
       pwd: encryptedPwd
     }).toString();
 
-    const responseText = await this.http.post(`${this.baseUrl}/login/loginproc.jsp`, body, {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    });
+    const responseText = await this.http.post(`${this.baseUrl}/login/loginproc.jsp`, body);
 
     if (responseText.includes('loginErr=1') || responseText.includes('密码错误')) {
       return { success: false, message: '账号或密码错误' };
     }
     if (responseText.includes('loginErr=6')) {
-      return { success: false, message: '需要输入验证码' };
+      return { success: false, message: '需要输入图形验证码' };
     }
 
     return { success: true, message: '登录成功' };
   }
 
   /**
-   * 获取当前学生加入的所有课程列表
-   * 接口: GET /courselist.jsp 或 /main.jsp
+   * 获取学生加入的课程列表
    */
-  async getCourses(): Promise<CourseInfo[]> {
+  async getCourses(): Promise<Course[]> {
     try {
       const html = await this.http.get(`${this.baseUrl}/courselist.jsp`, this.getAuthHeaders());
       let courses = parseCourseListHtml(html);
@@ -79,15 +74,13 @@ export class CourseGradingClient {
 
   /**
    * 切换当前激活课程上下文
-   * 接口: GET /courselist.jsp?courseID={id}
    */
   async enterCourse(courseId: string): Promise<void> {
     await this.http.get(`${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`, this.getAuthHeaders());
   }
 
   /**
-   * 查询所有课程中当前未完成的作业与实训
-   * 接口: GET /assignment/mainActiveAssigns.jsp 及 /assignment/index.jsp
+   * 汇聚所有课程中未完成的作业与实训
    */
   async getPendingAssignments(hoursThreshold = 72): Promise<Assignment[]> {
     const allAssignments: Assignment[] = [];
@@ -96,7 +89,6 @@ export class CourseGradingClient {
     const courses = await this.getCourses();
 
     if (courses.length > 0) {
-      // 遍历学生所修课程，进入课程上下文并获取活跃作业
       for (const course of courses) {
         try {
           await this.enterCourse(course.id);
@@ -110,14 +102,14 @@ export class CourseGradingClient {
             if (!seenIds.has(item.id)) {
               seenIds.add(item.id);
 
-              // 若活跃列表中未带完整截止时间，查作业详情补齐
-              if (item.deadline === '未标注明确截止时间' || item.deadline === '请查看详情') {
+              // 补齐详情页中的精确截止时间
+              if (item.deadline === '请查看详情' || item.deadlineTimestamp === 0) {
                 try {
                   const detailHtml = await this.http.get(
                     `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`,
                     this.getAuthHeaders()
                   );
-                  const detail = parseAssignmentIndexHtml(detailHtml);
+                  const detail = parseAssignmentDetailHtml(detailHtml);
                   if (detail.deadline) {
                     item.deadline = detail.deadline;
                     item.deadlineTimestamp = detail.deadlineTimestamp;
@@ -130,12 +122,9 @@ export class CourseGradingClient {
               allAssignments.push(item);
             }
           }
-        } catch {
-          // 单个课程异常不影响其他课程
-        }
+        } catch {}
       }
     } else {
-      // 单课程账户或当前已在课程会话中，直接读取活跃作业
       try {
         const activeHtml = await this.http.get(
           `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
@@ -158,7 +147,6 @@ export class CourseGradingClient {
 
   /**
    * 获取题目详情与测试用例
-   * 接口: GET /assignment/programList.jsp?proNum={proNum}&assignID={assignId}
    */
   async getProblemDetail(assignId: string, proNum = 1): Promise<ProblemDetail> {
     const url = `${this.baseUrl}/assignment/programList.jsp?proNum=${proNum}&assignID=${encodeURIComponent(assignId)}`;
@@ -168,12 +156,11 @@ export class CourseGradingClient {
 
   /**
    * 查询最新评测结果
-   * 接口: GET /acm/problemset_stat.jsp
    */
   async getLatestSubmissions(): Promise<SubmissionResult[]> {
     const url = `${this.baseUrl}/acm/problemset_stat.jsp`;
     const html = await this.http.get(url, this.getAuthHeaders());
-    return parseSubmissionResultHtml(html);
+    return parseSubmissionsHtml(html);
   }
 
   /**
@@ -187,14 +174,21 @@ export class CourseGradingClient {
       return { sent: false, count: 0 };
     }
 
-    const { title, markdown, html } = formatNotificationContent(pending);
+    const urgentCount = pending.filter(a => a.urgency === 'critical' || a.urgency === 'urgent').length;
+    const title = `【NoDDL 预警】有 ${pending.length} 项作业待提交（${urgentCount} 项紧急）`;
+    const markdown = [
+      `### 🔔 NoDDL 作业死线提醒`,
+      `当前有 **${pending.length}** 项未交作业：`,
+      '',
+      ...pending.map((item, idx) => `${idx + 1}. [${item.courseName}] ${item.title} (截止: ${item.deadline}, ${item.remainingText})`)
+    ].join('\n');
 
     try {
       if (config.pushplusToken) {
         await this.http.post('https://www.pushplus.plus/send', {
           token: config.pushplusToken,
           title,
-          content: html,
+          content: markdown.replace(/\n/g, '<br>'),
           template: 'html'
         });
       }
