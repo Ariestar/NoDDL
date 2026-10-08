@@ -3,6 +3,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { Assignment, PushConfig, SubmissionResult } from '../../core/types';
 import { CourseGradingClient } from '../../core/client';
 import { BrowserStorage } from '../browser-adapter';
+import { createDeadlineCalendar } from './calendar';
 
 interface AppProps {
   client: CourseGradingClient;
@@ -126,6 +127,24 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     }
   };
 
+  const exportCalendar = () => {
+    const calendar = createDeadlineCalendar(assignments, window.location.origin);
+    if (!calendar) {
+      showToast('当前没有可导出的未截止作业');
+      return;
+    }
+
+    const url = URL.createObjectURL(new Blob([calendar], { type: 'text/calendar;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'NoDDL-deadlines.ics';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    showToast('日历文件已导出');
+  };
+
   const activeCount = assignments.filter((a) => a.remainingHours > 0).length;
   const overdueCount = assignments.filter((a) => a.remainingHours <= 0).length;
   const urgentCount = assignments.filter((a) => a.remainingHours > 0 && (a.urgency === 'critical' || a.urgency === 'urgent')).length;
@@ -213,7 +232,7 @@ export function App({ client, storage, initialAssignments }: AppProps) {
             {/* Tab 1: DDL 看板 */}
             {activeTab === 'homework' && (
               <div>
-                <div style="display:flex;gap:6px;margin-bottom:12px;">
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
                   <button
                     className={`btn btn-sm ${filter === 'active' ? 'btn-primary' : 'btn-secondary'}`}
                     onClick={() => setFilter('active')}
@@ -231,6 +250,9 @@ export function App({ client, storage, initialAssignments }: AppProps) {
                     onClick={() => setFilter('all')}
                   >
                     全部 ({assignments.length})
+                  </button>
+                  <button className="btn btn-sm btn-secondary" onClick={exportCalendar}>
+                    导出日历
                   </button>
                 </div>
 
@@ -292,81 +314,42 @@ export function App({ client, storage, initialAssignments }: AppProps) {
               <div style="display:flex;flex-direction:column;gap:14px;">
                 {/* 1. PushPlus 微信推送 */}
                 <div className="form-group">
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <label className="form-label">微信推送 (PushPlus)</label>
-                    <a
-                      href="https://www.pushplus.plus/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="tutorial-link"
-                    >
-                      获取 Token / 官网 ↗
-                    </a>
-                  </div>
-                  <div className="tutorial-tip">
-                    ① 打开上方官网微信扫码登录；② 在「一对一推送」页面复制「你的 Token」填入下方。
-                  </div>
+                  <label className="form-label">微信推送 (PushPlus)</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="例如 98a7b6c5d4e3..."
+                    placeholder="PushPlus Token"
                     value={pushplusToken}
                     onInput={(e) => setPushplusToken((e.target as HTMLInputElement).value)}
                   />
                 </div>
 
                 {/* 2. 短信提醒 (SMS) */}
-                <div className="form-group">
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <label className="form-label">短信提醒 (SMS)</label>
-                    <a
-                      href="https://github.com/pppscn/SmsForwarder"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="tutorial-link"
-                    >
-                      SmsForwarder 教程 ↗
-                    </a>
-                  </div>
-                  <div className="tutorial-tip">
-                    可配合安卓「短信转发器 (SmsForwarder)」的 Webhook 发送短信，或使用自建短信网关（支持 {'{phone}'} 与 {'{msg}'} 占位符或 POST JSON）。
-                  </div>
+                <details className="form-group">
+                  <summary className="form-label" style="cursor:pointer;">短信网关 (高级，可选)</summary>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="接收短信的手机号码 (例如 13800138000)"
+                    placeholder="接收短信的手机号"
                     value={smsPhone}
                     onInput={(e) => setSmsPhone((e.target as HTMLInputElement).value)}
                   />
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="短信网关 Webhook 地址 (例如 http://192.168.1.100:8080/send?to={phone}&msg={msg})"
+                    placeholder="短信网关 Webhook 地址"
                     value={smsWebhookUrl}
                     onInput={(e) => setSmsWebhookUrl((e.target as HTMLInputElement).value)}
                   />
-                </div>
+                </details>
 
                 {/* 3. Bark 苹果设备推送 */}
                 <div className="form-group">
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <label className="form-label">苹果设备横幅 (Bark)</label>
-                    <a
-                      href="https://github.com/Finb/Bark"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="tutorial-link"
-                    >
-                      Bark 官网与下载 ↗
-                    </a>
-                  </div>
-                  <div className="tutorial-tip">
-                    iPhone 安装 Bark App，复制首页给出的推送 URL（形如 https://api.day.app/YOUR_KEY）填入下方。
-                  </div>
+                  <label className="form-label">苹果设备推送 (Bark)</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="https://api.day.app/YOUR_KEY"
+                    placeholder="Bark 推送 URL"
                     value={barkUrl}
                     onInput={(e) => setBarkUrl((e.target as HTMLInputElement).value)}
                   />

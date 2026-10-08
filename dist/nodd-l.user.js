@@ -7772,6 +7772,69 @@ ${markdown}` }
   function G(n2, t2) {
     return "function" == typeof t2 ? t2(n2) : t2;
   }
+  function escapeIcsText(value) {
+    return value.replace(/\\/g, "\\\\").replace(/\r\n|\r|\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+  }
+  function formatIcsDate(timestamp) {
+    return new Date(timestamp).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  }
+  function foldIcsLine(line, encoder) {
+    const parts = [];
+    let current = "";
+    let bytes = 0;
+    for (const char of line) {
+      const charBytes = encoder.encode(char).length;
+      if (bytes + charBytes > 75) {
+        parts.push(current);
+        current = ` ${char}`;
+        bytes = charBytes + 1;
+      } else {
+        current += char;
+        bytes += charBytes;
+      }
+    }
+    parts.push(current);
+    return parts.join("\r\n");
+  }
+  function createDeadlineCalendar(assignments, baseUrl) {
+    const currentTime = Date.now();
+    const upcoming = assignments.filter((item) => item.status === "pending" && Number.isFinite(item.deadlineTimestamp) && item.deadlineTimestamp > currentTime).sort((a2, b2) => a2.deadlineTimestamp - b2.deadlineTimestamp);
+    if (upcoming.length === 0) return null;
+    const now = formatIcsDate(currentTime);
+    const lines = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//NoDDL//Assignment Deadlines//ZH",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "X-WR-CALNAME:NoDDL 作业截止"
+    ];
+    for (const item of upcoming) {
+      const deadline = item.deadlineTimestamp;
+      const url = new URL(item.url, baseUrl).href;
+      lines.push(
+        "BEGIN:VEVENT",
+        `UID:${encodeURIComponent(item.courseId || "course")}-${encodeURIComponent(item.id)}@nodd-l`,
+        `DTSTAMP:${now}`,
+        `DTSTART:${formatIcsDate(deadline)}`,
+        `DTEND:${formatIcsDate(deadline + 15 * 60 * 1e3)}`,
+        `SUMMARY:${escapeIcsText(`${item.courseName} - ${item.title} 截止`)}`,
+        `DESCRIPTION:${escapeIcsText(`截止时间：${item.deadline}
+课程：${item.courseName}`)}`,
+        `URL:${url}`,
+        "BEGIN:VALARM",
+        "ACTION:DISPLAY",
+        "TRIGGER:-PT1H",
+        `DESCRIPTION:${escapeIcsText(`${item.title} 即将截止`)}`,
+        "END:VALARM",
+        "END:VEVENT"
+      );
+    }
+    lines.push("END:VCALENDAR");
+    const encoder = new TextEncoder();
+    return `${lines.map((line) => foldIcsLine(line, encoder)).join("\r\n")}\r
+`;
+  }
   function App({ client: client2, storage: storage2, initialAssignments }) {
     const [isOpen, setIsOpen] = d(false);
     const [activeTab, setActiveTab] = d("homework");
@@ -7869,6 +7932,22 @@ ${markdown}` }
         showToast(`推送失败: ${res.error || "无即将截止作业或网络错误"}`);
       }
     };
+    const exportCalendar = () => {
+      const calendar = createDeadlineCalendar(assignments, window.location.origin);
+      if (!calendar) {
+        showToast("当前没有可导出的未截止作业");
+        return;
+      }
+      const url = URL.createObjectURL(new Blob([calendar], { type: "text/calendar;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "NoDDL-deadlines.ics";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      showToast("日历文件已导出");
+    };
     const activeCount = assignments.filter((a2) => a2.remainingHours > 0).length;
     const overdueCount = assignments.filter((a2) => a2.remainingHours <= 0).length;
     const urgentCount = assignments.filter((a2) => a2.remainingHours > 0 && (a2.urgency === "critical" || a2.urgency === "urgent")).length;
@@ -7947,7 +8026,7 @@ ${markdown}` }
         ] }),
         /* @__PURE__ */ u$1("div", { className: "nodd-content", children: [
           activeTab === "homework" && /* @__PURE__ */ u$1("div", { children: [
-            /* @__PURE__ */ u$1("div", { style: "display:flex;gap:6px;margin-bottom:12px;", children: [
+            /* @__PURE__ */ u$1("div", { style: "display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;", children: [
               /* @__PURE__ */ u$1(
                 "button",
                 {
@@ -7983,7 +8062,8 @@ ${markdown}` }
                     ")"
                   ]
                 }
-              )
+              ),
+              /* @__PURE__ */ u$1("button", { className: "btn btn-sm btn-secondary", onClick: exportCalendar, children: "导出日历" })
             ] }),
             loading ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: "正在同步作业数据..." }) : filteredAssignments.length === 0 ? /* @__PURE__ */ u$1("div", { className: "empty-state", children: [
               /* @__PURE__ */ u$1("span", { style: "font-size:24px;", children: "🎉" }),
@@ -8019,58 +8099,26 @@ ${markdown}` }
           ] }),
           activeTab === "settings" && /* @__PURE__ */ u$1("div", { style: "display:flex;flex-direction:column;gap:14px;", children: [
             /* @__PURE__ */ u$1("div", { className: "form-group", children: [
-              /* @__PURE__ */ u$1("div", { style: "display:flex;justify-content:space-between;align-items:center;", children: [
-                /* @__PURE__ */ u$1("label", { className: "form-label", children: "微信推送 (PushPlus)" }),
-                /* @__PURE__ */ u$1(
-                  "a",
-                  {
-                    href: "https://www.pushplus.plus/",
-                    target: "_blank",
-                    rel: "noopener noreferrer",
-                    className: "tutorial-link",
-                    children: "获取 Token / 官网 ↗"
-                  }
-                )
-              ] }),
-              /* @__PURE__ */ u$1("div", { className: "tutorial-tip", children: "① 打开上方官网微信扫码登录；② 在「一对一推送」页面复制「你的 Token」填入下方。" }),
+              /* @__PURE__ */ u$1("label", { className: "form-label", children: "微信推送 (PushPlus)" }),
               /* @__PURE__ */ u$1(
                 "input",
                 {
                   type: "text",
                   className: "form-input",
-                  placeholder: "例如 98a7b6c5d4e3...",
+                  placeholder: "PushPlus Token",
                   value: pushplusToken,
                   onInput: (e2) => setPushplusToken(e2.target.value)
                 }
               )
             ] }),
-            /* @__PURE__ */ u$1("div", { className: "form-group", children: [
-              /* @__PURE__ */ u$1("div", { style: "display:flex;justify-content:space-between;align-items:center;", children: [
-                /* @__PURE__ */ u$1("label", { className: "form-label", children: "短信提醒 (SMS)" }),
-                /* @__PURE__ */ u$1(
-                  "a",
-                  {
-                    href: "https://github.com/pppscn/SmsForwarder",
-                    target: "_blank",
-                    rel: "noopener noreferrer",
-                    className: "tutorial-link",
-                    children: "SmsForwarder 教程 ↗"
-                  }
-                )
-              ] }),
-              /* @__PURE__ */ u$1("div", { className: "tutorial-tip", children: [
-                "可配合安卓「短信转发器 (SmsForwarder)」的 Webhook 发送短信，或使用自建短信网关（支持 ",
-                "{phone}",
-                " 与 ",
-                "{msg}",
-                " 占位符或 POST JSON）。"
-              ] }),
+            /* @__PURE__ */ u$1("details", { className: "form-group", children: [
+              /* @__PURE__ */ u$1("summary", { className: "form-label", style: "cursor:pointer;", children: "短信网关 (高级，可选)" }),
               /* @__PURE__ */ u$1(
                 "input",
                 {
                   type: "text",
                   className: "form-input",
-                  placeholder: "接收短信的手机号码 (例如 13800138000)",
+                  placeholder: "接收短信的手机号",
                   value: smsPhone,
                   onInput: (e2) => setSmsPhone(e2.target.value)
                 }
@@ -8080,33 +8128,20 @@ ${markdown}` }
                 {
                   type: "text",
                   className: "form-input",
-                  placeholder: "短信网关 Webhook 地址 (例如 http://192.168.1.100:8080/send?to={phone}&msg={msg})",
+                  placeholder: "短信网关 Webhook 地址",
                   value: smsWebhookUrl,
                   onInput: (e2) => setSmsWebhookUrl(e2.target.value)
                 }
               )
             ] }),
             /* @__PURE__ */ u$1("div", { className: "form-group", children: [
-              /* @__PURE__ */ u$1("div", { style: "display:flex;justify-content:space-between;align-items:center;", children: [
-                /* @__PURE__ */ u$1("label", { className: "form-label", children: "苹果设备横幅 (Bark)" }),
-                /* @__PURE__ */ u$1(
-                  "a",
-                  {
-                    href: "https://github.com/Finb/Bark",
-                    target: "_blank",
-                    rel: "noopener noreferrer",
-                    className: "tutorial-link",
-                    children: "Bark 官网与下载 ↗"
-                  }
-                )
-              ] }),
-              /* @__PURE__ */ u$1("div", { className: "tutorial-tip", children: "iPhone 安装 Bark App，复制首页给出的推送 URL（形如 https://api.day.app/YOUR_KEY）填入下方。" }),
+              /* @__PURE__ */ u$1("label", { className: "form-label", children: "苹果设备推送 (Bark)" }),
               /* @__PURE__ */ u$1(
                 "input",
                 {
                   type: "text",
                   className: "form-input",
-                  placeholder: "https://api.day.app/YOUR_KEY",
+                  placeholder: "Bark 推送 URL",
                   value: barkUrl,
                   onInput: (e2) => setBarkUrl(e2.target.value)
                 }
@@ -8453,29 +8488,6 @@ ${markdown}` }
   color: var(--text-sub);
   text-align: center;
   gap: 8px;
-}
-
-.tutorial-link {
-  font-size: 11px;
-  color: var(--primary);
-  text-decoration: none;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-.tutorial-link:hover {
-  text-decoration: underline;
-}
-
-.tutorial-tip {
-  font-size: 11px;
-  color: var(--text-sub);
-  line-height: 1.4;
-  background: #f8fafc;
-  padding: 6px 10px;
-  border-radius: 6px;
-  border-left: 3px solid var(--primary);
 }
 
 /* 顶部通知 Toast */
