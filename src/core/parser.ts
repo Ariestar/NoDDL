@@ -1,122 +1,208 @@
 import { Assignment, ProblemDetail, SubmissionResult, TestCase } from './types';
 import { calculateUrgency, parseDeadline } from './ddl';
 
-/**
- * 从一体化平台作业列表页面 HTML 解析作业项
- * 采用通用正则解析，兼顾 Node.js（无需重型 jsdom）与浏览器原生环境
- */
-export function parseHomeworkListHtml(html: string, nowMs = Date.now()): Assignment[] {
-  const results: Assignment[] = [];
+export interface CourseInfo {
+  id: string;
+  name: string;
+}
 
-  // 1. 匹配表格行 <tr>...</tr> 或 卡片模式
+/**
+ * 解析 CourseGrading 课程列表
+ * 来源：/courselist.jsp 或 /main.jsp 下拉菜单
+ */
+export function parseCourseListHtml(html: string): CourseInfo[] {
+  const courses: CourseInfo[] = [];
+  const seenIds = new Set<string>();
+
+  // 1. 多课程列表：<a href="courselist.jsp?courseID=1001"> 高等数学 </a>
+  const linkRegex = /<a[^>]*href=["'][^"']*courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = linkRegex.exec(html)) !== null) {
+    const id = match[1];
+    const name = match[2].replace(/<[^>]+>/g, '').trim();
+    if (id && name && !seenIds.has(id)) {
+      seenIds.add(id);
+      courses.push({ id, name });
+    }
+  }
+
+  // 2. 单课程 / 下拉菜单：<span class="dropdown-item-course" value="1001">高等数学</span>
+  const spanRegex = /<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/span>/gi;
+  while ((match = spanRegex.exec(html)) !== null) {
+    const id = match[1];
+    const name = match[2].replace(/<[^>]+>/g, '').trim();
+    if (id && name && !seenIds.has(id)) {
+      seenIds.add(id);
+      courses.push({ id, name });
+    }
+  }
+
+  return courses;
+}
+
+/**
+ * 解析 CourseGrading 活跃作业列表
+ * 来源：/assignment/mainActiveAssigns.jsp 或页面上的 .main-zy 容器
+ */
+export function parseActiveAssignmentsHtml(html: string, courseName = '专业课程', nowMs = Date.now()): Assignment[] {
+  const assignments: Assignment[] = [];
+  const seenIds = new Set<string>();
+
+  // CourseGrading 标准结构: <div class="main-zy"> ... <a href="...assignID=5001">作业名</a> ... </div>
+  const blockRegex = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+  let blockMatch: RegExpExecArray | null;
+
+  while ((blockMatch = blockRegex.exec(html)) !== null) {
+    const block = blockMatch[1];
+
+    const linkMatch = block.match(/href=["'][^"']*assignID=([a-zA-Z0-9_-]+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
+    if (!linkMatch) continue;
+
+    const id = linkMatch[1];
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+
+    const title = linkMatch[2].replace(/<[^>]+>/g, '').trim() || `作业 ${id}`;
+
+    // 匹配时间字符串（如 "2026-10-10 23:59:00" 或 "2026/10/10 23:59"）
+    const dateMatch = block.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
+    const deadlineStr = dateMatch ? dateMatch[1] : '';
+
+    const { timestamp, remainingHours, remainingText } = deadlineStr
+      ? parseDeadline(deadlineStr, nowMs)
+      : { timestamp: 0, remainingHours: 9999, remainingText: '请查看详情' };
+
+    let status: Assignment['status'] = 'pending';
+    if (/已提交|评测中/i.test(block)) status = 'submitted';
+    else if (/已打分|得分|满分/i.test(block)) status = 'graded';
+
+    assignments.push({
+      id,
+      courseName,
+      title,
+      deadline: deadlineStr || '未标注明确截止时间',
+      deadlineTimestamp: timestamp,
+      remainingHours,
+      remainingText,
+      status,
+      urgency: calculateUrgency(remainingHours),
+      url: `/assignment/index.jsp?assignID=${id}`
+    });
+  }
+
+  // 兜底：若未包含 .main-zy 外层，直接扫描包含 assignID 的链接
+  if (assignments.length === 0) {
+    const directLinkRegex = /<a[^>]*href=["'][^"']*assignID=([a-zA-Z0-9_-]+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi;
+    let linkM: RegExpExecArray | null;
+    while ((linkM = directLinkRegex.exec(html)) !== null) {
+      const id = linkM[1];
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+
+      const title = linkM[2].replace(/<[^>]+>/g, '').trim();
+      if (!title || title.includes('详细') || title.includes('提交')) continue;
+
+      assignments.push({
+        id,
+        courseName,
+        title,
+        deadline: '请查看详情',
+        deadlineTimestamp: 0,
+        remainingHours: 9999,
+        remainingText: '待定',
+        status: 'pending',
+        urgency: 'normal',
+        url: `/assignment/index.jsp?assignID=${id}`
+      });
+    }
+  }
+
+  return assignments;
+}
+
+/**
+ * 解析 CourseGrading 作业详情页面
+ * 来源：/assignment/index.jsp?assignID={id}
+ */
+export function parseAssignmentIndexHtml(html: string, nowMs = Date.now()): {
+  title?: string;
+  deadline?: string;
+  deadlineTimestamp: number;
+  remainingHours: number;
+  remainingText: string;
+  problems: { index: number; id: string; title: string; score?: number }[];
+} {
+  // 提取截止时间
+  const dateMatch = html.match(/截止时间[：:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/i) ||
+                    html.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
+  const deadline = dateMatch ? dateMatch[1] : undefined;
+  const { timestamp, remainingHours, remainingText } = deadline
+    ? parseDeadline(deadline, nowMs)
+    : { timestamp: 0, remainingHours: 9999, remainingText: '未设截止时间' };
+
+  // 提取作业标题
+  const titleMatch = html.match(/<b>([\s\S]*?)<\/b>/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
+  const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : undefined;
+
+  // 提取题目列表 (<table class="table-striped">)
+  const problems: { index: number; id: string; title: string; score?: number }[] = [];
   const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let trMatch: RegExpExecArray | null;
 
   while ((trMatch = trRegex.exec(html)) !== null) {
-    const rowHtml = trMatch[1];
-    // 跳过表头
-    if (/<th/i.test(rowHtml)) continue;
+    const row = trMatch[1];
+    if (/<th[^>]*>#<\/th>/i.test(row)) continue;
 
-    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-    const tds: string[] = [];
-    let tdMatch: RegExpExecArray | null;
-    while ((tdMatch = tdRegex.exec(rowHtml)) !== null) {
-      // 去除内部标签并去除两端空格
-      const text = tdMatch[1].replace(/<[^>]+>/g, '').trim();
-      tds.push(text);
-    }
+    const proLinkMatch = row.match(/href=["'][^"']*programList\.jsp\?proNum=(\d+)&assignID=(\d+)["'][^>]*>([\s\S]*?)<\/a>/i);
+    const judgeLinkMatch = row.match(/problemID=(\d+)/i);
 
-    if (tds.length >= 4) {
-      // 提取链接中的 ID（如 href="/pages/homework/detail.jsp?id=123"）
-      const idMatch = rowHtml.match(/id=([a-zA-Z0-9_-]+)/i);
-      const urlMatch = rowHtml.match(/href=["']([^"']+)["']/i);
+    if (proLinkMatch) {
+      const index = parseInt(proLinkMatch[1], 10);
+      const proTitle = proLinkMatch[3].replace(/<[^>]+>/g, '').trim();
+      const problemId = judgeLinkMatch ? judgeLinkMatch[1] : `pro_${index}`;
 
-      // 寻找时间格式 "YYYY-MM-DD HH:mm:ss" 或 "YYYY/MM/DD HH:mm"
-      const dateMatch = rowHtml.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
-      const deadlineStr = dateMatch ? dateMatch[1] : '';
+      const scoreMatch = row.match(/<td>\s*(\d+(?:\.\d+)?)\s*<\/td>/i);
+      const score = scoreMatch ? parseFloat(scoreMatch[1]) : undefined;
 
-      // 判断提交状态
-      let status: Assignment['status'] = 'pending';
-      if (/已评测|已打分|满分|得分/i.test(rowHtml)) {
-        status = 'graded';
-      } else if (/已提交|评测中|重交/i.test(rowHtml)) {
-        status = 'submitted';
-      } else if (/未交|未提交|未完成|进行中/i.test(rowHtml)) {
-        status = 'pending';
-      }
-
-      if (deadlineStr) {
-        const { timestamp, remainingHours, remainingText } = parseDeadline(deadlineStr, nowMs);
-        const urgency = calculateUrgency(remainingHours);
-
-        // 提取作业标题与课程名（通常在第1或第2列）
-        const title = tds[1] || tds[0] || '未知作业';
-        const courseName = tds.length > 4 ? tds[0] : '专业课程';
-
-        results.push({
-          id: idMatch ? idMatch[1] : `hw_${results.length + 1}`,
-          courseName,
-          title,
-          deadline: deadlineStr,
-          deadlineTimestamp: timestamp,
-          remainingHours,
-          remainingText,
-          status,
-          urgency,
-          url: urlMatch ? urlMatch[1] : undefined
-        });
-      }
+      problems.push({
+        index,
+        id: problemId,
+        title: proTitle,
+        score
+      });
     }
   }
 
-  // 2. 如果标准表格没命中，尝试卡片/通用块匹配
-  if (results.length === 0) {
-    const cardRegex = /class=["'][^"']*(?:homework|task|exp-item)[^"']*["'][^>]*>([\s\S]*?)(?=class=["'][^"']*(?:homework|task|exp-item)|$)/gi;
-    let cardMatch: RegExpExecArray | null;
-    while ((cardMatch = cardRegex.exec(html)) !== null) {
-      const card = cardMatch[1];
-      const dateMatch = card.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
-      if (dateMatch) {
-        const titleMatch = card.match(/<h[345][^>]*>([^<]+)<\/h[345]>/i) || card.match(/title=["']([^"']+)["']/i);
-        const deadlineStr = dateMatch[1];
-        const { timestamp, remainingHours, remainingText } = parseDeadline(deadlineStr, nowMs);
-
-        results.push({
-          id: `card_${results.length + 1}`,
-          courseName: '人工智能专业课',
-          title: titleMatch ? titleMatch[1].trim() : '实训任务',
-          deadline: deadlineStr,
-          deadlineTimestamp: timestamp,
-          remainingHours,
-          remainingText,
-          status: /未提交|待完成/i.test(card) ? 'pending' : 'submitted',
-          urgency: calculateUrgency(remainingHours)
-        });
-      }
-    }
-  }
-
-  return results;
+  return {
+    title,
+    deadline,
+    deadlineTimestamp: timestamp,
+    remainingHours,
+    remainingText,
+    problems
+  };
 }
 
 /**
- * 解析题目描述中的测试用例（输入样例/输出样例）
+ * 解析题目输入输出样例
+ * 来源：/assignment/programList.jsp 或 /acm/submit.jsp
  */
 export function parseProblemTestCases(html: string): TestCase[] {
   const testCases: TestCase[] = [];
 
-  // 常见模式 1: <pre>样例输入...</pre> 与 <pre>样例输出...</pre>
   const sampleRegex = /(?:样例输入|输入样例|Sample Input)[\s\S]*?<pre[^>]*>([\s\S]*?)<\/pre>[\s\S]*?(?:样例输出|输出样例|Sample Output)[\s\S]*?<pre[^>]*>([\s\S]*?)<\/pre>/gi;
   let match: RegExpExecArray | null;
   let idx = 1;
 
   while ((match = sampleRegex.exec(html)) !== null) {
-    const input = cleanCodeBlock(match[1]);
-    const output = cleanCodeBlock(match[2]);
-    testCases.push({ index: idx++, input, output });
+    testCases.push({
+      index: idx++,
+      input: cleanCodeBlock(match[1]),
+      output: cleanCodeBlock(match[2])
+    });
   }
 
-  // 常见模式 2: 单个 pre 块包含格式化用例
   if (testCases.length === 0) {
     const preRegex = /<pre[^>]*>([\s\S]*?)<\/pre>/gi;
     const blocks: string[] = [];
@@ -148,26 +234,35 @@ function cleanCodeBlock(raw: string): string {
 }
 
 /**
- * 解析题目详情
+ * 解析题目详情与代码
+ * 来源：/assignment/programList.jsp
  */
 export function parseProblemDetailHtml(problemId: string, html: string): ProblemDetail {
-  const titleMatch = html.match(/<h[123][^>]*>([\s\S]*?)<\/h[123]>/i);
-  const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : `题目 ${problemId}`;
+  const contentMatch = html.match(/<div[^>]*class=["'][^"']*cgProblemContentClass[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) ||
+                       html.match(/<div[^>]*id=["']cgpreviewmarkdown["'][^>]*>([\s\S]*?)<\/div>/i);
+
+  const descHtml = contentMatch ? contentMatch[1] : html;
+  const descText = descHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // 提取现有代码
+  const codeMatch = html.match(/<textarea[^>]*id=["']cgsoucecode["'][^>]*>([\s\S]*?)<\/textarea>/i);
+  const currentCode = codeMatch ? codeMatch[1].trim() : undefined;
 
   const testCases = parseProblemTestCases(html);
-  const plainText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
   return {
     id: problemId,
-    title,
-    descriptionHtml: html,
-    descriptionText: plainText,
-    testCases
+    title: `题目 ${problemId}`,
+    descriptionHtml: descHtml,
+    descriptionText: descText,
+    testCases,
+    currentCode
   };
 }
 
 /**
- * 解析最近一次提交评测结果
+ * 解析评测结果状态表
+ * 来源：/acm/problemset_stat.jsp
  */
 export function parseSubmissionResultHtml(html: string): SubmissionResult[] {
   const results: SubmissionResult[] = [];
@@ -178,23 +273,34 @@ export function parseSubmissionResultHtml(html: string): SubmissionResult[] {
     const row = trMatch[1];
     if (/<th/i.test(row)) continue;
 
-    let status = 'Unknown';
-    if (/Accepted|正确|通过|AC/i.test(row)) status = 'Accepted';
-    else if (/Wrong Answer|答案错误|WA/i.test(row)) status = 'Wrong Answer';
-    else if (/Time Limit|超时|TLE/i.test(row)) status = 'Time Limit Exceeded';
-    else if (/Memory Limit|超内存|MLE/i.test(row)) status = 'Memory Limit Exceeded';
-    else if (/Compile Error|编译错误|CE/i.test(row)) status = 'Compile Error';
-    else if (/Judging|Running|评测中/i.test(row)) status = 'Judging';
+    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+    const tds: string[] = [];
+    let tdMatch: RegExpExecArray | null;
+    while ((tdMatch = tdRegex.exec(row)) !== null) {
+      tds.push(tdMatch[1].replace(/<[^>]+>/g, '').trim());
+    }
 
-    const idMatch = row.match(/runid=([0-9]+)|submission[_-]?id=([0-9]+)/i);
-    const dateMatch = row.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
+    if (tds.length >= 6) {
+      // 表头: Run ID, 提交时间, 用户, 题目, 语言, 评测结果, 时间, 内存
+      const runId = tds[0];
+      const submitTime = tds[1];
+      const problemTitle = tds[3];
+      const rawStatus = tds[5];
 
-    if (idMatch || dateMatch) {
+      let status = 'Unknown';
+      if (/Accepted|正确|通过|AC/i.test(rawStatus)) status = 'Accepted';
+      else if (/Wrong Answer|答案错误|WA/i.test(rawStatus)) status = 'Wrong Answer';
+      else if (/Time Limit|超时|TLE/i.test(rawStatus)) status = 'Time Limit Exceeded';
+      else if (/Memory Limit|超内存|MLE/i.test(rawStatus)) status = 'Memory Limit Exceeded';
+      else if (/Compile Error|编译错误|CE/i.test(rawStatus)) status = 'Compile Error';
+      else if (/Judging|Running|评测中|排队/i.test(rawStatus)) status = 'Judging';
+
       results.push({
-        id: idMatch ? (idMatch[1] || idMatch[2]) : `sub_${results.length + 1}`,
-        problemId: 'unknown',
+        id: runId,
+        problemId: problemTitle,
+        problemTitle,
         status: status as SubmissionResult['status'],
-        submitTime: dateMatch ? dateMatch[1] : new Date().toISOString()
+        submitTime
       });
     }
   }

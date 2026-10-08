@@ -100,21 +100,50 @@ declare function formatNotificationContent(assignments: Assignment[]): {
     html: string;
 };
 
+interface CourseInfo {
+    id: string;
+    name: string;
+}
 /**
- * 从一体化平台作业列表页面 HTML 解析作业项
- * 采用通用正则解析，兼顾 Node.js（无需重型 jsdom）与浏览器原生环境
+ * 解析 CourseGrading 课程列表
+ * 来源：/courselist.jsp 或 /main.jsp 下拉菜单
  */
-declare function parseHomeworkListHtml(html: string, nowMs?: number): Assignment[];
+declare function parseCourseListHtml(html: string): CourseInfo[];
 /**
- * 解析题目描述中的测试用例（输入样例/输出样例）
+ * 解析 CourseGrading 活跃作业列表
+ * 来源：/assignment/mainActiveAssigns.jsp 或页面上的 .main-zy 容器
+ */
+declare function parseActiveAssignmentsHtml(html: string, courseName?: string, nowMs?: number): Assignment[];
+/**
+ * 解析 CourseGrading 作业详情页面
+ * 来源：/assignment/index.jsp?assignID={id}
+ */
+declare function parseAssignmentIndexHtml(html: string, nowMs?: number): {
+    title?: string;
+    deadline?: string;
+    deadlineTimestamp: number;
+    remainingHours: number;
+    remainingText: string;
+    problems: {
+        index: number;
+        id: string;
+        title: string;
+        score?: number;
+    }[];
+};
+/**
+ * 解析题目输入输出样例
+ * 来源：/assignment/programList.jsp 或 /acm/submit.jsp
  */
 declare function parseProblemTestCases(html: string): TestCase[];
 /**
- * 解析题目详情
+ * 解析题目详情与代码
+ * 来源：/assignment/programList.jsp
  */
 declare function parseProblemDetailHtml(problemId: string, html: string): ProblemDetail;
 /**
- * 解析最近一次提交评测结果
+ * 解析评测结果状态表
+ * 来源：/acm/problemset_stat.jsp
  */
 declare function parseSubmissionResultHtml(html: string): SubmissionResult[];
 
@@ -137,26 +166,39 @@ declare class CourseGradingClient {
     getSessionCookie(): string;
     private getAuthHeaders;
     /**
-     * 登录平台（自动使用固定密钥加密密码）
+     * 登录一体化平台（自动加密密码）
      */
     login(stid: string, plainPwd: string): Promise<{
         success: boolean;
         message: string;
     }>;
     /**
-     * 获取所有未提交且按截止时间升序排序的作业列表
+     * 获取当前学生加入的所有课程列表
+     * 接口: GET /courselist.jsp 或 /main.jsp
+     */
+    getCourses(): Promise<CourseInfo[]>;
+    /**
+     * 切换当前激活课程上下文
+     * 接口: GET /courselist.jsp?courseID={id}
+     */
+    enterCourse(courseId: string): Promise<void>;
+    /**
+     * 查询所有课程中当前未完成的作业与实训
+     * 接口: GET /assignment/mainActiveAssigns.jsp 及 /assignment/index.jsp
      */
     getPendingAssignments(hoursThreshold?: number): Promise<Assignment[]>;
     /**
      * 获取题目详情与测试用例
+     * 接口: GET /assignment/programList.jsp?proNum={proNum}&assignID={assignId}
      */
-    getProblemDetail(problemId: string): Promise<ProblemDetail>;
+    getProblemDetail(assignId: string, proNum?: number): Promise<ProblemDetail>;
     /**
      * 查询最新评测结果
+     * 接口: GET /acm/problemset_stat.jsp
      */
     getLatestSubmissions(): Promise<SubmissionResult[]>;
     /**
-     * 触发死线告警推送（支持 PushPlus / Bark / Webhook）
+     * 触发死线告警推送
      */
     triggerPushAlert(config: PushConfig): Promise<{
         sent: boolean;
@@ -165,4 +207,4 @@ declare class CourseGradingClient {
     }>;
 }
 
-export { type Assignment, COURSE_GRADING_SECRET_KEY, CourseGradingClient, FetchHttpClient, type HttpClient, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, formatNotificationContent, formatRemainingTime, parseDeadline, parseHomeworkListHtml, parseProblemDetailHtml, parseProblemTestCases, parseSubmissionResultHtml };
+export { type Assignment, COURSE_GRADING_SECRET_KEY, CourseGradingClient, type CourseInfo, FetchHttpClient, type HttpClient, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, formatNotificationContent, formatRemainingTime, parseActiveAssignmentsHtml, parseAssignmentIndexHtml, parseCourseListHtml, parseDeadline, parseProblemDetailHtml, parseProblemTestCases, parseSubmissionResultHtml };

@@ -1,36 +1,48 @@
 import { CourseGradingClient } from '../core/client';
+import { parseActiveAssignmentsHtml } from '../core/parser';
 import { BrowserHttpClient, BrowserStorage } from './browser-adapter';
 import { mountNoDDLUI, renderUrgentBanner, setupTestCaseCopyButtons, setupCodeAutoSave } from './ui';
-import { PushConfig } from '../core/types';
+import { PushConfig, Assignment } from '../core/types';
 
 const storage = new BrowserStorage();
 const http = new BrowserHttpClient();
 const client = new CourseGradingClient({ baseUrl: window.location.origin }, http);
 
 async function initNoDDL() {
-  console.log('[NoDDL] 现代化交互界面已启动');
+  console.log('[NoDDL] 启动 CourseGrading 原生接口适配');
 
   // 1. 注入辅助功能：复制测试用例 & 代码自动暂存
   setupTestCaseCopyButtons();
   setupCodeAutoSave();
 
-  // 2. 读取配置并拉取未交作业
+  // 2. 读取配置
   const hoursThreshold = parseInt((await storage.get('nodd_hours_threshold')) || '72', 10);
-  let pendingList: any[] = [];
+  let pendingList: Assignment[] = [];
 
+  // 优先从当前页面 DOM 尝试提取活跃作业
   try {
-    pendingList = await client.getPendingAssignments(hoursThreshold);
+    const domAssigns = parseActiveAssignmentsHtml(document.body.innerHTML, '当前课程');
+    if (domAssigns.length > 0) {
+      pendingList = domAssigns;
+    }
+  } catch {}
+
+  // 调用真实接口 /assignment/mainActiveAssigns.jsp 与 /courselist.jsp
+  try {
+    const apiAssigns = await client.getPendingAssignments(hoursThreshold);
+    if (apiAssigns.length > 0) {
+      pendingList = apiAssigns;
+    }
   } catch (err) {
-    console.warn('[NoDDL] 拉取作业列表异常:', err);
+    console.warn('[NoDDL] 接口拉取作业列表异常:', err);
   }
 
   // 3. 挂载 Preact 现代控制面板 (Shadow DOM 隔离)
   mountNoDDLUI(client, storage, pendingList);
 
-  // 4. 若有作业，同时渲染顶部倒计时横幅与系统弹窗
+  // 4. 若有未交作业，渲染顶部倒计时横幅与系统弹窗
   if (pendingList.length > 0) {
     renderUrgentBanner(pendingList, () => {
-      // 点击横幅触发呼出控制面板
       const trigger = document
         .getElementById('nodd-shadow-root')
         ?.shadowRoot?.querySelector('.nodd-trigger') as HTMLElement | null;

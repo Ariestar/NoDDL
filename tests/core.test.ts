@@ -2,7 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { encryptPassword, decryptPassword } from '../src/core/crypto';
 import { calculateUrgency, formatRemainingTime, parseDeadline, formatNotificationContent } from '../src/core/ddl';
-import { parseHomeworkListHtml, parseProblemTestCases } from '../src/core/parser';
+import {
+  parseCourseListHtml,
+  parseActiveAssignmentsHtml,
+  parseAssignmentIndexHtml,
+  parseProblemTestCases
+} from '../src/core/parser';
 
 test('AES-ECB 密码加密与解密一致性', () => {
   const password = 'mypassword123';
@@ -24,29 +29,66 @@ test('DDL 紧急度计算与文本生成', () => {
   assert.strictEqual(formatRemainingTime(5), '剩余 5 小时');
 });
 
-test('作业 HTML 表格解析', () => {
+test('CourseGrading 课程列表解析 (/courselist.jsp)', () => {
   const sampleHtml = `
-    <table>
+    <ul>
+      <li><a href="courselist.jsp?courseID=1001"> 高等数学 </a></li>
+      <li><a href="courselist.jsp?courseID=2002"> 人工智能导论 </a></li>
+    </ul>
+  `;
+
+  const courses = parseCourseListHtml(sampleHtml);
+  assert.strictEqual(courses.length, 2);
+  assert.strictEqual(courses[0].id, '1001');
+  assert.strictEqual(courses[0].name, '高等数学');
+  assert.strictEqual(courses[1].id, '2002');
+  assert.strictEqual(courses[1].name, '人工智能导论');
+});
+
+test('CourseGrading 活跃作业列表解析 (/assignment/mainActiveAssigns.jsp)', () => {
+  const sampleHtml = `
+    <div class="main-zy">
+      <p class="main-title"><a href="/assignment/index.jsp?assignID=5001"> 实验三：CNN图像分类 </a></p>
+      <p class="main-time">截止时间：2026-10-10 23:59:00</p>
+    </div>
+  `;
+
+  const assignments = parseActiveAssignmentsHtml(sampleHtml, '计算机视觉', new Date('2026-10-08T12:00:00Z').getTime());
+  assert.strictEqual(assignments.length, 1);
+  assert.strictEqual(assignments[0].id, '5001');
+  assert.strictEqual(assignments[0].title, '实验三：CNN图像分类');
+  assert.strictEqual(assignments[0].courseName, '计算机视觉');
+  assert.strictEqual(assignments[0].status, 'pending');
+});
+
+test('CourseGrading 作业详情与题目列表解析 (/assignment/index.jsp)', () => {
+  const sampleHtml = `
+    <span>当前作业</span><b>实训二</b>
+    <p>截止时间：2026-10-10 23:59:00</p>
+    <table class="table table-striped">
+      <thead>
+        <tr><th>#</th><th>题目</th><th>分值</th><th>详细信息</th></tr>
+      </thead>
       <tr>
-        <td>机器学习与深度学习</td>
-        <td><a href="/pages/detail.jsp?id=hw_99">实验三：CNN模型训练</a></td>
-        <td>2026-10-09 23:59:00</td>
-        <td>未提交</td>
-        <td>100</td>
+        <th>1.</th>
+        <td><a href="/assignment/programList.jsp?proNum=1&assignID=1001"> 第一题：快速排序</a></td>
+        <td>100.00</td>
+        <td><a href="/assignment/judgeDetailsRedirect.jsp?assignID=1001&problemID=20001">详细</a></td>
       </tr>
     </table>
   `;
 
-  const parsed = parseHomeworkListHtml(sampleHtml, new Date('2026-10-08T12:00:00Z').getTime());
-  assert.strictEqual(parsed.length, 1);
-  assert.strictEqual(parsed[0].title, '实验三：CNN模型训练');
-  assert.strictEqual(parsed[0].courseName, '机器学习与深度学习');
-  assert.strictEqual(parsed[0].status, 'pending');
+  const detail = parseAssignmentIndexHtml(sampleHtml);
+  assert.strictEqual(detail.title, '实训二');
+  assert.strictEqual(detail.deadline, '2026-10-10 23:59:00');
+  assert.strictEqual(detail.problems.length, 1);
+  assert.strictEqual(detail.problems[0].title, '第一题：快速排序');
+  assert.strictEqual(detail.problems[0].score, 100);
 });
 
 test('测试用例提取', () => {
   const problemHtml = `
-    <div class="problem">
+    <div class="cgProblemContentClass">
       <h3>样例输入</h3>
       <pre>3 4\n1 2 3 4</pre>
       <h3>样例输出</h3>

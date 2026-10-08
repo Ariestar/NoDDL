@@ -6708,78 +6708,123 @@
       html: htmlLines.join("\n")
     };
   }
-  function parseHomeworkListHtml(html, nowMs = Date.now()) {
-    const results = [];
+  function parseCourseListHtml(html) {
+    const courses = [];
+    const seenIds = /* @__PURE__ */ new Set();
+    const linkRegex = /<a[^>]*href=["'][^"']*courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    let match;
+    while ((match = linkRegex.exec(html)) !== null) {
+      const id = match[1];
+      const name = match[2].replace(/<[^>]+>/g, "").trim();
+      if (id && name && !seenIds.has(id)) {
+        seenIds.add(id);
+        courses.push({ id, name });
+      }
+    }
+    const spanRegex = /<span[^>]*class=["'][^"']*dropdown-item-course[^"']*["'][^>]*value=["']([a-zA-Z0-9_-]+)["'][^>]*>([\s\S]*?)<\/span>/gi;
+    while ((match = spanRegex.exec(html)) !== null) {
+      const id = match[1];
+      const name = match[2].replace(/<[^>]+>/g, "").trim();
+      if (id && name && !seenIds.has(id)) {
+        seenIds.add(id);
+        courses.push({ id, name });
+      }
+    }
+    return courses;
+  }
+  function parseActiveAssignmentsHtml(html, courseName = "专业课程", nowMs = Date.now()) {
+    const assignments = [];
+    const seenIds = /* @__PURE__ */ new Set();
+    const blockRegex = /<div[^>]*class=["'][^"']*main-zy[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+    let blockMatch;
+    while ((blockMatch = blockRegex.exec(html)) !== null) {
+      const block = blockMatch[1];
+      const linkMatch = block.match(/href=["'][^"']*assignID=([a-zA-Z0-9_-]+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
+      if (!linkMatch) continue;
+      const id = linkMatch[1];
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      const title = linkMatch[2].replace(/<[^>]+>/g, "").trim() || `作业 ${id}`;
+      const dateMatch = block.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
+      const deadlineStr = dateMatch ? dateMatch[1] : "";
+      const { timestamp, remainingHours, remainingText } = deadlineStr ? parseDeadline(deadlineStr, nowMs) : { timestamp: 0, remainingHours: 9999, remainingText: "请查看详情" };
+      let status = "pending";
+      if (/已提交|评测中/i.test(block)) status = "submitted";
+      else if (/已打分|得分|满分/i.test(block)) status = "graded";
+      assignments.push({
+        id,
+        courseName,
+        title,
+        deadline: deadlineStr || "未标注明确截止时间",
+        deadlineTimestamp: timestamp,
+        remainingHours,
+        remainingText,
+        status,
+        urgency: calculateUrgency(remainingHours),
+        url: `/assignment/index.jsp?assignID=${id}`
+      });
+    }
+    if (assignments.length === 0) {
+      const directLinkRegex = /<a[^>]*href=["'][^"']*assignID=([a-zA-Z0-9_-]+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi;
+      let linkM;
+      while ((linkM = directLinkRegex.exec(html)) !== null) {
+        const id = linkM[1];
+        if (seenIds.has(id)) continue;
+        seenIds.add(id);
+        const title = linkM[2].replace(/<[^>]+>/g, "").trim();
+        if (!title || title.includes("详细") || title.includes("提交")) continue;
+        assignments.push({
+          id,
+          courseName,
+          title,
+          deadline: "请查看详情",
+          deadlineTimestamp: 0,
+          remainingHours: 9999,
+          remainingText: "待定",
+          status: "pending",
+          urgency: "normal",
+          url: `/assignment/index.jsp?assignID=${id}`
+        });
+      }
+    }
+    return assignments;
+  }
+  function parseAssignmentIndexHtml(html, nowMs = Date.now()) {
+    const dateMatch = html.match(/截止时间[：:\s]*(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/i) || html.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
+    const deadline = dateMatch ? dateMatch[1] : void 0;
+    const { timestamp, remainingHours, remainingText } = deadline ? parseDeadline(deadline, nowMs) : { timestamp: 0, remainingHours: 9999, remainingText: "未设截止时间" };
+    const titleMatch = html.match(/<b>([\s\S]*?)<\/b>/i) || html.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i);
+    const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : void 0;
+    const problems = [];
     const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
     let trMatch;
     while ((trMatch = trRegex.exec(html)) !== null) {
-      const rowHtml = trMatch[1];
-      if (/<th/i.test(rowHtml)) continue;
-      const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-      const tds = [];
-      let tdMatch;
-      while ((tdMatch = tdRegex.exec(rowHtml)) !== null) {
-        const text = tdMatch[1].replace(/<[^>]+>/g, "").trim();
-        tds.push(text);
-      }
-      if (tds.length >= 4) {
-        const idMatch = rowHtml.match(/id=([a-zA-Z0-9_-]+)/i);
-        const urlMatch = rowHtml.match(/href=["']([^"']+)["']/i);
-        const dateMatch = rowHtml.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
-        const deadlineStr = dateMatch ? dateMatch[1] : "";
-        let status = "pending";
-        if (/已评测|已打分|满分|得分/i.test(rowHtml)) {
-          status = "graded";
-        } else if (/已提交|评测中|重交/i.test(rowHtml)) {
-          status = "submitted";
-        } else if (/未交|未提交|未完成|进行中/i.test(rowHtml)) {
-          status = "pending";
-        }
-        if (deadlineStr) {
-          const { timestamp, remainingHours, remainingText } = parseDeadline(deadlineStr, nowMs);
-          const urgency = calculateUrgency(remainingHours);
-          const title = tds[1] || tds[0] || "未知作业";
-          const courseName = tds.length > 4 ? tds[0] : "专业课程";
-          results.push({
-            id: idMatch ? idMatch[1] : `hw_${results.length + 1}`,
-            courseName,
-            title,
-            deadline: deadlineStr,
-            deadlineTimestamp: timestamp,
-            remainingHours,
-            remainingText,
-            status,
-            urgency,
-            url: urlMatch ? urlMatch[1] : void 0
-          });
-        }
+      const row = trMatch[1];
+      if (/<th[^>]*>#<\/th>/i.test(row)) continue;
+      const proLinkMatch = row.match(/href=["'][^"']*programList\.jsp\?proNum=(\d+)&assignID=(\d+)["'][^>]*>([\s\S]*?)<\/a>/i);
+      const judgeLinkMatch = row.match(/problemID=(\d+)/i);
+      if (proLinkMatch) {
+        const index = parseInt(proLinkMatch[1], 10);
+        const proTitle = proLinkMatch[3].replace(/<[^>]+>/g, "").trim();
+        const problemId = judgeLinkMatch ? judgeLinkMatch[1] : `pro_${index}`;
+        const scoreMatch = row.match(/<td>\s*(\d+(?:\.\d+)?)\s*<\/td>/i);
+        const score = scoreMatch ? parseFloat(scoreMatch[1]) : void 0;
+        problems.push({
+          index,
+          id: problemId,
+          title: proTitle,
+          score
+        });
       }
     }
-    if (results.length === 0) {
-      const cardRegex = /class=["'][^"']*(?:homework|task|exp-item)[^"']*["'][^>]*>([\s\S]*?)(?=class=["'][^"']*(?:homework|task|exp-item)|$)/gi;
-      let cardMatch;
-      while ((cardMatch = cardRegex.exec(html)) !== null) {
-        const card = cardMatch[1];
-        const dateMatch = card.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
-        if (dateMatch) {
-          const titleMatch = card.match(/<h[345][^>]*>([^<]+)<\/h[345]>/i) || card.match(/title=["']([^"']+)["']/i);
-          const deadlineStr = dateMatch[1];
-          const { timestamp, remainingHours, remainingText } = parseDeadline(deadlineStr, nowMs);
-          results.push({
-            id: `card_${results.length + 1}`,
-            courseName: "人工智能专业课",
-            title: titleMatch ? titleMatch[1].trim() : "实训任务",
-            deadline: deadlineStr,
-            deadlineTimestamp: timestamp,
-            remainingHours,
-            remainingText,
-            status: /未提交|待完成/i.test(card) ? "pending" : "submitted",
-            urgency: calculateUrgency(remainingHours)
-          });
-        }
-      }
-    }
-    return results;
+    return {
+      title,
+      deadline,
+      deadlineTimestamp: timestamp,
+      remainingHours,
+      remainingText,
+      problems
+    };
   }
   function parseProblemTestCases(html) {
     const testCases = [];
@@ -6787,9 +6832,11 @@
     let match;
     let idx = 1;
     while ((match = sampleRegex.exec(html)) !== null) {
-      const input = cleanCodeBlock(match[1]);
-      const output = cleanCodeBlock(match[2]);
-      testCases.push({ index: idx++, input, output });
+      testCases.push({
+        index: idx++,
+        input: cleanCodeBlock(match[1]),
+        output: cleanCodeBlock(match[2])
+      });
     }
     if (testCases.length === 0) {
       const preRegex = /<pre[^>]*>([\s\S]*?)<\/pre>/gi;
@@ -6812,16 +6859,19 @@
     return raw.replace(/<br\s*\/?>/gi, "\n").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
   }
   function parseProblemDetailHtml(problemId, html) {
-    const titleMatch = html.match(/<h[123][^>]*>([\s\S]*?)<\/h[123]>/i);
-    const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : `题目 ${problemId}`;
+    const contentMatch = html.match(/<div[^>]*class=["'][^"']*cgProblemContentClass[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) || html.match(/<div[^>]*id=["']cgpreviewmarkdown["'][^>]*>([\s\S]*?)<\/div>/i);
+    const descHtml = contentMatch ? contentMatch[1] : html;
+    const descText = descHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const codeMatch = html.match(/<textarea[^>]*id=["']cgsoucecode["'][^>]*>([\s\S]*?)<\/textarea>/i);
+    const currentCode = codeMatch ? codeMatch[1].trim() : void 0;
     const testCases = parseProblemTestCases(html);
-    const plainText = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     return {
       id: problemId,
-      title,
-      descriptionHtml: html,
-      descriptionText: plainText,
-      testCases
+      title: `题目 ${problemId}`,
+      descriptionHtml: descHtml,
+      descriptionText: descText,
+      testCases,
+      currentCode
     };
   }
   function parseSubmissionResultHtml(html) {
@@ -6831,21 +6881,30 @@
     while ((trMatch = trRegex.exec(html)) !== null) {
       const row = trMatch[1];
       if (/<th/i.test(row)) continue;
-      let status = "Unknown";
-      if (/Accepted|正确|通过|AC/i.test(row)) status = "Accepted";
-      else if (/Wrong Answer|答案错误|WA/i.test(row)) status = "Wrong Answer";
-      else if (/Time Limit|超时|TLE/i.test(row)) status = "Time Limit Exceeded";
-      else if (/Memory Limit|超内存|MLE/i.test(row)) status = "Memory Limit Exceeded";
-      else if (/Compile Error|编译错误|CE/i.test(row)) status = "Compile Error";
-      else if (/Judging|Running|评测中/i.test(row)) status = "Judging";
-      const idMatch = row.match(/runid=([0-9]+)|submission[_-]?id=([0-9]+)/i);
-      const dateMatch = row.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
-      if (idMatch || dateMatch) {
+      const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+      const tds = [];
+      let tdMatch;
+      while ((tdMatch = tdRegex.exec(row)) !== null) {
+        tds.push(tdMatch[1].replace(/<[^>]+>/g, "").trim());
+      }
+      if (tds.length >= 6) {
+        const runId = tds[0];
+        const submitTime = tds[1];
+        const problemTitle = tds[3];
+        const rawStatus = tds[5];
+        let status = "Unknown";
+        if (/Accepted|正确|通过|AC/i.test(rawStatus)) status = "Accepted";
+        else if (/Wrong Answer|答案错误|WA/i.test(rawStatus)) status = "Wrong Answer";
+        else if (/Time Limit|超时|TLE/i.test(rawStatus)) status = "Time Limit Exceeded";
+        else if (/Memory Limit|超内存|MLE/i.test(rawStatus)) status = "Memory Limit Exceeded";
+        else if (/Compile Error|编译错误|CE/i.test(rawStatus)) status = "Compile Error";
+        else if (/Judging|Running|评测中|排队/i.test(rawStatus)) status = "Judging";
         results.push({
-          id: idMatch ? idMatch[1] || idMatch[2] : `sub_${results.length + 1}`,
-          problemId: "unknown",
+          id: runId,
+          problemId: problemTitle,
+          problemTitle,
           status,
-          submitTime: dateMatch ? dateMatch[1] : (/* @__PURE__ */ new Date()).toISOString()
+          submitTime
         });
       }
     }
@@ -6870,7 +6929,7 @@
       return this.sessionCookie ? { Cookie: this.sessionCookie } : {};
     }
     /**
-     * 登录平台（自动使用固定密钥加密密码）
+     * 登录一体化平台（自动加密密码）
      */
     async login(stid, plainPwd) {
       const encryptedPwd = encryptPassword(plainPwd);
@@ -6882,26 +6941,88 @@
       const responseText = await this.http.post(`${this.baseUrl}/login/loginproc.jsp`, body, {
         "Content-Type": "application/x-www-form-urlencoded"
       });
-      if (responseText.includes("密码错误") || responseText.includes("用户不存在")) {
+      if (responseText.includes("loginErr=1") || responseText.includes("密码错误")) {
         return { success: false, message: "账号或密码错误" };
+      }
+      if (responseText.includes("loginErr=6")) {
+        return { success: false, message: "需要输入验证码" };
       }
       return { success: true, message: "登录成功" };
     }
     /**
-     * 获取所有未提交且按截止时间升序排序的作业列表
+     * 获取当前学生加入的所有课程列表
+     * 接口: GET /courselist.jsp 或 /main.jsp
+     */
+    async getCourses() {
+      try {
+        const html = await this.http.get(`${this.baseUrl}/courselist.jsp`, this.getAuthHeaders());
+        let courses = parseCourseListHtml(html);
+        if (courses.length === 0) {
+          const mainHtml = await this.http.get(`${this.baseUrl}/main.jsp`, this.getAuthHeaders());
+          courses = parseCourseListHtml(mainHtml);
+        }
+        return courses;
+      } catch {
+        return [];
+      }
+    }
+    /**
+     * 切换当前激活课程上下文
+     * 接口: GET /courselist.jsp?courseID={id}
+     */
+    async enterCourse(courseId) {
+      await this.http.get(`${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`, this.getAuthHeaders());
+    }
+    /**
+     * 查询所有课程中当前未完成的作业与实训
+     * 接口: GET /assignment/mainActiveAssigns.jsp 及 /assignment/index.jsp
      */
     async getPendingAssignments(hoursThreshold = 72) {
-      const endpoints = [
-        `${this.baseUrl}/pages`,
-        `${this.baseUrl}/sv2/indexexp/index.jsp`,
-        `${this.baseUrl}/student/homework`
-      ];
       const allAssignments = [];
       const seenIds = /* @__PURE__ */ new Set();
-      for (const url of endpoints) {
+      const courses = await this.getCourses();
+      if (courses.length > 0) {
+        for (const course of courses) {
+          try {
+            await this.enterCourse(course.id);
+            const activeHtml = await this.http.get(
+              `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
+              this.getAuthHeaders()
+            );
+            const list = parseActiveAssignmentsHtml(activeHtml, course.name);
+            for (const item of list) {
+              if (!seenIds.has(item.id)) {
+                seenIds.add(item.id);
+                if (item.deadline === "未标注明确截止时间" || item.deadline === "请查看详情") {
+                  try {
+                    const detailHtml = await this.http.get(
+                      `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`,
+                      this.getAuthHeaders()
+                    );
+                    const detail = parseAssignmentIndexHtml(detailHtml);
+                    if (detail.deadline) {
+                      item.deadline = detail.deadline;
+                      item.deadlineTimestamp = detail.deadlineTimestamp;
+                      item.remainingHours = detail.remainingHours;
+                      item.remainingText = detail.remainingText;
+                    }
+                  } catch {
+                  }
+                }
+                allAssignments.push(item);
+              }
+            }
+          } catch {
+          }
+        }
+      } else {
         try {
-          const html = await this.http.get(url, this.getAuthHeaders());
-          for (const item of parseHomeworkListHtml(html)) {
+          const activeHtml = await this.http.get(
+            `${this.baseUrl}/assignment/mainActiveAssigns.jsp`,
+            this.getAuthHeaders()
+          );
+          const list = parseActiveAssignmentsHtml(activeHtml, "当前课程");
+          for (const item of list) {
             if (!seenIds.has(item.id)) {
               seenIds.add(item.id);
               allAssignments.push(item);
@@ -6914,22 +7035,24 @@
     }
     /**
      * 获取题目详情与测试用例
+     * 接口: GET /assignment/programList.jsp?proNum={proNum}&assignID={assignId}
      */
-    async getProblemDetail(problemId) {
-      const url = `${this.baseUrl}/pages/problem/detail.jsp?id=${encodeURIComponent(problemId)}`;
+    async getProblemDetail(assignId, proNum = 1) {
+      const url = `${this.baseUrl}/assignment/programList.jsp?proNum=${proNum}&assignID=${encodeURIComponent(assignId)}`;
       const html = await this.http.get(url, this.getAuthHeaders());
-      return parseProblemDetailHtml(problemId, html);
+      return parseProblemDetailHtml(`${assignId}_${proNum}`, html);
     }
     /**
      * 查询最新评测结果
+     * 接口: GET /acm/problemset_stat.jsp
      */
     async getLatestSubmissions() {
-      const url = `${this.baseUrl}/acm/index.jsp`;
+      const url = `${this.baseUrl}/acm/problemset_stat.jsp`;
       const html = await this.http.get(url, this.getAuthHeaders());
       return parseSubmissionResultHtml(html);
     }
     /**
-     * 触发死线告警推送（支持 PushPlus / Bark / Webhook）
+     * 触发死线告警推送
      */
     async triggerPushAlert(config) {
       const threshold = config.hoursThreshold ?? 48;
@@ -8293,15 +8416,25 @@ ${markdown}` }
   const http = new BrowserHttpClient();
   const client = new CourseGradingClient({ baseUrl: window.location.origin }, http);
   async function initNoDDL() {
-    console.log("[NoDDL] 现代化交互界面已启动");
+    console.log("[NoDDL] 启动 CourseGrading 原生接口适配");
     setupTestCaseCopyButtons();
     setupCodeAutoSave();
     const hoursThreshold = parseInt(await storage.get("nodd_hours_threshold") || "72", 10);
     let pendingList = [];
     try {
-      pendingList = await client.getPendingAssignments(hoursThreshold);
+      const domAssigns = parseActiveAssignmentsHtml(document.body.innerHTML, "当前课程");
+      if (domAssigns.length > 0) {
+        pendingList = domAssigns;
+      }
+    } catch {
+    }
+    try {
+      const apiAssigns = await client.getPendingAssignments(hoursThreshold);
+      if (apiAssigns.length > 0) {
+        pendingList = apiAssigns;
+      }
     } catch (err) {
-      console.warn("[NoDDL] 拉取作业列表异常:", err);
+      console.warn("[NoDDL] 接口拉取作业列表异常:", err);
     }
     mountNoDDLUI(client, storage, pendingList);
     if (pendingList.length > 0) {
