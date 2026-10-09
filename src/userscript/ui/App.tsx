@@ -20,6 +20,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'active' | 'overdue' | 'all'>('active');
+  const [sortMode, setSortMode] = useState<'deadline-asc' | 'deadline-desc' | 'course-asc' | 'course-desc'>('deadline-asc');
 
   // Push & Alert Config State
   const [pushplusToken, setPushplusToken] = useState('');
@@ -218,6 +219,19 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     return true;
   });
 
+  const sortedAssignments = [...filteredAssignments].sort((a, b) => {
+    const direction = sortMode.endsWith('desc') ? -1 : 1;
+    if (sortMode.startsWith('deadline')) {
+      const aUnknown = a.deadlineTimestamp <= 0;
+      const bUnknown = b.deadlineTimestamp <= 0;
+      if (aUnknown !== bUnknown) return aUnknown ? 1 : -1;
+      return (a.deadlineTimestamp - b.deadlineTimestamp) * direction;
+    }
+
+    const courseOrder = a.courseName.localeCompare(b.courseName, 'zh-CN');
+    return (courseOrder || a.title.localeCompare(b.title, 'zh-CN')) * direction;
+  });
+
   return (
     <div data-theme="nord" className="nodd-shell font-sans text-sm text-base-content">
       <button
@@ -327,6 +341,19 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                     全部 <span className="badge badge-sm">{assignments.length}</span>
                   </button>
                 </div>
+                <label className="flex items-center justify-between gap-3 text-xs text-base-content/60">
+                  <span>排序</span>
+                  <select
+                    className="select select-sm w-auto min-w-40"
+                    value={sortMode}
+                    onChange={(event) => setSortMode((event.currentTarget as HTMLSelectElement).value as typeof sortMode)}
+                  >
+                    <option value="deadline-asc">截止时间 · 近 → 远</option>
+                    <option value="deadline-desc">截止时间 · 远 → 近</option>
+                    <option value="course-asc">课程 · 正序</option>
+                    <option value="course-desc">课程 · 逆序</option>
+                  </select>
+                </label>
 
                 {loading ? (
                   <div className="card border border-dashed border-base-300 bg-base-100">
@@ -335,7 +362,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                       <p>正在同步作业数据...</p>
                     </div>
                   </div>
-                ) : filteredAssignments.length === 0 ? (
+                ) : sortedAssignments.length === 0 ? (
                   <div className="card border border-dashed border-base-300 bg-base-100">
                     <div className="card-body items-center gap-2 py-10 text-center">
                       <span className="text-3xl">🎉</span>
@@ -344,7 +371,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   </div>
                 ) : (
                   <div className="list w-full rounded-box border border-base-300 bg-base-100">
-                    {filteredAssignments.map((hw) => {
+                    {sortedAssignments.map((hw) => {
                       const badgeClass =
                         hw.remainingHours <= 0 || hw.urgency === 'critical'
                           ? 'badge-error'
