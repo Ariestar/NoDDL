@@ -39,6 +39,22 @@ export class CourseGradingClient {
     return this.sessionCookie ? { Cookie: this.sessionCookie } : {};
   }
 
+  private async fillAssignmentDeadline(item: Assignment, detailUrl: string): Promise<void> {
+    if (item.deadline !== '请查看详情' && item.deadlineTimestamp !== 0) return;
+    try {
+      const detail = parseAssignmentDetailHtml(
+        await this.http.get(detailUrl, this.getAuthHeaders())
+      );
+      if (detail.deadlineTimestamp > 0) {
+        item.deadline = detail.deadline!;
+        item.deadlineTimestamp = detail.deadlineTimestamp;
+        item.remainingHours = detail.remainingHours;
+        item.remainingText = detail.remainingText;
+        item.urgency = calculateUrgency(detail.remainingHours);
+      }
+    } catch {}
+  }
+
   /**
    * 登录平台（自动使用固定 AES 密钥加密）
    */
@@ -89,7 +105,7 @@ export class CourseGradingClient {
   /**
    * 只读读取当前活跃课程的作业列表（不篡改 Session 状态）
    */
-  async getPendingAssignments(hoursThreshold = 72): Promise<Assignment[]> {
+  async getPendingAssignments(): Promise<Assignment[]> {
     const allAssignments: Assignment[] = [];
     const seenIds = new Set<string>();
 
@@ -117,22 +133,10 @@ export class CourseGradingClient {
 
     // 补齐详情页精确截止时间（真实卡片作业时间）
     for (const item of allAssignments) {
-      if (item.deadline === '请查看详情' || item.deadlineTimestamp === 0) {
-        try {
-          const detailUrl = item.courseId
-            ? `${this.baseUrl}/assignment/index.jsp?courseID=${item.courseId}&assignID=${item.id}`
-            : `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`;
-          const detailHtml = await this.http.get(detailUrl, this.getAuthHeaders());
-          const detail = parseAssignmentDetailHtml(detailHtml);
-          if (detail.deadlineTimestamp > 0) {
-            item.deadline = detail.deadline!;
-            item.deadlineTimestamp = detail.deadlineTimestamp;
-            item.remainingHours = detail.remainingHours;
-            item.remainingText = detail.remainingText;
-            item.urgency = calculateUrgency(detail.remainingHours);
-          }
-        } catch {}
-      }
+      const detailUrl = item.courseId
+        ? `${this.baseUrl}/assignment/index.jsp?courseID=${item.courseId}&assignID=${item.id}`
+        : `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`;
+      await this.fillAssignmentDeadline(item, detailUrl);
 
       if (this.db) {
         await this.db.upsertAssignment(item);
@@ -181,22 +185,10 @@ export class CourseGradingClient {
           item.courseName = c.name;
           item.url = `/assignment/index.jsp?courseID=${c.id}&assignID=${item.id}`;
 
-          if (item.deadlineTimestamp === 0) {
-            try {
-              const detailHtml = await this.http.get(
-                `${this.baseUrl}/assignment/index.jsp?courseID=${c.id}&assignID=${item.id}`,
-                this.getAuthHeaders()
-              );
-              const detail = parseAssignmentDetailHtml(detailHtml);
-              if (detail.deadlineTimestamp > 0) {
-                item.deadline = detail.deadline!;
-                item.deadlineTimestamp = detail.deadlineTimestamp;
-                item.remainingHours = detail.remainingHours;
-                item.remainingText = detail.remainingText;
-                item.urgency = calculateUrgency(detail.remainingHours);
-              }
-            } catch {}
-          }
+          await this.fillAssignmentDeadline(
+            item,
+            `${this.baseUrl}/assignment/index.jsp?courseID=${c.id}&assignID=${item.id}`
+          );
 
           if (this.db) {
             await this.db.upsertAssignment(item);
@@ -239,7 +231,7 @@ export class CourseGradingClient {
    */
   async triggerPushAlert(config: PushConfig): Promise<{ sent: boolean; count: number; error?: string }> {
     const threshold = config.hoursThreshold ?? 48;
-    const allPending = this.db ? await this.db.getAllAssignments() : await this.getPendingAssignments(threshold);
+    const allPending = this.db ? await this.db.getAllAssignments() : await this.getPendingAssignments();
 
     const activeUrgent = allPending.filter(a => a.remainingHours > 0 && a.remainingHours <= threshold);
     if (activeUrgent.length === 0) {

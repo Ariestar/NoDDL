@@ -3,7 +3,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { Assignment, HttpClient, SubmissionResult } from '../../core/types';
 import { CourseGradingClient } from '../../core/client';
 import { BrowserStorage } from '../browser-adapter';
-import { createDeadlineCalendar } from './calendar';
+import { createDeadlineCalendar } from '../../core/calendar';
 import { EMAIL_API_BASE_URL, callEmailApi } from '../email-api';
 import petImage from './assets/nodd-pet.png';
 

@@ -1,5 +1,5 @@
-import { CalendarServiceError, publishCalendarFeed } from '../../src/server/calendar.js';
-import { ApiRequest, clientIp, handleOptions, requestBody, sendJson } from '../../src/server/http.js';
+import { publishCalendarFeed } from '../../src/server/calendar.js';
+import { ApiRequest, clientIp, handleOptions, requestBody, sendApiError, sendJson } from '../../src/server/http.js';
 import type { ServerResponse } from 'node:http';
 
 export default async function handler(request: ApiRequest, response: ServerResponse): Promise<void> {
@@ -10,8 +10,6 @@ export default async function handler(request: ApiRequest, response: ServerRespo
     const result = await publishCalendarFeed(clientIp(request), requestBody(request));
     sendJson(response, 200, result);
   } catch (error) {
-    const status = error instanceof CalendarServiceError ? error.status : 500;
-    if (status === 500) console.error('Calendar publish failed', error);
-    sendJson(response, status, { error: status === 500 ? '日历服务暂时不可用' : (error as Error).message });
+    sendApiError(response, error, 'Calendar publish failed', '日历服务暂时不可用');
   }
 }

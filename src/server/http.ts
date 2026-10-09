@@ -24,6 +24,19 @@ export function sendJson(response: ServerResponse, status: number, payload: unkn
   response.end(JSON.stringify(payload));
 }
 
+export function sendApiError(
+  response: ServerResponse,
+  error: unknown,
+  context: string,
+  fallbackMessage: string
+): void {
+  const status = typeof error === 'object' && error !== null && 'status' in error && typeof error.status === 'number'
+    ? error.status
+    : 500;
+  if (status === 500) console.error(context, error);
+  sendJson(response, status, { error: status === 500 ? fallbackMessage : error instanceof Error ? error.message : String(error) });
+}
+
 export function requestBody(request: ApiRequest): Record<string, unknown> {
   const value = request.body;
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid JSON body');

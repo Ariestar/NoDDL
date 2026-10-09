@@ -16,7 +16,7 @@ async function main() {
   switch (command) {
     case 'list': {
       const threshold = parseInt(getArg('--threshold') || '72', 10);
-      const list = await client.getPendingAssignments(threshold);
+      const list = await client.getPendingAssignments();
       console.log(JSON.stringify({ total: list.length, assignments: list }, null, 2));
       break;
     }

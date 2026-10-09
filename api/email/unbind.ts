@@ -1,5 +1,5 @@
-import { EmailServiceError, unbindEmail } from '../../src/server/email.js';
-import { ApiRequest, bearerToken, handleOptions, sendJson } from '../../src/server/http.js';
+import { unbindEmail } from '../../src/server/email.js';
+import { ApiRequest, bearerToken, handleOptions, sendApiError, sendJson } from '../../src/server/http.js';
 import type { ServerResponse } from 'node:http';
 
 export default async function handler(request: ApiRequest, response: ServerResponse): Promise<void> {
@@ -13,8 +13,6 @@ export default async function handler(request: ApiRequest, response: ServerRespo
     await unbindEmail(token);
     sendJson(response, 200, { unbound: true });
   } catch (error) {
-    const status = error instanceof EmailServiceError ? error.status : 500;
-    if (status === 500) console.error('Email unbind failed', error);
-    sendJson(response, status, { error: status === 500 ? '邮件服务暂时不可用' : (error as Error).message });
+    sendApiError(response, error, 'Email unbind failed', '邮件服务暂时不可用');
   }
 }

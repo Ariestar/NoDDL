@@ -66,7 +66,6 @@ export interface PushConfig {
 export interface PlatformConfig {
   baseUrl?: string;
   sessionCookie?: string;
-  push?: PushConfig;
 }
 
 export interface HttpClient {

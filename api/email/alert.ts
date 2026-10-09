@@ -1,5 +1,5 @@
-import { EmailServiceError, sendEmailAlert } from '../../src/server/email.js';
-import { ApiRequest, bearerToken, handleOptions, requestBody, sendJson } from '../../src/server/http.js';
+import { sendEmailAlert } from '../../src/server/email.js';
+import { ApiRequest, bearerToken, handleOptions, requestBody, sendApiError, sendJson } from '../../src/server/http.js';
 import type { ServerResponse } from 'node:http';
 
 export default async function handler(request: ApiRequest, response: ServerResponse): Promise<void> {
@@ -13,8 +13,6 @@ export default async function handler(request: ApiRequest, response: ServerRespo
     const result = await sendEmailAlert(token, requestBody(request));
     sendJson(response, 200, result);
   } catch (error) {
-    const status = error instanceof EmailServiceError ? error.status : 500;
-    if (status === 500) console.error('Email alert failed', error);
-    sendJson(response, status, { error: status === 500 ? '邮件服务暂时不可用' : (error as Error).message });
+    sendApiError(response, error, 'Email alert failed', '邮件服务暂时不可用');
   }
 }
