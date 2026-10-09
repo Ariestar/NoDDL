@@ -12,10 +12,16 @@
 
 .nodd-shell {
   color: var(--color-base-content);
+  --color-base-100: #ffffff;
+  --color-base-200: #f8fafc;
+  --color-base-300: #e2e8f0;
+  background: transparent;
 }
 
 .nodd-launcher {
-  position: relative;
+  position: fixed !important;
+  right: 20px !important;
+  bottom: 20px !important;
   display: grid;
   width: 72px;
   height: 72px;
@@ -73,6 +79,10 @@
 }
 
 .nodd-panel {
+  position: fixed !important;
+  right: 20px !important;
+  width: min(460px, calc(100vw - 40px)) !important;
+  background: #ffffff !important;
   animation: nodd-rise .2s ease-out;
 }
 
@@ -109,14 +119,14 @@
 
 @media (max-width: 520px) {
   .nodd-panel {
-    right: 10px;
-    bottom: 82px;
-    width: calc(100vw - 20px);
+    right: 12px !important;
+    bottom: 82px !important;
+    width: calc(100% - 24px) !important;
   }
 
   .nodd-launcher {
-    right: 12px;
-    bottom: 12px;
+    right: 12px !important;
+    bottom: 12px !important;
   }
 }
 
