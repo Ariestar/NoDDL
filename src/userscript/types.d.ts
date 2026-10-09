@@ -6,6 +6,11 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
+declare module '*.css?inline' {
+  const styles: string;
+  export default styles;
+}
+
 declare function GM_xmlhttpRequest(details: {
   method: string;
   url: string;

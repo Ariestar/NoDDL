@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import monkey from 'vite-plugin-monkey';
 import preact from '@preact/preset-vite';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -11,6 +12,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       preact(),
+      tailwindcss(),
       monkey({
         entry: 'src/userscript/index.ts',
         userscript: {

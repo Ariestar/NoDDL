@@ -1,6 +1,6 @@
 import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
-import { Assignment, HttpClient, PushConfig, SubmissionResult } from '../../core/types';
+import { Assignment, HttpClient, SubmissionResult } from '../../core/types';
 import { CourseGradingClient } from '../../core/client';
 import { BrowserStorage } from '../browser-adapter';
 import { createDeadlineCalendar } from './calendar';
@@ -232,38 +232,49 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   });
 
   return (
-    <div>
-      {/* 悬浮球 Trigger */}
-      <div className="nodd-trigger" onClick={() => setIsOpen(!isOpen)}>
-        <span className="logo-badge">NoDDL</span>
-        {urgentCount > 0 ? (
-          <span className="counter">{urgentCount}</span>
-        ) : activeCount > 0 ? (
-          <span className="counter" style="background:#3b82f6;">{activeCount}</span>
-        ) : null}
-      </div>
+    <div data-theme="corporate" className="font-sans text-sm text-base-content">
+      <button
+        type="button"
+        className="btn btn-primary btn-lg fixed bottom-6 right-6 z-[999999] gap-2 rounded-full shadow-lg"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="font-bold tracking-wide">NoDDL</span>
+        {(urgentCount > 0 || activeCount > 0) && (
+          <span className={`badge badge-sm ${urgentCount > 0 ? 'badge-error' : 'badge-neutral'}`}>
+            {urgentCount || activeCount}
+          </span>
+        )}
+      </button>
 
-      {/* 主控制面板 */}
       {isOpen && (
-        <div className="nodd-panel-wrapper">
-          {toast && <div className="nodd-toast">{toast}</div>}
-
-          {/* 头部 */}
-          <div className="nodd-header">
-            <div className="nodd-header-title">
-              <span>🚀 NoDDL 控制台</span>
+        <section className="fixed bottom-20 right-6 z-[999999] flex h-[min(600px,calc(100vh-7rem))] max-h-[640px] w-[min(440px,calc(100vw-2rem))] flex-col overflow-hidden rounded-box border border-base-300 bg-base-100 text-base-content shadow-2xl">
+          {toast && (
+            <div className="absolute left-1/2 top-3 z-20 w-max max-w-[90%] -translate-x-1/2">
+              <div className="alert alert-info px-4 py-2 text-sm shadow-lg">{toast}</div>
             </div>
-            <div className="nodd-header-actions">
+          )}
+
+          <header className="navbar min-h-0 gap-2 border-b border-base-300 bg-base-100 px-4 py-2">
+            <div className="flex-1">
+              <div>
+                <h1 className="font-bold leading-tight">NoDDL 控制台</h1>
+                <p className="text-xs text-base-content/60">课程作业助手</p>
+              </div>
+            </div>
+            <div className="flex-none flex items-center gap-1">
               <button
-                className="btn btn-sm btn-secondary"
-                style="font-size:11px;padding:3px 8px;font-weight:600;"
+                type="button"
+                className="btn btn-outline btn-primary btn-sm whitespace-nowrap"
                 title="全量扫描并同步所有课程作业"
                 onClick={syncAllCourses}
               >
-                🌐 同步全部课程
+                🌐 同步全部
               </button>
               <button
-                className="icon-btn"
+                type="button"
+                className="btn btn-ghost btn-sm"
+                aria-label="刷新数据"
                 title="刷新数据"
                 onClick={() => {
                   if (activeTab === 'homework') refreshAssignments();
@@ -272,109 +283,131 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
               >
                 🔄
               </button>
-              <button className="icon-btn" title="关闭面板" onClick={() => setIsOpen(false)}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                aria-label="关闭面板"
+                title="关闭面板"
+                onClick={() => setIsOpen(false)}
+              >
                 ✕
               </button>
             </div>
-          </div>
+          </header>
 
-          {/* 选项卡导航 */}
-          <div className="nodd-tabs">
-            <div
-              className={`nodd-tab-item ${activeTab === 'homework' ? 'active' : ''}`}
+          <div role="tablist" className="tabs tabs-border mx-3 mt-2 grid grid-cols-3">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'homework'}
+              className={`tab ${activeTab === 'homework' ? 'tab-active' : ''}`}
               onClick={() => setActiveTab('homework')}
             >
-              📋 DDL 看板 ({assignments.length})
-            </div>
-            <div
-              className={`nodd-tab-item ${activeTab === 'settings' ? 'active' : ''}`}
+              作业 ({assignments.length})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'settings'}
+              className={`tab ${activeTab === 'settings' ? 'tab-active' : ''}`}
               onClick={() => setActiveTab('settings')}
             >
-              ⚙️ 推送与提醒
-            </div>
-            <div
-              className={`nodd-tab-item ${activeTab === 'eval' ? 'active' : ''}`}
+              推送与提醒
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'eval'}
+              className={`tab ${activeTab === 'eval' ? 'tab-active' : ''}`}
               onClick={() => {
                 setActiveTab('eval');
                 refreshSubmissions();
               }}
             >
-              📊 评测状态
-            </div>
+              评测状态
+            </button>
           </div>
 
-          {/* 内容区 */}
-          <div className="nodd-content">
-            {/* Tab 1: DDL 看板 */}
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {activeTab === 'homework' && (
-              <div>
-                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+              <div className="space-y-3">
+                <div className="join w-full">
                   <button
-                    className={`btn btn-sm ${filter === 'active' ? 'btn-primary' : 'btn-secondary'}`}
+                    type="button"
+                    className={`btn btn-sm join-item flex-1 ${filter === 'active' ? 'btn-primary' : 'btn-ghost'}`}
                     onClick={() => setFilter('active')}
                   >
-                    进行中 ({activeCount})
+                    进行中 <span className="badge badge-sm">{activeCount}</span>
                   </button>
                   <button
-                    className={`btn btn-sm ${filter === 'overdue' ? 'btn-primary' : 'btn-secondary'}`}
+                    type="button"
+                    className={`btn btn-sm join-item flex-1 ${filter === 'overdue' ? 'btn-primary' : 'btn-ghost'}`}
                     onClick={() => setFilter('overdue')}
                   >
-                    已超期 ({overdueCount})
+                    已超期 <span className="badge badge-sm">{overdueCount}</span>
                   </button>
                   <button
-                    className={`btn btn-sm ${filter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                    type="button"
+                    className={`btn btn-sm join-item flex-1 ${filter === 'all' ? 'btn-primary' : 'btn-ghost'}`}
                     onClick={() => setFilter('all')}
                   >
-                    全部 ({assignments.length})
+                    全部 <span className="badge badge-sm">{assignments.length}</span>
                   </button>
                 </div>
 
                 {loading ? (
-                  <div className="empty-state">正在同步作业数据...</div>
+                  <div className="card bg-base-200">
+                    <div className="card-body items-center gap-3 py-10 text-center">
+                      <span className="loading loading-spinner loading-md text-primary" />
+                      <p>正在同步作业数据...</p>
+                    </div>
+                  </div>
                 ) : filteredAssignments.length === 0 ? (
-                  <div className="empty-state">
-                    <span style="font-size:24px;">🎉</span>
-                    <span>当前分类下没有作业</span>
+                  <div className="card bg-base-200">
+                    <div className="card-body items-center gap-2 py-10 text-center">
+                      <span className="text-3xl">🎉</span>
+                      <p className="text-base-content/70">当前分类下没有作业</p>
+                    </div>
                   </div>
                 ) : (
-                  <div style="display:flex;flex-direction:column;gap:8px;">
+                  <div className="space-y-3">
                     {filteredAssignments.map((hw) => {
                       const badgeClass =
-                        hw.remainingHours <= 0
-                          ? 'badge-critical'
-                          : hw.urgency === 'critical'
-                          ? 'badge-critical'
+                        hw.remainingHours <= 0 || hw.urgency === 'critical'
+                          ? 'badge-error'
                           : hw.urgency === 'urgent'
-                          ? 'badge-urgent'
-                          : hw.urgency === 'warning'
                           ? 'badge-warning'
-                          : 'badge-normal';
+                          : hw.urgency === 'warning'
+                          ? 'badge-info'
+                          : 'badge-success';
 
                       return (
-                        <div className="nodd-card" key={hw.id}>
-                          <div className="card-header">
-                            <div>
-                              <div className="card-title">{hw.title}</div>
-                              <div className="card-course">{hw.courseName}</div>
+                        <article className="card border border-base-300 bg-base-100 shadow-sm" key={hw.id}>
+                          <div className="card-body gap-3 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <h2 className="break-words font-semibold leading-snug">{hw.title}</h2>
+                                <p className="mt-1 text-sm text-base-content/60">{hw.courseName}</p>
+                              </div>
+                              <span className={`badge badge-sm whitespace-nowrap ${badgeClass}`}>
+                                {hw.remainingText}
+                              </span>
                             </div>
-                            <span className={`badge ${badgeClass}`}>{hw.remainingText}</span>
+                            <div className="flex items-center justify-between gap-2 border-t border-base-200 pt-2">
+                              <span className="text-xs text-base-content/60">截止 {hw.deadline}</span>
+                              {hw.url && (
+                                <a
+                                  href={hw.url.startsWith('http') ? hw.url : `${window.location.origin}${hw.url.startsWith('/') ? '' : '/'}${hw.url}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="link link-primary whitespace-nowrap text-sm font-medium"
+                                >
+                                  前往作答 →
+                                </a>
+                              )}
+                            </div>
                           </div>
-                          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
-                            <span style="font-size:12px;color:var(--text-sub);">
-                              DDL: {hw.deadline}
-                            </span>
-                            {hw.url && (
-                              <a
-                                href={hw.url.startsWith('http') ? hw.url : `${window.location.origin}${hw.url.startsWith('/') ? '' : '/'}${hw.url}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style="font-size:12px;color:var(--primary);text-decoration:none;font-weight:600;"
-                              >
-                                前往作答 →
-                              </a>
-                            )}
-                          </div>
-                        </div>
+                        </article>
                       );
                     })}
                   </div>
@@ -382,165 +415,189 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
               </div>
             )}
 
-            {/* Tab 2: 消息与短信提醒配置 */}
             {activeTab === 'settings' && (
-              <div style="display:flex;flex-direction:column;gap:14px;">
-                {EMAIL_API_BASE_URL && <div className="form-group">
-                  <label className="form-label">邮件提醒</label>
-                  {emailToken ? (
-                    <>
-                      <div style="font-size:12px;color:var(--text-sub);">已绑定 {emailAddress}</div>
-                      <div style="display:flex;gap:8px;">
-                        <button className="btn btn-secondary" style="flex:1;" disabled={emailBusy} onClick={testEmail}>
-                          测试邮件
-                        </button>
-                        <button className="btn btn-secondary" disabled={emailBusy} onClick={unbindEmail}>
-                          解绑
-                        </button>
+              <div className="space-y-3">
+                {EMAIL_API_BASE_URL && (
+                  <section className="card border border-base-300 bg-base-100 shadow-sm">
+                    <div className="card-body gap-3 p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <h2 className="card-title text-base">邮件提醒</h2>
+                        {emailToken && <span className="badge badge-success">已绑定</span>}
                       </div>
-                    </>
-                  ) : (
-                    <>
+                      {emailToken ? (
+                        <>
+                          <p className="break-all text-sm text-base-content/70">{emailAddress}</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button className="btn btn-primary btn-sm" disabled={emailBusy} onClick={testEmail}>
+                              测试邮件
+                            </button>
+                            <button className="btn btn-outline btn-error btn-sm" disabled={emailBusy} onClick={unbindEmail}>
+                              解绑
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <label className="grid gap-1.5 text-sm">
+                            <span className="font-medium text-base-content/70">邮箱地址</span>
+                            <input
+                              type="email"
+                              className="input w-full"
+                              placeholder="name@example.com"
+                              value={emailAddress}
+                              disabled={emailBusy}
+                              onInput={(e) => setEmailAddress((e.target as HTMLInputElement).value)}
+                            />
+                          </label>
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-2">
+                            <label className="grid min-w-0 gap-1.5 text-sm">
+                              <span className="font-medium text-base-content/70">验证码</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                className="input w-full"
+                                placeholder="6 位验证码"
+                                value={emailCode}
+                                disabled={emailBusy}
+                                onInput={(e) => setEmailCode((e.target as HTMLInputElement).value)}
+                              />
+                            </label>
+                            <button className="btn btn-outline btn-primary btn-sm" disabled={emailBusy} onClick={requestEmailCode}>
+                              获取验证码
+                            </button>
+                            <button className="btn btn-primary btn-sm" disabled={emailBusy} onClick={verifyEmail}>
+                              绑定
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </section>
+                )}
+
+                <section className="card border border-base-300 bg-base-100 shadow-sm">
+                  <div className="card-body p-4">
+                    <label className="grid gap-1.5 text-sm">
+                      <span className="font-medium text-base-content/70">微信推送 · PushPlus</span>
                       <input
-                        type="email"
-                        className="form-input"
-                        placeholder="邮箱地址"
-                        value={emailAddress}
-                        disabled={emailBusy}
-                        onInput={(e) => setEmailAddress((e.target as HTMLInputElement).value)}
+                        type="text"
+                        className="input w-full"
+                        placeholder="PushPlus Token"
+                        value={pushplusToken}
+                        onInput={(e) => setPushplusToken((e.target as HTMLInputElement).value)}
                       />
-                      <div style="display:flex;gap:8px;">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          className="form-input"
-                          placeholder="邮箱验证码"
-                          value={emailCode}
-                          disabled={emailBusy}
-                          onInput={(e) => setEmailCode((e.target as HTMLInputElement).value)}
-                        />
-                        <button className="btn btn-secondary" disabled={emailBusy} onClick={requestEmailCode}>
-                          获取验证码
-                        </button>
-                        <button className="btn btn-primary" disabled={emailBusy} onClick={verifyEmail}>
-                          绑定
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>}
+                    </label>
+                  </div>
+                </section>
 
-                {/* 1. PushPlus 微信推送 */}
-                <div className="form-group">
-                  <label className="form-label">微信推送 (PushPlus)</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="PushPlus Token"
-                    value={pushplusToken}
-                    onInput={(e) => setPushplusToken((e.target as HTMLInputElement).value)}
-                  />
-                </div>
-
-                {/* 2. 短信提醒 (SMS) */}
-                <details className="form-group">
-                  <summary className="form-label" style="cursor:pointer;">短信网关 (高级，可选)</summary>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="接收短信的手机号"
-                    value={smsPhone}
-                    onInput={(e) => setSmsPhone((e.target as HTMLInputElement).value)}
-                  />
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="短信网关 Webhook 地址"
-                    value={smsWebhookUrl}
-                    onInput={(e) => setSmsWebhookUrl((e.target as HTMLInputElement).value)}
-                  />
+                <details className="collapse collapse-arrow border border-base-300 bg-base-100">
+                  <summary className="collapse-title min-h-0 px-4 py-3 font-medium">短信网关</summary>
+                  <div className="collapse-content space-y-3">
+                    <label className="grid gap-1.5 text-sm">
+                      <span className="font-medium text-base-content/70">接收手机号</span>
+                      <input
+                        type="text"
+                        className="input w-full"
+                        placeholder="手机号"
+                        value={smsPhone}
+                        onInput={(e) => setSmsPhone((e.target as HTMLInputElement).value)}
+                      />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                      <span className="font-medium text-base-content/70">Webhook 地址</span>
+                      <input
+                        type="text"
+                        className="input w-full"
+                        placeholder="短信网关 Webhook 地址"
+                        value={smsWebhookUrl}
+                        onInput={(e) => setSmsWebhookUrl((e.target as HTMLInputElement).value)}
+                      />
+                    </label>
+                  </div>
                 </details>
 
-                {/* 3. Bark 苹果设备推送 */}
-                <div className="form-group">
-                  <label className="form-label">苹果设备推送 (Bark)</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Bark 推送 URL"
-                    value={barkUrl}
-                    onInput={(e) => setBarkUrl((e.target as HTMLInputElement).value)}
-                  />
-                </div>
+                <section className="card border border-base-300 bg-base-100 shadow-sm">
+                  <div className="card-body p-4">
+                    <label className="grid gap-1.5 text-sm">
+                      <span className="font-medium text-base-content/70">苹果设备推送 · Bark</span>
+                      <input
+                        type="text"
+                        className="input w-full"
+                        placeholder="Bark 推送 URL"
+                        value={barkUrl}
+                        onInput={(e) => setBarkUrl((e.target as HTMLInputElement).value)}
+                      />
+                    </label>
+                  </div>
+                </section>
 
-                {/* 4. 提醒时间提前量 */}
-                <div className="form-group">
-                  <label className="form-label">DDL 提醒提前量</label>
-                  <select
-                    className="form-input"
-                    value={threshold}
-                    onChange={(e) => setThreshold(parseInt((e.target as HTMLSelectElement).value, 10))}
-                  >
-                    <option value={24}>截止前 24 小时以内 (极紧急)</option>
-                    <option value={48}>截止前 48 小时以内 (2天)</option>
-                    <option value={72}>截止前 72 小时以内 (3天)</option>
-                    <option value={168}>截止前 168 小时以内 (1周)</option>
-                  </select>
-                </div>
+                <section className="card border border-base-300 bg-base-100 shadow-sm">
+                  <div className="card-body p-4">
+                    <label className="grid gap-1.5 text-sm">
+                      <span className="font-medium text-base-content/70">提前提醒</span>
+                      <select
+                        className="select w-full"
+                        value={threshold}
+                        onChange={(e) => setThreshold(parseInt((e.target as HTMLSelectElement).value, 10))}
+                      >
+                        <option value={24}>24 小时以内</option>
+                        <option value={48}>48 小时以内</option>
+                        <option value={72}>72 小时以内</option>
+                        <option value={168}>1 周以内</option>
+                      </select>
+                    </label>
+                  </div>
+                </section>
 
-                <button className="btn btn-secondary" style="width:100%;" onClick={exportCalendar}>
+                <button className="btn btn-outline btn-primary w-full" onClick={exportCalendar}>
                   📅 导出日历 (.ics)
                 </button>
 
-                <div style="display:flex;gap:8px;margin-top:8px;">
-                  <button className="btn btn-primary" style="flex:1;" onClick={savePushConfig}>
-                    💾 保存配置
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button className="btn btn-primary" onClick={savePushConfig}>
+                    保存配置
                   </button>
-                  <button className="btn btn-secondary" onClick={testPush}>
-                    🔔 发送测试提醒
+                  <button className="btn btn-outline btn-primary" onClick={testPush}>
+                    发送测试提醒
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Tab 4: 评测状态 */}
             {activeTab === 'eval' && (
-              <div>
+              <div className="space-y-3">
                 {evalLoading ? (
-                  <div className="empty-state">正在查询最新评测结果...</div>
+                  <div className="card bg-base-200">
+                    <div className="card-body items-center gap-3 py-10 text-center">
+                      <span className="loading loading-spinner loading-md text-primary" />
+                      <p>正在查询最新评测结果...</p>
+                    </div>
+                  </div>
                 ) : submissions.length === 0 ? (
-                  <div className="empty-state">
-                    <span>暂无评测记录或页面未开放评测列表</span>
+                  <div className="card bg-base-200">
+                    <div className="card-body items-center py-10 text-center text-base-content/70">
+                      暂无评测记录或页面未开放评测列表
+                    </div>
                   </div>
                 ) : (
-                  <div style="display:flex;flex-direction:column;gap:8px;">
-                    {submissions.map((sub) => (
-                      <div className="nodd-card" key={sub.id}>
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                          <span style="font-weight:600;font-size:13px;">提交 #{sub.id}</span>
-                          <span
-                            className={`badge ${
-                              sub.status === 'Accepted'
-                                ? 'badge-normal'
-                                : sub.status === 'Judging'
-                                ? 'badge-warning'
-                                : 'badge-critical'
-                            }`}
-                          >
+                  submissions.map((sub) => (
+                    <article className="card border border-base-300 bg-base-100 shadow-sm" key={sub.id}>
+                      <div className="card-body gap-2 p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold">提交 #{sub.id}</span>
+                          <span className={`badge ${sub.status === 'Accepted' ? 'badge-success' : sub.status === 'Judging' ? 'badge-warning' : 'badge-error'}`}>
                             {sub.status}
                           </span>
                         </div>
-                        <div style="font-size:12px;color:var(--text-sub);">
-                          提交时间：{sub.submitTime}
-                        </div>
+                        <p className="text-xs text-base-content/60">提交时间：{sub.submitTime}</p>
                       </div>
-                    ))}
-                  </div>
+                    </article>
+                  ))
                 )}
               </div>
             )}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

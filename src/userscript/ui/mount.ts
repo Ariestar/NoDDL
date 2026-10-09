@@ -1,6 +1,6 @@
 import { render, h } from 'preact';
 import { App } from './App';
-import { PANEL_STYLES } from './styles';
+import PANEL_STYLES from './panel.css?inline';
 import { CourseGradingClient } from '../../core/client';
 import { BrowserStorage } from '../browser-adapter';
 import { Assignment, HttpClient } from '../../core/types';
