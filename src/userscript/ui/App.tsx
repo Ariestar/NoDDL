@@ -5,6 +5,7 @@ import { CourseGradingClient } from '../../core/client';
 import { BrowserStorage } from '../browser-adapter';
 import { createDeadlineCalendar } from './calendar';
 import { EMAIL_API_BASE_URL, callEmailApi } from '../email-api';
+import petImage from './assets/nodd-pet.png';
 
 interface AppProps {
   client: CourseGradingClient;
@@ -61,20 +62,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       setThreshold(th);
     })();
   }, []);
-
-  // 刷新当前课程作业
-  const refreshAssignments = async () => {
-    setLoading(true);
-    try {
-      const list = await client.getPendingAssignments(threshold);
-      setAssignments(list);
-      showToast(`已刷新：发现 ${list.length} 项作业`);
-    } catch {
-      showToast('获取作业列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // 一键全量同步所有课程（带安全 Session 恢复）
   const syncAllCourses = async () => {
@@ -232,60 +219,55 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   });
 
   return (
-    <div data-theme="corporate" className="font-sans text-sm text-base-content">
+    <div data-theme="corporate" className="nodd-shell font-sans text-sm text-base-content">
       <button
         type="button"
-        className="btn btn-primary btn-lg fixed bottom-6 right-6 z-[999999] gap-2 rounded-full shadow-lg"
+        className="nodd-launcher fixed bottom-5 right-5 z-[999999]"
         aria-expanded={isOpen}
+        aria-label="打开 NoDDL 桌宠面板"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className="font-bold tracking-wide">NoDDL</span>
+        <span className="nodd-launcher-aura" />
+        <img src={petImage} alt="NoDDL 桌宠" />
+        <span className="nodd-launcher-copy">
+          <strong>NoDDL</strong>
+          <small>{urgentCount > 0 ? `${urgentCount} 项需关注` : '保持节奏'}</small>
+        </span>
         {(urgentCount > 0 || activeCount > 0) && (
-          <span className={`badge badge-sm ${urgentCount > 0 ? 'badge-error' : 'badge-neutral'}`}>
+          <span className={`nodd-launcher-count ${urgentCount > 0 ? 'is-urgent' : ''}`}>
             {urgentCount || activeCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <section className="fixed bottom-20 right-6 z-[999999] flex h-[min(600px,calc(100vh-7rem))] max-h-[640px] w-[min(440px,calc(100vw-2rem))] flex-col overflow-hidden rounded-box border border-base-300 bg-base-100 text-base-content shadow-2xl">
+        <section className="nodd-panel fixed bottom-24 right-5 z-[999999] flex h-[min(640px,calc(100vh-7rem))] max-h-[680px] w-[min(460px,calc(100vw-2rem))] flex-col overflow-hidden text-base-content">
           {toast && (
             <div className="absolute left-1/2 top-3 z-20 w-max max-w-[90%] -translate-x-1/2">
               <div className="alert alert-info px-4 py-2 text-sm shadow-lg">{toast}</div>
             </div>
           )}
 
-          <header className="navbar min-h-0 gap-2 border-b border-base-300 bg-base-100 px-4 py-2">
-            <div className="flex-1">
+          <header className="nodd-header navbar min-h-0 gap-3 px-5 py-4">
+            <div className="nodd-brand flex-1">
+              <img src={petImage} alt="" aria-hidden="true" />
               <div>
-                <h1 className="font-bold leading-tight">NoDDL 控制台</h1>
-                <p className="text-xs text-base-content/60">课程作业助手</p>
+                <h1>NoDDL <span>课程节奏助手</span></h1>
+                <p>{urgentCount > 0 ? `有 ${urgentCount} 项作业需要尽快处理` : '今天也按自己的节奏完成'}</p>
               </div>
             </div>
             <div className="flex-none flex items-center gap-1">
               <button
                 type="button"
-                className="btn btn-outline btn-primary btn-sm whitespace-nowrap"
+                className="nodd-sync btn btn-sm whitespace-nowrap"
                 title="全量扫描并同步所有课程作业"
                 onClick={syncAllCourses}
               >
-                🌐 同步全部
+                <span aria-hidden="true">↻</span> 同步全部
               </button>
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
-                aria-label="刷新数据"
-                title="刷新数据"
-                onClick={() => {
-                  if (activeTab === 'homework') refreshAssignments();
-                  if (activeTab === 'eval') refreshSubmissions();
-                }}
-              >
-                🔄
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
+                className="nodd-close btn btn-ghost btn-sm"
                 aria-label="关闭面板"
                 title="关闭面板"
                 onClick={() => setIsOpen(false)}
@@ -295,12 +277,12 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
             </div>
           </header>
 
-          <div role="tablist" className="tabs tabs-border mx-3 mt-2 grid grid-cols-3">
+          <div role="tablist" className="nodd-tabs tabs mx-4 mt-2 grid grid-cols-3">
             <button
               type="button"
               role="tab"
               aria-selected={activeTab === 'homework'}
-              className={`tab ${activeTab === 'homework' ? 'tab-active' : ''}`}
+              className={`nodd-tab tab ${activeTab === 'homework' ? 'is-active' : ''}`}
               onClick={() => setActiveTab('homework')}
             >
               作业 ({assignments.length})
@@ -309,7 +291,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
               type="button"
               role="tab"
               aria-selected={activeTab === 'settings'}
-              className={`tab ${activeTab === 'settings' ? 'tab-active' : ''}`}
+              className={`nodd-tab tab ${activeTab === 'settings' ? 'is-active' : ''}`}
               onClick={() => setActiveTab('settings')}
             >
               推送与提醒
@@ -318,7 +300,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
               type="button"
               role="tab"
               aria-selected={activeTab === 'eval'}
-              className={`tab ${activeTab === 'eval' ? 'tab-active' : ''}`}
+              className={`nodd-tab tab ${activeTab === 'eval' ? 'is-active' : ''}`}
               onClick={() => {
                 setActiveTab('eval');
                 refreshSubmissions();
@@ -328,27 +310,27 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="nodd-content min-h-0 flex-1 overflow-y-auto p-4">
             {activeTab === 'homework' && (
               <div className="space-y-3">
-                <div className="join w-full">
+                <div className="nodd-filters join w-full">
                   <button
                     type="button"
-                    className={`btn btn-sm join-item flex-1 ${filter === 'active' ? 'btn-primary' : 'btn-ghost'}`}
+                    className={`nodd-filter btn btn-sm join-item flex-1 ${filter === 'active' ? 'is-active' : ''}`}
                     onClick={() => setFilter('active')}
                   >
                     进行中 <span className="badge badge-sm">{activeCount}</span>
                   </button>
                   <button
                     type="button"
-                    className={`btn btn-sm join-item flex-1 ${filter === 'overdue' ? 'btn-primary' : 'btn-ghost'}`}
+                    className={`nodd-filter btn btn-sm join-item flex-1 ${filter === 'overdue' ? 'is-active' : ''}`}
                     onClick={() => setFilter('overdue')}
                   >
                     已超期 <span className="badge badge-sm">{overdueCount}</span>
                   </button>
                   <button
                     type="button"
-                    className={`btn btn-sm join-item flex-1 ${filter === 'all' ? 'btn-primary' : 'btn-ghost'}`}
+                    className={`nodd-filter btn btn-sm join-item flex-1 ${filter === 'all' ? 'is-active' : ''}`}
                     onClick={() => setFilter('all')}
                   >
                     全部 <span className="badge badge-sm">{assignments.length}</span>
@@ -356,14 +338,14 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                 </div>
 
                 {loading ? (
-                  <div className="card bg-base-200">
+                  <div className="nodd-empty card">
                     <div className="card-body items-center gap-3 py-10 text-center">
                       <span className="loading loading-spinner loading-md text-primary" />
                       <p>正在同步作业数据...</p>
                     </div>
                   </div>
                 ) : filteredAssignments.length === 0 ? (
-                  <div className="card bg-base-200">
+                  <div className="nodd-empty card">
                     <div className="card-body items-center gap-2 py-10 text-center">
                       <span className="text-3xl">🎉</span>
                       <p className="text-base-content/70">当前分类下没有作业</p>
@@ -382,25 +364,25 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                           : 'badge-success';
 
                       return (
-                        <article className="card border border-base-300 bg-base-100 shadow-sm" key={hw.id}>
+                        <article className={`nodd-assignment card ${badgeClass}`} key={hw.id}>
                           <div className="card-body gap-3 p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <h2 className="break-words font-semibold leading-snug">{hw.title}</h2>
-                                <p className="mt-1 text-sm text-base-content/60">{hw.courseName}</p>
+                                <p className="nodd-course mt-1 text-sm">{hw.courseName}</p>
                               </div>
-                              <span className={`badge badge-sm whitespace-nowrap ${badgeClass}`}>
+                              <span className={`nodd-status badge badge-sm whitespace-nowrap ${badgeClass}`}>
                                 {hw.remainingText}
                               </span>
                             </div>
                             <div className="flex items-center justify-between gap-2 border-t border-base-200 pt-2">
-                              <span className="text-xs text-base-content/60">截止 {hw.deadline}</span>
+                              <span className="nodd-deadline text-xs">截止 {hw.deadline}</span>
                               {hw.url && (
                                 <a
                                   href={hw.url.startsWith('http') ? hw.url : `${window.location.origin}${hw.url.startsWith('/') ? '' : '/'}${hw.url}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="link link-primary whitespace-nowrap text-sm font-medium"
+                                  className="nodd-open link whitespace-nowrap text-sm font-medium"
                                 >
                                   前往作答 →
                                 </a>
@@ -418,7 +400,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
             {activeTab === 'settings' && (
               <div className="space-y-3">
                 {EMAIL_API_BASE_URL && (
-                  <section className="card border border-base-300 bg-base-100 shadow-sm">
+                  <section className="nodd-section card">
                     <div className="card-body gap-3 p-4">
                       <div className="flex items-center justify-between gap-2">
                         <h2 className="card-title text-base">邮件提醒</h2>
@@ -475,7 +457,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   </section>
                 )}
 
-                <section className="card border border-base-300 bg-base-100 shadow-sm">
+                <section className="nodd-section card">
                   <div className="card-body p-4">
                     <label className="grid gap-1.5 text-sm">
                       <span className="font-medium text-base-content/70">微信推送 · PushPlus</span>
@@ -490,7 +472,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   </div>
                 </section>
 
-                <details className="collapse collapse-arrow border border-base-300 bg-base-100">
+                <details className="nodd-section collapse collapse-arrow">
                   <summary className="collapse-title min-h-0 px-4 py-3 font-medium">短信网关</summary>
                   <div className="collapse-content space-y-3">
                     <label className="grid gap-1.5 text-sm">
@@ -516,7 +498,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   </div>
                 </details>
 
-                <section className="card border border-base-300 bg-base-100 shadow-sm">
+                <section className="nodd-section card">
                   <div className="card-body p-4">
                     <label className="grid gap-1.5 text-sm">
                       <span className="font-medium text-base-content/70">苹果设备推送 · Bark</span>
@@ -531,7 +513,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   </div>
                 </section>
 
-                <section className="card border border-base-300 bg-base-100 shadow-sm">
+                <section className="nodd-section card">
                   <div className="card-body p-4">
                     <label className="grid gap-1.5 text-sm">
                       <span className="font-medium text-base-content/70">提前提醒</span>
@@ -567,7 +549,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
             {activeTab === 'eval' && (
               <div className="space-y-3">
                 {evalLoading ? (
-                  <div className="card bg-base-200">
+                  <div className="nodd-empty card">
                     <div className="card-body items-center gap-3 py-10 text-center">
                       <span className="loading loading-spinner loading-md text-primary" />
                       <p>正在查询最新评测结果...</p>
@@ -581,7 +563,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   </div>
                 ) : (
                   submissions.map((sub) => (
-                    <article className="card border border-base-300 bg-base-100 shadow-sm" key={sub.id}>
+                    <article className="nodd-assignment card" key={sub.id}>
                       <div className="card-body gap-2 p-4">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-semibold">提交 #{sub.id}</span>

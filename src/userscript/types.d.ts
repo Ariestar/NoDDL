@@ -11,6 +11,11 @@ declare module '*.css?inline' {
   export default styles;
 }
 
+declare module '*.png' {
+  const source: string;
+  export default source;
+}
+
 declare function GM_xmlhttpRequest(details: {
   method: string;
   url: string;
