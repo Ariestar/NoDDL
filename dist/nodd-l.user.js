@@ -7065,6 +7065,22 @@
     getAuthHeaders() {
       return this.sessionCookie ? { Cookie: this.sessionCookie } : {};
     }
+    async fillAssignmentDeadline(item, detailUrl) {
+      if (item.deadline !== "请查看详情" && item.deadlineTimestamp !== 0) return;
+      try {
+        const detail = parseAssignmentDetailHtml(
+          await this.http.get(detailUrl, this.getAuthHeaders())
+        );
+        if (detail.deadlineTimestamp > 0) {
+          item.deadline = detail.deadline;
+          item.deadlineTimestamp = detail.deadlineTimestamp;
+          item.remainingHours = detail.remainingHours;
+          item.remainingText = detail.remainingText;
+          item.urgency = calculateUrgency(detail.remainingHours);
+        }
+      } catch {
+      }
+    }
     /**
      * 登录平台（自动使用固定 AES 密钥加密）
      */
@@ -7109,7 +7125,7 @@
     /**
      * 只读读取当前活跃课程的作业列表（不篡改 Session 状态）
      */
-    async getPendingAssignments(hoursThreshold = 72) {
+    async getPendingAssignments() {
       const allAssignments = [];
       const seenIds = /* @__PURE__ */ new Set();
       try {
@@ -7133,21 +7149,8 @@
       } catch {
       }
       for (const item of allAssignments) {
-        if (item.deadline === "请查看详情" || item.deadlineTimestamp === 0) {
-          try {
-            const detailUrl = item.courseId ? `${this.baseUrl}/assignment/index.jsp?courseID=${item.courseId}&assignID=${item.id}` : `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`;
-            const detailHtml = await this.http.get(detailUrl, this.getAuthHeaders());
-            const detail = parseAssignmentDetailHtml(detailHtml);
-            if (detail.deadlineTimestamp > 0) {
-              item.deadline = detail.deadline;
-              item.deadlineTimestamp = detail.deadlineTimestamp;
-              item.remainingHours = detail.remainingHours;
-              item.remainingText = detail.remainingText;
-              item.urgency = calculateUrgency(detail.remainingHours);
-            }
-          } catch {
-          }
-        }
+        const detailUrl = item.courseId ? `${this.baseUrl}/assignment/index.jsp?courseID=${item.courseId}&assignID=${item.id}` : `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`;
+        await this.fillAssignmentDeadline(item, detailUrl);
         if (this.db) {
           await this.db.upsertAssignment(item);
         }
@@ -7187,23 +7190,10 @@
             item.courseId = c2.id;
             item.courseName = c2.name;
             item.url = `/assignment/index.jsp?courseID=${c2.id}&assignID=${item.id}`;
-            if (item.deadlineTimestamp === 0) {
-              try {
-                const detailHtml = await this.http.get(
-                  `${this.baseUrl}/assignment/index.jsp?courseID=${c2.id}&assignID=${item.id}`,
-                  this.getAuthHeaders()
-                );
-                const detail = parseAssignmentDetailHtml(detailHtml);
-                if (detail.deadlineTimestamp > 0) {
-                  item.deadline = detail.deadline;
-                  item.deadlineTimestamp = detail.deadlineTimestamp;
-                  item.remainingHours = detail.remainingHours;
-                  item.remainingText = detail.remainingText;
-                  item.urgency = calculateUrgency(detail.remainingHours);
-                }
-              } catch {
-              }
-            }
+            await this.fillAssignmentDeadline(
+              item,
+              `${this.baseUrl}/assignment/index.jsp?courseID=${c2.id}&assignID=${item.id}`
+            );
             if (this.db) {
               await this.db.upsertAssignment(item);
             }
@@ -7241,7 +7231,7 @@
      */
     async triggerPushAlert(config) {
       const threshold = config.hoursThreshold ?? 48;
-      const allPending = this.db ? await this.db.getAllAssignments() : await this.getPendingAssignments(threshold);
+      const allPending = this.db ? await this.db.getAllAssignments() : await this.getPendingAssignments();
       const activeUrgent = allPending.filter((a2) => a2.remainingHours > 0 && a2.remainingHours <= threshold);
       if (activeUrgent.length === 0) {
         return { sent: false, count: 0, error: "当前暂无即将截止的作业" };
