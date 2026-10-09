@@ -123,6 +123,10 @@ node cli.cjs detail --id "problem_101" --cookie "JSESSIONID=xxxx"
 node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 ```
 
+## ✉️ 邮件提醒服务
+
+邮件验证码和作业提醒由 Vercel Functions 通过 Resend API 发送。发件域名、API Key 和 Upstash Redis 配置见 [邮件服务配置说明](docs/email-service.md)。
+
 ---
 
 ## 📄 开源许可

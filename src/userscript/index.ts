@@ -4,6 +4,7 @@ import { calculateUrgency } from '../core/time';
 import { BrowserHttpClient, BrowserStorage } from './browser-adapter';
 import { mountNoDDLUI, setupTestCaseCopyButtons, setupCodeAutoSave } from './ui';
 import { PushConfig, Assignment } from '../core/types';
+import { EMAIL_API_BASE_URL, callEmailApi } from './email-api';
 
 const storage = new BrowserStorage();
 const http = new BrowserHttpClient();
@@ -111,7 +112,7 @@ async function initNoDDL() {
   const allAssignments = client.db ? await client.db.getAllAssignments() : [];
 
   // 6. 挂载右下角独立悬浮控制面板 (Shadow DOM 隔离)
-  mountNoDDLUI(client, storage, allAssignments);
+  mountNoDDLUI(client, storage, allAssignments, http);
 
   // 7. 针对即将到期作业进行通知
   if (allAssignments.length > 0) {
@@ -138,6 +139,16 @@ async function initNoDDL() {
     };
     if (pushplusToken || barkUrl || smsWebhookUrl) {
       client.triggerPushAlert(pushConfig).catch(console.error);
+    }
+
+    const emailToken = (await storage.get('nodd_email_token')) || '';
+    if (emailToken && EMAIL_API_BASE_URL) {
+      const dueSoon = allAssignments.filter(item =>
+        item.status === 'pending' && item.deadlineTimestamp > Date.now() && item.remainingHours <= hoursThreshold
+      );
+      if (dueSoon.length > 0) {
+        callEmailApi(http, 'alert', { assignments: dueSoon }, emailToken).catch(console.error);
+      }
     }
   }
 }

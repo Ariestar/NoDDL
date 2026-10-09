@@ -3,12 +3,13 @@ import { App } from './App';
 import { PANEL_STYLES } from './styles';
 import { CourseGradingClient } from '../../core/client';
 import { BrowserStorage } from '../browser-adapter';
-import { Assignment } from '../../core/types';
+import { Assignment, HttpClient } from '../../core/types';
 
 export function mountNoDDLUI(
   client: CourseGradingClient,
   storage: BrowserStorage,
-  initialAssignments: Assignment[]
+  initialAssignments: Assignment[],
+  http: HttpClient
 ) {
   const HOST_ID = 'nodd-shadow-root';
   let hostEl = document.getElementById(HOST_ID);
@@ -29,5 +30,5 @@ export function mountNoDDLUI(
   const mountContainer = document.createElement('div');
   shadowRoot.appendChild(mountContainer);
 
-  render(h(App, { client, storage, initialAssignments }), mountContainer);
+  render(h(App, { client, storage, initialAssignments, http }), mountContainer);
 }

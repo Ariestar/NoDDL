@@ -1,17 +1,19 @@
 import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
-import { Assignment, PushConfig, SubmissionResult } from '../../core/types';
+import { Assignment, HttpClient, PushConfig, SubmissionResult } from '../../core/types';
 import { CourseGradingClient } from '../../core/client';
 import { BrowserStorage } from '../browser-adapter';
 import { createDeadlineCalendar } from './calendar';
+import { EMAIL_API_BASE_URL, callEmailApi } from '../email-api';
 
 interface AppProps {
   client: CourseGradingClient;
   storage: BrowserStorage;
+  http: HttpClient;
   initialAssignments: Assignment[];
 }
 
-export function App({ client, storage, initialAssignments }: AppProps) {
+export function App({ client, storage, http, initialAssignments }: AppProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'homework' | 'settings' | 'eval'>('homework');
   const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments);
@@ -23,6 +25,10 @@ export function App({ client, storage, initialAssignments }: AppProps) {
   const [barkUrl, setBarkUrl] = useState('');
   const [smsPhone, setSmsPhone] = useState('');
   const [smsWebhookUrl, setSmsWebhookUrl] = useState('');
+  const [emailAddress, setEmailAddress] = useState('');
+  const [emailCode, setEmailCode] = useState('');
+  const [emailToken, setEmailToken] = useState('');
+  const [emailBusy, setEmailBusy] = useState(false);
   const [threshold, setThreshold] = useState(72);
 
   // Submissions State
@@ -43,11 +49,15 @@ export function App({ client, storage, initialAssignments }: AppProps) {
       const bark = (await storage.get('nodd_bark_url')) || '';
       const phone = (await storage.get('nodd_sms_phone')) || '';
       const smsUrl = (await storage.get('nodd_sms_webhook_url')) || '';
+      const savedEmail = (await storage.get('nodd_email_address')) || '';
+      const savedEmailToken = (await storage.get('nodd_email_token')) || '';
       const th = parseInt((await storage.get('nodd_hours_threshold')) || '72', 10);
       setPushplusToken(token);
       setBarkUrl(bark);
       setSmsPhone(phone);
       setSmsWebhookUrl(smsUrl);
+      setEmailAddress(savedEmail);
+      setEmailToken(savedEmailToken);
       setThreshold(th);
     })();
   }, []);
@@ -143,6 +153,72 @@ export function App({ client, storage, initialAssignments }: AppProps) {
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
     showToast('日历文件已导出');
+  };
+
+  const requestEmailCode = async () => {
+    setEmailBusy(true);
+    try {
+      const email = emailAddress.trim().toLowerCase();
+      await callEmailApi(http, 'request-code', { email });
+      await storage.set('nodd_email_address', email);
+      setEmailAddress(email);
+      showToast('验证码已发送');
+    } catch {
+      showToast('发送验证码失败');
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const verifyEmail = async () => {
+    setEmailBusy(true);
+    try {
+      const result = await callEmailApi(http, 'verify-code', {
+        email: emailAddress.trim().toLowerCase(),
+        code: emailCode.trim()
+      });
+      const token = typeof result.token === 'string' ? result.token : '';
+      const verifiedEmail = typeof result.email === 'string' ? result.email : '';
+      if (!token || !verifiedEmail) throw new Error('Invalid email verification response');
+      await storage.set('nodd_email_address', verifiedEmail);
+      await storage.set('nodd_email_token', token);
+      setEmailAddress(verifiedEmail);
+      setEmailToken(token);
+      setEmailCode('');
+      showToast('邮箱绑定成功');
+    } catch {
+      showToast('邮箱验证失败');
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const testEmail = async () => {
+    setEmailBusy(true);
+    try {
+      await callEmailApi(http, 'alert', { test: true }, emailToken);
+      showToast('测试邮件已发送');
+    } catch {
+      showToast('测试邮件发送失败');
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const unbindEmail = async () => {
+    setEmailBusy(true);
+    try {
+      await callEmailApi(http, 'unbind', {}, emailToken);
+      await storage.remove('nodd_email_address');
+      await storage.remove('nodd_email_token');
+      setEmailAddress('');
+      setEmailToken('');
+      showToast('邮箱已解绑');
+    } catch {
+      showToast('邮箱解绑失败');
+    } finally {
+      setEmailBusy(false);
+    }
   };
 
   const activeCount = assignments.filter((a) => a.remainingHours > 0).length;
@@ -309,6 +385,51 @@ export function App({ client, storage, initialAssignments }: AppProps) {
             {/* Tab 2: 消息与短信提醒配置 */}
             {activeTab === 'settings' && (
               <div style="display:flex;flex-direction:column;gap:14px;">
+                {EMAIL_API_BASE_URL && <div className="form-group">
+                  <label className="form-label">邮件提醒</label>
+                  {emailToken ? (
+                    <>
+                      <div style="font-size:12px;color:var(--text-sub);">已绑定 {emailAddress}</div>
+                      <div style="display:flex;gap:8px;">
+                        <button className="btn btn-secondary" style="flex:1;" disabled={emailBusy} onClick={testEmail}>
+                          测试邮件
+                        </button>
+                        <button className="btn btn-secondary" disabled={emailBusy} onClick={unbindEmail}>
+                          解绑
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <input
+                        type="email"
+                        className="form-input"
+                        placeholder="邮箱地址"
+                        value={emailAddress}
+                        disabled={emailBusy}
+                        onInput={(e) => setEmailAddress((e.target as HTMLInputElement).value)}
+                      />
+                      <div style="display:flex;gap:8px;">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="form-input"
+                          placeholder="邮箱验证码"
+                          value={emailCode}
+                          disabled={emailBusy}
+                          onInput={(e) => setEmailCode((e.target as HTMLInputElement).value)}
+                        />
+                        <button className="btn btn-secondary" disabled={emailBusy} onClick={requestEmailCode}>
+                          获取验证码
+                        </button>
+                        <button className="btn btn-primary" disabled={emailBusy} onClick={verifyEmail}>
+                          绑定
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>}
+
                 {/* 1. PushPlus 微信推送 */}
                 <div className="form-group">
                   <label className="form-label">微信推送 (PushPlus)</label>

@@ -6,6 +6,7 @@
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
 // @match        http://115.156.107.145/*
+// @connect      mail.sair-club.com
 // @grant        GM_getValue
 // @grant        GM_notification
 // @grant        GM_setClipboard
@@ -7835,7 +7836,15 @@ ${markdown}` }
     return `${lines.map((line) => foldIcsLine(line, encoder)).join("\r\n")}\r
 `;
   }
-  function App({ client: client2, storage: storage2, initialAssignments }) {
+  const EMAIL_API_BASE_URL = "https://mail.sair-club.com".replace(/\/+$/, "");
+  async function callEmailApi(http2, path, body, token) {
+    if (!EMAIL_API_BASE_URL) throw new Error("Email API URL is not configured");
+    const response = await http2.post(`${EMAIL_API_BASE_URL}/api/email/${path}`, body, token ? {
+      Authorization: `Bearer ${token}`
+    } : {});
+    return JSON.parse(response);
+  }
+  function App({ client: client2, storage: storage2, http: http2, initialAssignments }) {
     const [isOpen, setIsOpen] = d(false);
     const [activeTab, setActiveTab] = d("homework");
     const [assignments, setAssignments] = d(initialAssignments);
@@ -7845,6 +7854,10 @@ ${markdown}` }
     const [barkUrl, setBarkUrl] = d("");
     const [smsPhone, setSmsPhone] = d("");
     const [smsWebhookUrl, setSmsWebhookUrl] = d("");
+    const [emailAddress, setEmailAddress] = d("");
+    const [emailCode, setEmailCode] = d("");
+    const [emailToken, setEmailToken] = d("");
+    const [emailBusy, setEmailBusy] = d(false);
     const [threshold, setThreshold] = d(72);
     const [submissions, setSubmissions] = d([]);
     const [evalLoading, setEvalLoading] = d(false);
@@ -7859,11 +7872,15 @@ ${markdown}` }
         const bark = await storage2.get("nodd_bark_url") || "";
         const phone = await storage2.get("nodd_sms_phone") || "";
         const smsUrl = await storage2.get("nodd_sms_webhook_url") || "";
+        const savedEmail = await storage2.get("nodd_email_address") || "";
+        const savedEmailToken = await storage2.get("nodd_email_token") || "";
         const th = parseInt(await storage2.get("nodd_hours_threshold") || "72", 10);
         setPushplusToken(token);
         setBarkUrl(bark);
         setSmsPhone(phone);
         setSmsWebhookUrl(smsUrl);
+        setEmailAddress(savedEmail);
+        setEmailToken(savedEmailToken);
         setThreshold(th);
       })();
     }, []);
@@ -7947,6 +7964,68 @@ ${markdown}` }
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
       showToast("日历文件已导出");
+    };
+    const requestEmailCode = async () => {
+      setEmailBusy(true);
+      try {
+        const email = emailAddress.trim().toLowerCase();
+        await callEmailApi(http2, "request-code", { email });
+        await storage2.set("nodd_email_address", email);
+        setEmailAddress(email);
+        showToast("验证码已发送");
+      } catch {
+        showToast("发送验证码失败");
+      } finally {
+        setEmailBusy(false);
+      }
+    };
+    const verifyEmail = async () => {
+      setEmailBusy(true);
+      try {
+        const result = await callEmailApi(http2, "verify-code", {
+          email: emailAddress.trim().toLowerCase(),
+          code: emailCode.trim()
+        });
+        const token = typeof result.token === "string" ? result.token : "";
+        const verifiedEmail = typeof result.email === "string" ? result.email : "";
+        if (!token || !verifiedEmail) throw new Error("Invalid email verification response");
+        await storage2.set("nodd_email_address", verifiedEmail);
+        await storage2.set("nodd_email_token", token);
+        setEmailAddress(verifiedEmail);
+        setEmailToken(token);
+        setEmailCode("");
+        showToast("邮箱绑定成功");
+      } catch {
+        showToast("邮箱验证失败");
+      } finally {
+        setEmailBusy(false);
+      }
+    };
+    const testEmail = async () => {
+      setEmailBusy(true);
+      try {
+        await callEmailApi(http2, "alert", { test: true }, emailToken);
+        showToast("测试邮件已发送");
+      } catch {
+        showToast("测试邮件发送失败");
+      } finally {
+        setEmailBusy(false);
+      }
+    };
+    const unbindEmail = async () => {
+      setEmailBusy(true);
+      try {
+        await callEmailApi(http2, "unbind", {}, emailToken);
+        await storage2.remove("nodd_email_address");
+        await storage2.remove("nodd_email_token");
+        setEmailAddress("");
+        setEmailToken("");
+        showToast("邮箱已解绑");
+      } catch {
+        showToast("邮箱解绑失败");
+      } finally {
+        setEmailBusy(false);
+      }
     };
     const activeCount = assignments.filter((a2) => a2.remainingHours > 0).length;
     const overdueCount = assignments.filter((a2) => a2.remainingHours <= 0).length;
@@ -8097,6 +8176,47 @@ ${markdown}` }
             }) })
           ] }),
           activeTab === "settings" && /* @__PURE__ */ u$1("div", { style: "display:flex;flex-direction:column;gap:14px;", children: [
+            EMAIL_API_BASE_URL && /* @__PURE__ */ u$1("div", { className: "form-group", children: [
+              /* @__PURE__ */ u$1("label", { className: "form-label", children: "邮件提醒" }),
+              emailToken ? /* @__PURE__ */ u$1(M, { children: [
+                /* @__PURE__ */ u$1("div", { style: "font-size:12px;color:var(--text-sub);", children: [
+                  "已绑定 ",
+                  emailAddress
+                ] }),
+                /* @__PURE__ */ u$1("div", { style: "display:flex;gap:8px;", children: [
+                  /* @__PURE__ */ u$1("button", { className: "btn btn-secondary", style: "flex:1;", disabled: emailBusy, onClick: testEmail, children: "测试邮件" }),
+                  /* @__PURE__ */ u$1("button", { className: "btn btn-secondary", disabled: emailBusy, onClick: unbindEmail, children: "解绑" })
+                ] })
+              ] }) : /* @__PURE__ */ u$1(M, { children: [
+                /* @__PURE__ */ u$1(
+                  "input",
+                  {
+                    type: "email",
+                    className: "form-input",
+                    placeholder: "邮箱地址",
+                    value: emailAddress,
+                    disabled: emailBusy,
+                    onInput: (e2) => setEmailAddress(e2.target.value)
+                  }
+                ),
+                /* @__PURE__ */ u$1("div", { style: "display:flex;gap:8px;", children: [
+                  /* @__PURE__ */ u$1(
+                    "input",
+                    {
+                      type: "text",
+                      inputMode: "numeric",
+                      className: "form-input",
+                      placeholder: "邮箱验证码",
+                      value: emailCode,
+                      disabled: emailBusy,
+                      onInput: (e2) => setEmailCode(e2.target.value)
+                    }
+                  ),
+                  /* @__PURE__ */ u$1("button", { className: "btn btn-secondary", disabled: emailBusy, onClick: requestEmailCode, children: "获取验证码" }),
+                  /* @__PURE__ */ u$1("button", { className: "btn btn-primary", disabled: emailBusy, onClick: verifyEmail, children: "绑定" })
+                ] })
+              ] })
+            ] }),
             /* @__PURE__ */ u$1("div", { className: "form-group", children: [
               /* @__PURE__ */ u$1("label", { className: "form-label", children: "微信推送 (PushPlus)" }),
               /* @__PURE__ */ u$1(
@@ -8512,7 +8632,7 @@ ${markdown}` }
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 `;
-  function mountNoDDLUI(client2, storage2, initialAssignments) {
+  function mountNoDDLUI(client2, storage2, initialAssignments, http2) {
     const HOST_ID = "nodd-shadow-root";
     let hostEl = document.getElementById(HOST_ID);
     if (!hostEl) {
@@ -8526,7 +8646,7 @@ ${markdown}` }
     shadowRoot.appendChild(styleEl);
     const mountContainer = document.createElement("div");
     shadowRoot.appendChild(mountContainer);
-    G$1(g$1(App, { client: client2, storage: storage2, initialAssignments }), mountContainer);
+    G$1(g$1(App, { client: client2, storage: storage2, initialAssignments, http: http2 }), mountContainer);
   }
   function setupTestCaseCopyButtons() {
     const codeBlocks = document.querySelectorAll("pre");
@@ -8708,7 +8828,7 @@ ${markdown}` }
     } catch {
     }
     const allAssignments = client.db ? await client.db.getAllAssignments() : [];
-    mountNoDDLUI(client, storage, allAssignments);
+    mountNoDDLUI(client, storage, allAssignments, http);
     if (allAssignments.length > 0) {
       const mostUrgent = allAssignments.find((a2) => a2.remainingHours > 0 && (a2.urgency === "critical" || a2.urgency === "urgent"));
       if (mostUrgent && typeof GM_notification !== "undefined") {
@@ -8732,6 +8852,15 @@ ${markdown}` }
       };
       if (pushplusToken || barkUrl || smsWebhookUrl) {
         client.triggerPushAlert(pushConfig).catch(console.error);
+      }
+      const emailToken = await storage.get("nodd_email_token") || "";
+      if (emailToken && EMAIL_API_BASE_URL) {
+        const dueSoon = allAssignments.filter(
+          (item) => item.status === "pending" && item.deadlineTimestamp > Date.now() && item.remainingHours <= hoursThreshold
+        );
+        if (dueSoon.length > 0) {
+          callEmailApi(http, "alert", { assignments: dueSoon }, emailToken).catch(console.error);
+        }
       }
     }
   }

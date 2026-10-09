@@ -1,3 +1,11 @@
+interface ImportMetaEnv {
+  readonly VITE_EMAIL_API_BASE_URL?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 declare function GM_xmlhttpRequest(details: {
   method: string;
   url: string;

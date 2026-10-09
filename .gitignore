@@ -2,4 +2,7 @@ node_modules/
 *.log
 .DS_Store
 pnpm-workspace.yaml
-
+.env
+.env.*
+.vercel/
+!.env.example
