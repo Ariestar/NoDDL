@@ -20,7 +20,8 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'active' | 'overdue' | 'all'>('active');
-  const [sortMode, setSortMode] = useState<'deadline-asc' | 'deadline-desc' | 'course-asc' | 'course-desc'>('deadline-asc');
+  const [sortKey, setSortKey] = useState<'deadline' | 'course'>('deadline');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Push & Alert Config State
   const [pushplusToken, setPushplusToken] = useState('');
@@ -220,8 +221,8 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   });
 
   const sortedAssignments = [...filteredAssignments].sort((a, b) => {
-    const direction = sortMode.endsWith('desc') ? -1 : 1;
-    if (sortMode.startsWith('deadline')) {
+    const direction = sortDirection === 'desc' ? -1 : 1;
+    if (sortKey === 'deadline') {
       const aUnknown = a.deadlineTimestamp <= 0;
       const bUnknown = b.deadlineTimestamp <= 0;
       if (aUnknown !== bUnknown) return aUnknown ? 1 : -1;
@@ -344,15 +345,22 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                 <label className="flex items-center justify-between gap-3 text-xs text-base-content/60">
                   <span>排序</span>
                   <select
-                    className="select select-sm w-auto min-w-40"
-                    value={sortMode}
-                    onChange={(event) => setSortMode((event.currentTarget as HTMLSelectElement).value as typeof sortMode)}
+                    className="select select-sm flex-1"
+                    value={sortKey}
+                    onChange={(event) => setSortKey((event.currentTarget as HTMLSelectElement).value as typeof sortKey)}
                   >
-                    <option value="deadline-asc">截止时间 · 近 → 远</option>
-                    <option value="deadline-desc">截止时间 · 远 → 近</option>
-                    <option value="course-asc">课程 · 正序</option>
-                    <option value="course-desc">课程 · 逆序</option>
+                    <option value="deadline">截止时间</option>
+                    <option value="course">课程</option>
                   </select>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost btn-square"
+                    aria-label={sortDirection === 'asc' ? '切换为逆序' : '切换为正序'}
+                    title={sortDirection === 'asc' ? '切换为逆序' : '切换为正序'}
+                    onClick={() => setSortDirection((value) => value === 'asc' ? 'desc' : 'asc')}
+                  >
+                    {sortDirection === 'asc' ? '↑' : '↓'}
+                  </button>
                 </label>
 
                 {loading ? (
