@@ -12,6 +12,7 @@ import {
 import { HomeworkDB } from '../src/core/db';
 import { CourseGradingClient } from '../src/core/client';
 import { StorageAdapter, Assignment, HttpClient } from '../src/core/types';
+import { parseExperimentDeadlineFromDom } from '../src/userscript/experiment-dom';
 
 class MemoryStorage implements StorageAdapter {
   private map = new Map<string, string>();
@@ -146,6 +147,45 @@ test('时间引擎：标准格式解析与东八区校准', () => {
   assert.strictEqual(d1.normalized, '2026-10-15 20:00:00');
   assert.strictEqual(d1.remainingHours, 8);
   assert.strictEqual(d1.remainingText, '剩 8 小时');
+});
+
+test('云实验：直接读取真实 DOM 的截止时间', () => {
+  const deadlineElement = { textContent: '开始时间：2026-10-15 16:00:00 截止时间：2026-10-15 20:00:00' };
+  const fakeDocument = {
+    querySelectorAll: (selector: string) => selector === '.blog-sidebar .panel-body p' ? [deadlineElement] : []
+  } as unknown as Document;
+  const nowMs = Date.UTC(2026, 9, 15, 12, 0, 0) - 8 * 3600 * 1000;
+
+  const deadline = parseExperimentDeadlineFromDom(fakeDocument, nowMs);
+
+  assert.strictEqual(deadline?.normalized, '2026-10-15 20:00:00');
+  assert.strictEqual(deadline?.remainingHours, 8);
+});
+
+test('云实验：不从其他区域的日期文本猜测截止时间', () => {
+  const fakeDocument = {
+    querySelectorAll: () => [{ textContent: '实验说明：2026-10-15 20:00:00' }]
+  } as unknown as Document;
+
+  assert.strictEqual(parseExperimentDeadlineFromDom(fakeDocument), undefined);
+});
+
+test('云实验：保留原始实验入口链接', async () => {
+  const db = new HomeworkDB(new MemoryStorage());
+  await db.upsertAssignment({
+    id: '612',
+    courseName: '云实验',
+    title: '实验',
+    deadline: '2026-10-15 20:00:00',
+    deadlineTimestamp: Date.UTC(2026, 9, 15, 12, 0, 0),
+    remainingHours: 8,
+    remainingText: '剩 8 小时',
+    status: 'pending',
+    urgency: 'urgent',
+    url: '/exp/index.jsp?assignID=612'
+  });
+
+  assert.strictEqual((await db.getAllAssignments())[0].url, '/exp/index.jsp?assignID=612');
 });
 
 test('归一化结构存储：彻底杜绝重复课程，规范解析与排序', async () => {

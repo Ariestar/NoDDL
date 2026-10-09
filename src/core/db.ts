@@ -123,7 +123,7 @@ export class HomeworkDB {
 
     // 保证 URL 具有 courseID 参数与根路径，便于随时点击跳转
     let finalUrl = item.url || existing?.url || '';
-    if (!finalUrl || (!finalUrl.includes('courseID') && courseId)) {
+    if (!finalUrl || (finalUrl.includes('/assignment/') && !finalUrl.includes('courseID') && courseId)) {
       finalUrl = courseId
         ? `/assignment/index.jsp?courseID=${courseId}&assignID=${item.id}`
         : `/assignment/index.jsp?assignID=${item.id}`;
@@ -172,7 +172,7 @@ export class HomeworkDB {
         ? store.courses[r.courseId].name
         : (r.courseName && r.courseName !== '当前课程' ? r.courseName : '专业课程');
 
-      const url = (!r.url.includes('courseID') && r.courseId)
+      const url = (r.url.includes('/assignment/') && !r.url.includes('courseID') && r.courseId)
         ? `/assignment/index.jsp?courseID=${r.courseId}&assignID=${r.id}`
         : r.url;
 

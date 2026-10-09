@@ -6707,7 +6707,7 @@
         finalUrgency = existing.urgency;
       }
       let finalUrl = item.url || (existing == null ? void 0 : existing.url) || "";
-      if (!finalUrl || !finalUrl.includes("courseID") && courseId) {
+      if (!finalUrl || finalUrl.includes("/assignment/") && !finalUrl.includes("courseID") && courseId) {
         finalUrl = courseId ? `/assignment/index.jsp?courseID=${courseId}&assignID=${item.id}` : `/assignment/index.jsp?assignID=${item.id}`;
       }
       store.assignments[item.id] = {
@@ -6747,7 +6747,7 @@
       const list = records.map((r2) => {
         var _a;
         const canonicalName = r2.courseId && ((_a = store.courses[r2.courseId]) == null ? void 0 : _a.name) ? store.courses[r2.courseId].name : r2.courseName && r2.courseName !== "当前课程" ? r2.courseName : "专业课程";
-        const url = !r2.url.includes("courseID") && r2.courseId ? `/assignment/index.jsp?courseID=${r2.courseId}&assignID=${r2.id}` : r2.url;
+        const url = r2.url.includes("/assignment/") && !r2.url.includes("courseID") && r2.courseId ? `/assignment/index.jsp?courseID=${r2.courseId}&assignID=${r2.id}` : r2.url;
         return {
           id: r2.id,
           courseId: r2.courseId,
@@ -8470,6 +8470,18 @@ ${markdown}` }
       }
     });
   }
+  function parseExperimentDeadlineFromDom(doc, nowMs = Date.now()) {
+    var _a;
+    const deadlineText = (_a = Array.from(
+      doc.querySelectorAll(".blog-sidebar .panel-body p")
+    ).find((element) => /截止时间/.test(element.textContent || ""))) == null ? void 0 : _a.textContent;
+    const match = deadlineText == null ? void 0 : deadlineText.match(
+      /截止时间\s*[：:]\s*(\d{4}[-/.]\d{1,2}[-/.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/
+    );
+    if (!match) return void 0;
+    const parsed = parseDeadlineBeijing(match[1], nowMs);
+    return parsed.timestamp > 0 ? parsed : void 0;
+  }
   const storage = new BrowserStorage();
   const http = new BrowserHttpClient();
   const client = new CourseGradingClient({ baseUrl: window.location.origin }, http, storage);
@@ -8517,8 +8529,20 @@ ${markdown}` }
       const urlMatch = window.location.href.match(/assignID=([a-zA-Z0-9_-]+)/i);
       if (urlMatch) {
         const curAssignId = urlMatch[1];
-        let curDetail = parseAssignmentDetailHtml(document.documentElement.innerHTML);
-        if (curDetail.deadlineTimestamp === 0) {
+        const isExperimentPage = window.location.pathname.startsWith("/exp/");
+        let curDetail = isExperimentPage ? { deadlineTimestamp: 0, remainingHours: 9999, remainingText: "待定" } : parseAssignmentDetailHtml(document.documentElement.innerHTML);
+        if (isExperimentPage) {
+          const experimentDeadline = parseExperimentDeadlineFromDom(document);
+          if (experimentDeadline) {
+            curDetail = {
+              ...curDetail,
+              deadline: experimentDeadline.normalized,
+              deadlineTimestamp: experimentDeadline.timestamp,
+              remainingHours: experimentDeadline.remainingHours,
+              remainingText: experimentDeadline.remainingText
+            };
+          }
+        } else if (curDetail.deadlineTimestamp === 0) {
           try {
             const mainUrl = currentCourseId ? `${window.location.origin}/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}` : `${window.location.origin}/assignment/index.jsp?assignID=${curAssignId}`;
             const mainAssignHtml = await http.get(mainUrl);
@@ -8535,11 +8559,11 @@ ${markdown}` }
           if (bc) title = (_a = bc.textContent) == null ? void 0 : _a.trim();
         }
         title = title || `作业 ${curAssignId}`;
-        const finalUrl = currentCourseId ? `/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}` : `/assignment/index.jsp?assignID=${curAssignId}`;
+        const finalUrl = isExperimentPage ? `${window.location.pathname}${window.location.search}` : currentCourseId ? `/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}` : `/assignment/index.jsp?assignID=${curAssignId}`;
         const item = {
           id: curAssignId,
-          courseId: currentCourseId,
-          courseName: currentCourseName,
+          courseId: isExperimentPage ? "" : currentCourseId,
+          courseName: isExperimentPage ? "云实验" : currentCourseName,
           title,
           deadline: curDetail.deadline || "未设截止时间",
           deadlineTimestamp: curDetail.deadlineTimestamp,

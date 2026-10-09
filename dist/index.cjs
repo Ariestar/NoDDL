@@ -403,7 +403,7 @@ var HomeworkDB = class {
       finalUrgency = existing.urgency;
     }
     let finalUrl = item.url || existing?.url || "";
-    if (!finalUrl || !finalUrl.includes("courseID") && courseId) {
+    if (!finalUrl || finalUrl.includes("/assignment/") && !finalUrl.includes("courseID") && courseId) {
       finalUrl = courseId ? `/assignment/index.jsp?courseID=${courseId}&assignID=${item.id}` : `/assignment/index.jsp?assignID=${item.id}`;
     }
     store.assignments[item.id] = {
@@ -442,7 +442,7 @@ var HomeworkDB = class {
     const records = Object.values(store.assignments);
     const list = records.map((r) => {
       const canonicalName = r.courseId && store.courses[r.courseId]?.name ? store.courses[r.courseId].name : r.courseName && r.courseName !== "\u5F53\u524D\u8BFE\u7A0B" ? r.courseName : "\u4E13\u4E1A\u8BFE\u7A0B";
-      const url = !r.url.includes("courseID") && r.courseId ? `/assignment/index.jsp?courseID=${r.courseId}&assignID=${r.id}` : r.url;
+      const url = r.url.includes("/assignment/") && !r.url.includes("courseID") && r.courseId ? `/assignment/index.jsp?courseID=${r.courseId}&assignID=${r.id}` : r.url;
       return {
         id: r.id,
         courseId: r.courseId,

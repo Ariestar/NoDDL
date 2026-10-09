@@ -5,6 +5,7 @@ import { BrowserHttpClient, BrowserStorage } from './browser-adapter';
 import { mountNoDDLUI, setupTestCaseCopyButtons, setupCodeAutoSave } from './ui';
 import { PushConfig, Assignment } from '../core/types';
 import { EMAIL_API_BASE_URL, callEmailApi } from './email-api';
+import { parseExperimentDeadlineFromDom } from './experiment-dom';
 
 const storage = new BrowserStorage();
 const http = new BrowserHttpClient();
@@ -61,10 +62,25 @@ async function initNoDDL() {
     const urlMatch = window.location.href.match(/assignID=([a-zA-Z0-9_-]+)/i);
     if (urlMatch) {
       const curAssignId = urlMatch[1];
-      let curDetail = parseAssignmentDetailHtml(document.documentElement.innerHTML);
+      const isExperimentPage = window.location.pathname.startsWith('/exp/');
+      let curDetail = isExperimentPage
+        ? { deadlineTimestamp: 0, remainingHours: 9999, remainingText: '待定' }
+        : parseAssignmentDetailHtml(document.documentElement.innerHTML);
 
-      // 若当前页面未展示作业起止时间，抓取作业主卡片 (index.jsp?courseID=...&assignID=...)
-      if (curDetail.deadlineTimestamp === 0) {
+      // 云实验页直接从当前 DOM 的截止字段读取，不请求作业模块页面。
+      if (isExperimentPage) {
+        const experimentDeadline = parseExperimentDeadlineFromDom(document);
+        if (experimentDeadline) {
+          curDetail = {
+            ...curDetail,
+            deadline: experimentDeadline.normalized,
+            deadlineTimestamp: experimentDeadline.timestamp,
+            remainingHours: experimentDeadline.remainingHours,
+            remainingText: experimentDeadline.remainingText
+          };
+        }
+      } else if (curDetail.deadlineTimestamp === 0) {
+        // 普通作业页未展示起止时间时，抓取作业主卡片。
         try {
           const mainUrl = currentCourseId
             ? `${window.location.origin}/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}`
@@ -84,14 +100,16 @@ async function initNoDDL() {
       }
       title = title || `作业 ${curAssignId}`;
 
-      const finalUrl = currentCourseId
-        ? `/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}`
-        : `/assignment/index.jsp?assignID=${curAssignId}`;
+      const finalUrl = isExperimentPage
+        ? `${window.location.pathname}${window.location.search}`
+        : currentCourseId
+          ? `/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}`
+          : `/assignment/index.jsp?assignID=${curAssignId}`;
 
       const item: Assignment = {
         id: curAssignId,
-        courseId: currentCourseId,
-        courseName: currentCourseName,
+        courseId: isExperimentPage ? '' : currentCourseId,
+        courseName: isExperimentPage ? '云实验' : currentCourseName,
         title,
         deadline: curDetail.deadline || '未设截止时间',
         deadlineTimestamp: curDetail.deadlineTimestamp,
