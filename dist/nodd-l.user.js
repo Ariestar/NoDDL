@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NoDDL (Not Only DDL) - 武大一体化平台助手
 // @namespace    https://github.com/projectluojia/NoDDL
-// @version      1.0.8
+// @version      1.0.9
 // @author       projectluojia
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
@@ -8279,8 +8279,6 @@ ${markdown}` }
                   /* @__PURE__ */ u$1("button", { className: "btn btn-primary btn-sm", disabled: emailBusy, onClick: testEmail, children: "测试邮件" }),
                   /* @__PURE__ */ u$1("button", { className: "btn btn-outline btn-error btn-sm", disabled: emailBusy, onClick: unbindEmail, children: "解绑" })
                 ] }),
-                /* @__PURE__ */ u$1("button", { className: "btn btn-outline btn-sm", disabled: emailBusy, onClick: () => publishCalendar(), children: "更新手机日历订阅" }),
-                calendarFeedUrl && /* @__PURE__ */ u$1("input", { className: "input input-sm", readOnly: true, value: calendarFeedUrl, "aria-label": "手机日历订阅地址" })
               ] }) : /* @__PURE__ */ u$1(M, { children: [
                 /* @__PURE__ */ u$1("label", { className: "grid gap-1.5 text-sm", children: [
                   /* @__PURE__ */ u$1("span", { className: "font-medium text-base-content/70", children: "邮箱地址" }),
@@ -8316,6 +8314,15 @@ ${markdown}` }
                   /* @__PURE__ */ u$1("button", { className: "btn btn-primary btn-sm", disabled: emailBusy, onClick: verifyEmail, children: "绑定" })
                 ] })
               ] })
+            ] }) }),
+            /* @__PURE__ */ u$1("section", { className: "card border border-base-300 bg-base-100", children: /* @__PURE__ */ u$1("div", { className: "card-body gap-3 p-4", children: [
+              /* @__PURE__ */ u$1("div", { className: "flex items-center justify-between gap-2", children: [
+                /* @__PURE__ */ u$1("h2", { className: "card-title text-base", children: "手机日历" }),
+                /* @__PURE__ */ u$1("span", { className: `badge ${emailToken ? "badge-success" : "badge-ghost"}`, children: emailToken ? "可用" : "需绑定邮箱" })
+              ] }),
+              /* @__PURE__ */ u$1("p", { className: "text-xs text-base-content/60", children: "绑定邮箱后生成订阅地址，手机日历会定期自动刷新。" }),
+              /* @__PURE__ */ u$1("button", { className: "btn btn-outline btn-sm", disabled: !emailToken || emailBusy, onClick: () => publishCalendar(), children: emailToken ? "更新手机日历订阅" : "先绑定邮箱" }),
+              calendarFeedUrl && /* @__PURE__ */ u$1("input", { className: "input input-sm", readOnly: true, value: calendarFeedUrl, "aria-label": "手机日历订阅地址" })
             ] }) }),
             /* @__PURE__ */ u$1("section", { className: "card border border-base-300 bg-base-100", children: /* @__PURE__ */ u$1("div", { className: "card-body p-4", children: /* @__PURE__ */ u$1("label", { className: "grid gap-1.5 text-sm", children: [
               /* @__PURE__ */ u$1("span", { className: "font-medium text-base-content/70", children: "微信推送 · PushPlus" }),

@@ -473,12 +473,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                               解绑
                             </button>
                           </div>
-                          <button className="btn btn-outline btn-sm" disabled={emailBusy} onClick={() => publishCalendar()}>
-                            更新手机日历订阅
-                          </button>
-                          {calendarFeedUrl && (
-                            <input className="input input-sm" readOnly value={calendarFeedUrl} aria-label="手机日历订阅地址" />
-                          )}
                         </>
                       ) : (
                         <>
@@ -518,6 +512,24 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                     </div>
                   </section>
                 )}
+
+                <section className="card border border-base-300 bg-base-100">
+                  <div className="card-body gap-3 p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <h2 className="card-title text-base">手机日历</h2>
+                      <span className={`badge ${emailToken ? 'badge-success' : 'badge-ghost'}`}>
+                        {emailToken ? '可用' : '需绑定邮箱'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-base-content/60">绑定邮箱后生成订阅地址，手机日历会定期自动刷新。</p>
+                    <button className="btn btn-outline btn-sm" disabled={!emailToken || emailBusy} onClick={() => publishCalendar()}>
+                      {emailToken ? '更新手机日历订阅' : '先绑定邮箱'}
+                    </button>
+                    {calendarFeedUrl && (
+                      <input className="input input-sm" readOnly value={calendarFeedUrl} aria-label="手机日历订阅地址" />
+                    )}
+                  </div>
+                </section>
 
                 <section className="card border border-base-300 bg-base-100">
                   <div className="card-body p-4">
