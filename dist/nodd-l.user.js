@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NoDDL (Not Only DDL) - 武大一体化平台助手
 // @namespace    https://github.com/projectluojia/NoDDL
-// @version      1.0.7
+// @version      1.0.8
 // @author       projectluojia
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
@@ -7910,6 +7910,7 @@ ${markdown}` }
         const curId = curMatch ? curMatch[1] : void 0;
         const list = await client2.safeSyncAllCourses(curId, (msg) => showToast(msg));
         setAssignments(list);
+        if (emailToken) await publishCalendar(list);
         showToast(`同步完成！共汇总 ${list.length} 项作业`);
       } catch {
         showToast("同步全部课程失败");
@@ -7971,7 +7972,7 @@ ${markdown}` }
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
       showToast("日历文件已导出");
     };
-    const publishCalendar = async () => {
+    const publishCalendar = async (sourceAssignments = assignments) => {
       var _a;
       if (!emailToken || !EMAIL_API_BASE_URL) {
         showToast("请先绑定邮箱，再创建手机日历订阅");
@@ -7980,7 +7981,7 @@ ${markdown}` }
       try {
         const feedToken = await storage2.get("nodd_calendar_feed_token") || "";
         const response = await http2.post(`${EMAIL_API_BASE_URL}/api/calendar/publish`, {
-          assignments,
+          assignments: sourceAssignments,
           feedToken: feedToken || void 0
         }, { Authorization: `Bearer ${emailToken}` });
         const result = JSON.parse(response);
@@ -8278,7 +8279,7 @@ ${markdown}` }
                   /* @__PURE__ */ u$1("button", { className: "btn btn-primary btn-sm", disabled: emailBusy, onClick: testEmail, children: "测试邮件" }),
                   /* @__PURE__ */ u$1("button", { className: "btn btn-outline btn-error btn-sm", disabled: emailBusy, onClick: unbindEmail, children: "解绑" })
                 ] }),
-                /* @__PURE__ */ u$1("button", { className: "btn btn-outline btn-sm", disabled: emailBusy, onClick: publishCalendar, children: "更新手机日历订阅" }),
+                /* @__PURE__ */ u$1("button", { className: "btn btn-outline btn-sm", disabled: emailBusy, onClick: () => publishCalendar(), children: "更新手机日历订阅" }),
                 calendarFeedUrl && /* @__PURE__ */ u$1("input", { className: "input input-sm", readOnly: true, value: calendarFeedUrl, "aria-label": "手机日历订阅地址" })
               ] }) : /* @__PURE__ */ u$1(M, { children: [
                 /* @__PURE__ */ u$1("label", { className: "grid gap-1.5 text-sm", children: [

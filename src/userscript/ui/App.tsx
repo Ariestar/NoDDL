@@ -81,6 +81,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
 
       const list = await client.safeSyncAllCourses(curId, (msg) => showToast(msg));
       setAssignments(list);
+      if (emailToken) await publishCalendar(list);
       showToast(`同步完成！共汇总 ${list.length} 项作业`);
     } catch {
       showToast('同步全部课程失败');
@@ -149,7 +150,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     showToast('日历文件已导出');
   };
 
-  const publishCalendar = async () => {
+  const publishCalendar = async (sourceAssignments = assignments) => {
     if (!emailToken || !EMAIL_API_BASE_URL) {
       showToast('请先绑定邮箱，再创建手机日历订阅');
       return;
@@ -158,7 +159,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     try {
       const feedToken = (await storage.get('nodd_calendar_feed_token')) || '';
       const response = await http.post(`${EMAIL_API_BASE_URL}/api/calendar/publish`, {
-        assignments,
+        assignments: sourceAssignments,
         feedToken: feedToken || undefined
       }, { Authorization: `Bearer ${emailToken}` });
       const result = JSON.parse(response) as { feedToken?: string };
@@ -472,7 +473,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                               解绑
                             </button>
                           </div>
-                          <button className="btn btn-outline btn-sm" disabled={emailBusy} onClick={publishCalendar}>
+                          <button className="btn btn-outline btn-sm" disabled={emailBusy} onClick={() => publishCalendar()}>
                             更新手机日历订阅
                           </button>
                           {calendarFeedUrl && (

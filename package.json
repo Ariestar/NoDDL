@@ -1,6 +1,6 @@
 {
   "name": "@projectluojia/nodd-l",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "NoDDL (Not Only DDL) - 武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补全与 Agent 工具包",
   "type": "module",
   "main": "./dist/index.cjs",
