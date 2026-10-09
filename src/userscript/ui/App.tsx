@@ -227,12 +227,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
         aria-label="打开 NoDDL 桌宠面板"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className="nodd-launcher-aura" />
         <img src={petImage} alt="NoDDL 桌宠" />
-        <span className="nodd-launcher-copy">
-          <strong>NoDDL</strong>
-          <small>{urgentCount > 0 ? `${urgentCount} 项需关注` : '保持节奏'}</small>
-        </span>
         {(urgentCount > 0 || activeCount > 0) && (
           <span className={`nodd-launcher-count ${urgentCount > 0 ? 'is-urgent' : ''}`}>
             {urgentCount || activeCount}
@@ -249,12 +244,8 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
           )}
 
           <header className="nodd-header navbar min-h-0 gap-3 px-5 py-4">
-            <div className="nodd-brand flex-1">
+            <div className="nodd-brand flex-1" aria-hidden="true">
               <img src={petImage} alt="" aria-hidden="true" />
-              <div>
-                <h1>NoDDL <span>课程节奏助手</span></h1>
-                <p>{urgentCount > 0 ? `有 ${urgentCount} 项作业需要尽快处理` : '今天也按自己的节奏完成'}</p>
-              </div>
             </div>
             <div className="flex-none flex items-center gap-1">
               <button
@@ -352,7 +343,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="list nodd-assignment-list w-full rounded-box">
                     {filteredAssignments.map((hw) => {
                       const badgeClass =
                         hw.remainingHours <= 0 || hw.urgency === 'critical'
@@ -364,30 +355,26 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                           : 'badge-success';
 
                       return (
-                        <article className={`nodd-assignment card ${badgeClass}`} key={hw.id}>
-                          <div className="card-body gap-3 p-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <h2 className="break-words font-semibold leading-snug">{hw.title}</h2>
-                                <p className="nodd-course mt-1 text-sm">{hw.courseName}</p>
-                              </div>
-                              <span className={`nodd-status badge badge-sm whitespace-nowrap ${badgeClass}`}>
-                                {hw.remainingText}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-2 border-t border-base-200 pt-2">
-                              <span className="nodd-deadline text-xs">截止 {hw.deadline}</span>
-                              {hw.url && (
-                                <a
-                                  href={hw.url.startsWith('http') ? hw.url : `${window.location.origin}${hw.url.startsWith('/') ? '' : '/'}${hw.url}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="nodd-open link whitespace-nowrap text-sm font-medium"
-                                >
-                                  前往作答 →
-                                </a>
-                              )}
-                            </div>
+                        <article className="list-row nodd-assignment" key={hw.id}>
+                          <span className={`nodd-status-dot ${badgeClass}`} aria-hidden="true" />
+                          <div className="list-col-grow min-w-0">
+                            <div className="break-words font-semibold leading-snug">{hw.title}</div>
+                            <div className="nodd-course mt-1 text-xs">{hw.courseName} · 截止 {hw.deadline}</div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            <span className={`nodd-status badge badge-sm badge-soft whitespace-nowrap ${badgeClass}`}>
+                              {hw.remainingText}
+                            </span>
+                            {hw.url && (
+                              <a
+                                href={hw.url.startsWith('http') ? hw.url : `${window.location.origin}${hw.url.startsWith('/') ? '' : '/'}${hw.url}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-ghost btn-xs whitespace-nowrap"
+                              >
+                                前往作答
+                              </a>
+                            )}
                           </div>
                         </article>
                       );
