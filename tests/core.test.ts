@@ -119,6 +119,28 @@ test('希冀平台生产真实结构：侧边栏当前作业与历史作业切�
   assert.strictEqual(list[0].courseName, '离散数学');
 });
 
+test('希冀平台生产真实结构：入口按钮不作为作业名称', () => {
+  const mainPageHtml = `
+    <div class="main-zy">
+      <div class="main-zy-box">
+        <div class="main-box"><p class="main-title">第四周作业 </p></div>
+      </div>
+      <a href="assignment/index.jsp?assignID=3548"><div class="into">进入作业</div></a>
+    </div>
+  `;
+  const experimentPageHtml = `
+    <div class="card"><h4 class="title">括号匹配实验</h4>
+      <a href="index.jsp?assignID=612&amp;guideID=5542"><button>开始实验</button></a>
+    </div>
+  `;
+
+  const mainAssignments = parseActiveAssignmentsHtml(mainPageHtml);
+  const experimentAssignments = parseActiveAssignmentsHtml(experimentPageHtml);
+
+  assert.strictEqual(mainAssignments[0].title, '第四周作业');
+  assert.strictEqual(experimentAssignments.length, 0);
+});
+
 test('希冀平台生产真实结构：fileUploadList 面包屑导航提取', () => {
   const realBreadcrumbHtml = `
     <nav aria-label="breadcrumb">

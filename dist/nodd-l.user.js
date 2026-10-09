@@ -6929,9 +6929,17 @@
     while ((m2 = linkRe.exec(activeSection)) !== null) {
       const rawUrl = m2[1];
       const id = m2[2];
-      const title = m2[3].replace(/<[^>]+>/g, "").trim();
+      let title = m2[3].replace(/<[^>]+>/g, "").trim();
+      if (/^(?:进入作业|开始实验|实验文档)$/.test(title)) {
+        const cardStart = activeSection.lastIndexOf('<div class="main-zy', m2.index);
+        const cardHtml = cardStart >= 0 ? activeSection.slice(cardStart, m2.index) : "";
+        const cardTitle = cardHtml.match(
+          /<p[^>]*class=["'][^"']*\bmain-title\b[^"']*["'][^>]*>([\s\S]*?)<\/p>/i
+        );
+        title = (cardTitle == null ? void 0 : cardTitle[1].replace(/<[^>]+>/g, "").trim()) || "";
+      }
       if (!title || seen.has(id)) continue;
-      if (/^(?:返回|详细|提交|查看|重做|编辑|删除|\d+|文件上传题|程序题)$/.test(title)) continue;
+      if (/^(?:返回|详细|提交|查看|重做|编辑|删除|进入作业|开始实验|实验文档|\d+|文件上传题|程序题)$/.test(title)) continue;
       seen.add(id);
       const courseIdM = rawUrl.match(/courseID=([a-zA-Z0-9_-]+)/i);
       const courseId = courseIdM ? courseIdM[1] : defaultCourseId;

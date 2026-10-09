@@ -83,11 +83,21 @@ export function parseActiveAssignmentsHtml(html: string, courseName = '', defaul
   while ((m = linkRe.exec(activeSection)) !== null) {
     const rawUrl = m[1];
     const id = m[2];
-    const title = m[3].replace(/<[^>]+>/g, '').trim();
+    let title = m[3].replace(/<[^>]+>/g, '').trim();
+
+    // 主页面的入口链接文案是“进入作业”，名称在同卡片的 main-title 中。
+    if (/^(?:进入作业|开始实验|实验文档)$/.test(title)) {
+      const cardStart = activeSection.lastIndexOf('<div class="main-zy', m.index);
+      const cardHtml = cardStart >= 0 ? activeSection.slice(cardStart, m.index) : '';
+      const cardTitle = cardHtml.match(
+        /<p[^>]*class=["'][^"']*\bmain-title\b[^"']*["'][^>]*>([\s\S]*?)<\/p>/i
+      );
+      title = cardTitle?.[1].replace(/<[^>]+>/g, '').trim() || '';
+    }
 
     if (!title || seen.has(id)) continue;
     // 过滤操作辅助按钮（如 "返回文件上传题列表", "详细", "1", "文件上传题" 等）
-    if (/^(?:返回|详细|提交|查看|重做|编辑|删除|\d+|文件上传题|程序题)$/.test(title)) continue;
+    if (/^(?:返回|详细|提交|查看|重做|编辑|删除|进入作业|开始实验|实验文档|\d+|文件上传题|程序题)$/.test(title)) continue;
 
     seen.add(id);
 
