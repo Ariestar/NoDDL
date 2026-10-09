@@ -33,6 +33,8 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   const [emailToken, setEmailToken] = useState('');
   const [calendarFeedUrl, setCalendarFeedUrl] = useState('');
   const [calendarCaldavUrl, setCalendarCaldavUrl] = useState('');
+  const [calendarCaldavUsername, setCalendarCaldavUsername] = useState('nodd');
+  const [calendarCaldavPassword, setCalendarCaldavPassword] = useState('');
   const [calendarFeedToken, setCalendarFeedToken] = useState('');
   const [emailBusy, setEmailBusy] = useState(false);
   const [threshold, setThreshold] = useState(72);
@@ -68,7 +70,8 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       if (savedCalendarFeedToken && EMAIL_API_BASE_URL) {
         setCalendarFeedToken(savedCalendarFeedToken);
         setCalendarFeedUrl(`${EMAIL_API_BASE_URL}/api/calendar/feed?token=${encodeURIComponent(savedCalendarFeedToken)}`);
-        setCalendarCaldavUrl(`${EMAIL_API_BASE_URL}/api/caldav/${encodeURIComponent(savedCalendarFeedToken)}/`);
+        setCalendarCaldavUrl(`${EMAIL_API_BASE_URL}/api/caldav/`);
+        setCalendarCaldavPassword(savedCalendarFeedToken);
       }
       setThreshold(th);
     })();
@@ -172,8 +175,9 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       setCalendarFeedToken(result.feedToken);
       const url = `${EMAIL_API_BASE_URL}/api/calendar/feed?token=${encodeURIComponent(result.feedToken)}`;
       setCalendarFeedUrl(url);
-      const caldavUrl = `${EMAIL_API_BASE_URL}/api/caldav/${encodeURIComponent(result.feedToken)}/`;
+      const caldavUrl = `${EMAIL_API_BASE_URL}/api/caldav/`;
       setCalendarCaldavUrl(caldavUrl);
+      setCalendarCaldavPassword(result.feedToken);
       try {
         await navigator.clipboard?.writeText(caldavUrl);
       } catch {
@@ -534,6 +538,12 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                     </button>
                     {calendarFeedUrl && (
                       <input className="input input-sm" readOnly value={calendarCaldavUrl} aria-label="CalDAV 服务器地址" />
+                    )}
+                    {calendarCaldavPassword && (
+                      <>
+                        <input className="input input-sm" readOnly value={calendarCaldavUsername} aria-label="CalDAV 用户名" />
+                        <input className="input input-sm" readOnly value={calendarCaldavPassword} aria-label="CalDAV 密码" />
+                      </>
                     )}
                     {calendarFeedUrl && (
                       <input className="input input-sm" readOnly value={calendarFeedUrl} aria-label="Webcal 订阅地址" />

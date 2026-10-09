@@ -13,12 +13,23 @@ function tokenFromRequest(request: ApiRequest): string {
   const pathname = new URL(request.url || '/', 'https://calendar.local').pathname;
   const marker = '/api/caldav/';
   const rest = pathname.slice(pathname.indexOf(marker) + marker.length);
-  return decodeURIComponent(rest.split('/')[0] || '');
+  const pathToken = decodeURIComponent(rest.split('/')[0] || '');
+  if (pathToken) return pathToken;
+
+  const authorization = request.headers.authorization;
+  if (!authorization?.startsWith('Basic ')) return '';
+  try {
+    const decoded = Buffer.from(authorization.slice(6), 'base64').toString('utf8');
+    return decoded.slice(decoded.indexOf(':') + 1);
+  } catch {
+    return '';
+  }
 }
 
-function baseUrl(request: ApiRequest, token: string): string {
+function baseUrl(request: ApiRequest): string {
   const origin = request.headers.host ? `https://${request.headers.host}` : 'https://mail.sair-club.com';
-  return `${origin}/api/caldav/${encodeURIComponent(token)}/`;
+  const pathname = new URL(request.url || '/api/caldav/', 'https://calendar.local').pathname;
+  return `${origin}${pathname.endsWith('/') ? pathname : `${pathname}/`}`;
 }
 
 function eventHref(base: string, item: Assignment): string {
@@ -36,9 +47,15 @@ function collectionXml(base: string, assignments: Assignment[]): string {
 
 export default async function handler(request: ApiRequest, response: ServerResponse): Promise<void> {
   const token = tokenFromRequest(request);
+  if (!token) {
+    response.statusCode = 401;
+    response.setHeader('WWW-Authenticate', 'Basic realm="NoDDL Calendar"');
+    response.end('CalDAV credentials required');
+    return;
+  }
   try {
     const assignments = await readCalendarAssignments(token);
-    const base = baseUrl(request, token);
+    const base = baseUrl(request);
 
     if (request.method === 'OPTIONS') {
       response.statusCode = 200;
