@@ -32,6 +32,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   const [emailCode, setEmailCode] = useState('');
   const [emailToken, setEmailToken] = useState('');
   const [calendarFeedUrl, setCalendarFeedUrl] = useState('');
+  const [calendarFeedToken, setCalendarFeedToken] = useState('');
   const [emailBusy, setEmailBusy] = useState(false);
   const [threshold, setThreshold] = useState(72);
 
@@ -64,6 +65,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       setEmailAddress(savedEmail);
       setEmailToken(savedEmailToken);
       if (savedCalendarFeedToken && EMAIL_API_BASE_URL) {
+        setCalendarFeedToken(savedCalendarFeedToken);
         setCalendarFeedUrl(`${EMAIL_API_BASE_URL}/api/calendar/feed?token=${encodeURIComponent(savedCalendarFeedToken)}`);
       }
       setThreshold(th);
@@ -81,7 +83,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
 
       const list = await client.safeSyncAllCourses(curId, (msg) => showToast(msg));
       setAssignments(list);
-      if (emailToken) await publishCalendar(list);
+      if (calendarFeedToken) await publishCalendar(list);
       showToast(`同步完成！共汇总 ${list.length} 项作业`);
     } catch {
       showToast('同步全部课程失败');
@@ -151,8 +153,8 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   };
 
   const publishCalendar = async (sourceAssignments = assignments) => {
-    if (!emailToken || !EMAIL_API_BASE_URL) {
-      showToast('请先绑定邮箱，再创建手机日历订阅');
+    if (!EMAIL_API_BASE_URL) {
+      showToast('日历服务未配置');
       return;
     }
 
@@ -165,6 +167,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       const result = JSON.parse(response) as { feedToken?: string };
       if (!result.feedToken) throw new Error('Invalid calendar feed response');
       await storage.set('nodd_calendar_feed_token', result.feedToken);
+      setCalendarFeedToken(result.feedToken);
       const url = `${EMAIL_API_BASE_URL}/api/calendar/feed?token=${encodeURIComponent(result.feedToken)}`;
       setCalendarFeedUrl(url);
       try {
@@ -517,13 +520,13 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   <div className="card-body gap-3 p-4">
                     <div className="flex items-center justify-between gap-2">
                       <h2 className="card-title text-base">手机日历</h2>
-                      <span className={`badge ${emailToken ? 'badge-success' : 'badge-ghost'}`}>
-                        {emailToken ? '可用' : '需绑定邮箱'}
+                      <span className={`badge ${calendarFeedToken ? 'badge-success' : 'badge-ghost'}`}>
+                        {calendarFeedToken ? '已启用' : '未设置'}
                       </span>
                     </div>
-                    <p className="text-xs text-base-content/60">绑定邮箱后生成订阅地址，手机日历会定期自动刷新。</p>
-                    <button className="btn btn-outline btn-sm" disabled={!emailToken || emailBusy} onClick={() => publishCalendar()}>
-                      {emailToken ? '更新手机日历订阅' : '先绑定邮箱'}
+                    <p className="text-xs text-base-content/60">生成订阅地址后，手机日历会定期自动刷新。</p>
+                    <button className="btn btn-outline btn-sm" disabled={emailBusy} onClick={() => publishCalendar()}>
+                      更新手机日历订阅
                     </button>
                     {calendarFeedUrl && (
                       <input className="input input-sm" readOnly value={calendarFeedUrl} aria-label="手机日历订阅地址" />

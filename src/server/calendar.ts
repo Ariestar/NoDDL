@@ -1,7 +1,7 @@
 import { randomBytes, createHash } from 'node:crypto';
 import { createDeadlineCalendar } from '../core/calendar.js';
 import { Assignment } from '../core/types.js';
-import { redisCommand } from './redis.js';
+import { allowWithinLimit, redisCommand } from './redis.js';
 
 const FEED_TTL_SECONDS = 180 * 24 * 60 * 60;
 const MAX_ASSIGNMENTS = 200;
@@ -42,25 +42,24 @@ function validateAssignments(value: unknown): Assignment[] {
 }
 
 export async function publishCalendarFeed(
-  authToken: string,
+  clientIp: string,
   input: { assignments?: unknown; feedToken?: unknown }
 ): Promise<{ feedToken: string; assignments: number }> {
-  const email = await redisCommand(['GET', `email-binding:${digest(authToken)}`]);
-  if (typeof email !== 'string') throw new CalendarServiceError(401, '邮箱绑定已失效，请重新验证');
+  const ipKey = `calendar-publish:ip:${digest(clientIp || 'unknown')}`;
+  if (!(await allowWithinLimit(ipKey, 30, 60 * 60))) {
+    throw new CalendarServiceError(429, '日历更新过于频繁，请稍后再试');
+  }
 
   const assignments = validateAssignments(input.assignments);
   const existingToken = typeof input.feedToken === 'string' ? input.feedToken : '';
   let feedToken = existingToken;
 
-  if (feedToken) {
-    const existing = await redisCommand(['HGET', feedKey(feedToken), 'email']);
-    if (existing !== email) throw new CalendarServiceError(403, '日历订阅地址无效');
-  } else {
+  if (!/^[A-Za-z0-9_-]{32,}$/.test(feedToken) || await redisCommand(['EXISTS', feedKey(feedToken)]) !== 1) {
     feedToken = randomBytes(32).toString('base64url');
   }
 
   const key = feedKey(feedToken);
-  await redisCommand(['HSET', key, 'email', email, 'assignments', JSON.stringify(assignments)]);
+  await redisCommand(['HSET', key, 'assignments', JSON.stringify(assignments)]);
   await redisCommand(['EXPIRE', key, FEED_TTL_SECONDS]);
   return { feedToken, assignments: assignments.length };
 }
