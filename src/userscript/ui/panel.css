@@ -2,32 +2,25 @@
 @source "./App.tsx";
 
 @plugin "daisyui" {
-  themes: corporate --default;
+  themes: nord --default;
 }
 
 :host {
   color-scheme: light;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --nodd-ink: #162234;
-  --nodd-muted: #718198;
-  --nodd-line: #e5ebf2;
-  --nodd-mist: #f5f7fa;
-  --nodd-navy: #10243e;
-  --nodd-blue: #2f6bff;
-  --nodd-coral: #ff7663;
-  --nodd-teal: #35b8a6;
-  --nodd-shadow: 0 24px 60px rgba(16, 36, 62, .22), 0 6px 18px rgba(16, 36, 62, .12);
 }
 
-.nodd-shell { color: var(--nodd-ink); }
+.nodd-shell {
+  color: var(--color-base-content);
+}
 
 .nodd-launcher {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
+  display: grid;
   width: 72px;
   height: 72px;
   padding: 0;
+  place-items: center;
   border: 0;
   border-radius: 50%;
   background: transparent;
@@ -36,74 +29,102 @@
   transition: transform .2s ease;
 }
 
-.nodd-launcher:hover { transform: translateY(-4px) scale(1.04); }
+.nodd-launcher:hover {
+  transform: translateY(-4px) scale(1.04);
+}
 
 .nodd-launcher:focus-visible,
 .nodd-panel button:focus-visible,
 .nodd-panel a:focus-visible,
 .nodd-panel input:focus-visible,
 .nodd-panel select:focus-visible {
-  outline: 3px solid rgba(47, 107, 255, .28);
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 28%, transparent);
   outline-offset: 2px;
 }
 
 .nodd-launcher img {
-  position: relative;
-  z-index: 1;
   width: 72px;
   height: 72px;
   object-fit: contain;
-  filter: drop-shadow(0 8px 8px rgba(16, 36, 62, .25));
+  filter: drop-shadow(0 8px 8px rgba(15, 23, 42, .25));
   animation: nodd-float 4s ease-in-out infinite;
 }
 
-.nodd-launcher-count { position: absolute; right: 0; top: 0; display: grid; min-width: 22px; height: 22px; padding: 0 5px; place-items: center; border: 2px solid #fff; border-radius: 999px; color: var(--nodd-navy); background: #d8f4ef; font-size: 11px; font-weight: 800; }
-.nodd-launcher-count.is-urgent { color: #fff; background: var(--nodd-coral); }
+.nodd-launcher-count {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  place-items: center;
+  border: 2px solid var(--color-base-100);
+  border-radius: 999px;
+  color: var(--color-primary-content);
+  background: var(--color-primary);
+  font-size: 11px;
+  font-weight: 800;
+}
 
-.nodd-panel { border: 1px solid rgba(255, 255, 255, .7); border-radius: 24px; background: var(--nodd-mist); box-shadow: var(--nodd-shadow); animation: nodd-rise .22s ease-out; }
-.nodd-header { color: #fff; background: var(--nodd-navy); }
-.nodd-brand { display: flex; align-items: center; min-width: 0; }
-.nodd-brand img { width: 44px; height: 44px; object-fit: contain; filter: drop-shadow(0 4px 5px rgba(0, 0, 0, .2)); }
-.nodd-sync { min-height: 32px; border: 1px solid rgba(255, 255, 255, .18); border-radius: 10px; color: #fff; background: rgba(255, 255, 255, .1); font-size: 11px; font-weight: 700; }
-.nodd-sync:hover { border-color: rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .18); }
-.nodd-close { color: rgba(255, 255, 255, .65); }
-.nodd-close:hover { color: #fff; background: rgba(255, 255, 255, .1); }
-.nodd-tabs { border-bottom: 1px solid var(--nodd-line); }
-.nodd-tab { min-height: 40px; border: 0; color: var(--nodd-muted); font-size: 12px; font-weight: 700; }
-.nodd-tab.is-active { color: var(--nodd-blue); box-shadow: inset 0 -2px var(--nodd-blue); }
-.nodd-content { scrollbar-color: #cbd5e1 transparent; scrollbar-width: thin; }
+.nodd-launcher-count.is-urgent {
+  color: var(--color-error-content);
+  background: var(--color-error);
+}
 
-.nodd-filters { gap: 6px; padding: 4px; border: 1px solid var(--nodd-line); border-radius: 13px; background: #fff; }
-.nodd-filter { min-height: 32px; border: 0; border-radius: 9px !important; color: var(--nodd-muted); background: transparent; font-size: 11px; font-weight: 700; }
-.nodd-filter .badge { height: 18px; min-height: 18px; border: 0; color: inherit; background: rgba(113, 129, 152, .12); font-size: 10px; }
-.nodd-filter.is-active { color: #fff; background: var(--nodd-blue); box-shadow: 0 4px 12px rgba(47, 107, 255, .2); }
-.nodd-filter.is-active .badge { background: rgba(255, 255, 255, .2); }
+.nodd-panel {
+  animation: nodd-rise .2s ease-out;
+}
 
-.nodd-assignment-list { overflow: hidden; border: 1px solid var(--nodd-line); background: #fff; box-shadow: 0 5px 14px rgba(16, 36, 62, .04); }
-.nodd-assignment { min-height: 92px; border-color: var(--nodd-line); transition: background .18s ease; }
-.nodd-assignment:hover { background: #f8fbff; }
-.nodd-assignment .list-col-grow { min-width: 0; }
-.nodd-status-dot { width: 9px; height: 9px; align-self: start; margin-top: 6px; border-radius: 50%; background: var(--nodd-teal); }
-.nodd-status-dot.badge-warning, .nodd-status-dot.badge-error { background: var(--nodd-coral); }
-.nodd-course { color: var(--nodd-muted); }
-.nodd-status { border: 0; font-size: 10px; font-weight: 800; }
-.nodd-empty { border: 1px dashed var(--nodd-line); border-radius: 16px; background: #fff; box-shadow: none; color: var(--nodd-muted); }
-.nodd-section { box-shadow: none; }
-.nodd-section .card-body, .nodd-section .collapse-content { padding: 16px; }
-.nodd-panel .input, .nodd-panel .select { min-height: 38px; border: 1px solid var(--nodd-line); border-radius: 10px; color: var(--nodd-ink); background: #fbfcfe; font-size: 12px; }
-.nodd-panel .input:focus, .nodd-panel .select:focus { border-color: rgba(47, 107, 255, .65); outline: 0; box-shadow: 0 0 0 3px rgba(47, 107, 255, .1); }
-.nodd-panel .btn-primary { border: 0; background: var(--nodd-blue); }
-.nodd-panel .btn-outline.btn-primary { border-color: var(--nodd-blue); color: var(--nodd-blue); background: transparent; }
-.nodd-panel .alert { border: 1px solid rgba(47, 107, 255, .18); border-radius: 11px; color: var(--nodd-blue); background: #eff4ff; }
+.nodd-brand img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
 
-@keyframes nodd-float { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-4px) rotate(2deg); } }
-@keyframes nodd-rise { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.nodd-content {
+  scrollbar-color: color-mix(in srgb, var(--color-base-content) 25%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.nodd-panel .card-body,
+.nodd-panel .collapse-content {
+  padding: 1rem;
+}
+
+.nodd-panel .input,
+.nodd-panel .select {
+  width: 100%;
+}
+
+@keyframes nodd-float {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-4px) rotate(2deg); }
+}
+
+@keyframes nodd-rise {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 
 @media (max-width: 520px) {
-  .nodd-panel { right: 10px; bottom: 82px; width: calc(100vw - 20px); border-radius: 20px; }
-  .nodd-launcher { right: 12px; bottom: 12px; }
+  .nodd-panel {
+    right: 10px;
+    bottom: 82px;
+    width: calc(100vw - 20px);
+  }
+
+  .nodd-launcher {
+    right: 12px;
+    bottom: 12px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nodd-launcher img, .nodd-panel, .nodd-assignment, .nodd-launcher { animation: none; transition: none; }
+  .nodd-launcher img,
+  .nodd-panel,
+  .nodd-launcher {
+    animation: none;
+    transition: none;
+  }
 }
