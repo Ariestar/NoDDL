@@ -28,3 +28,13 @@ export async function allowWithinLimit(key: string, limit: number, windowSeconds
   ]);
   return typeof result === 'number' && result <= limit;
 }
+
+export async function releaseRateLimits(keys: string[]): Promise<void> {
+  if (keys.length === 0) return;
+  await redisCommand([
+    'EVAL',
+    'for i=1,#KEYS do local n=redis.call("GET",KEYS[i]); if n and tonumber(n)>0 then if tonumber(n)==1 then redis.call("DEL",KEYS[i]); else redis.call("DECR",KEYS[i]); end end end; return 1',
+    keys.length,
+    ...keys
+  ]);
+}

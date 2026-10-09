@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
-import { allowWithinLimit, redisCommand } from './redis.js';
+import { allowWithinLimit, redisCommand, releaseRateLimits } from './redis.js';
 import { sendEmail } from './resend.js';
 
 const CODE_TTL_SECONDS = 600;
@@ -35,19 +35,31 @@ export async function requestEmailCode(emailInput: unknown, clientIp: string): P
   const emailKey = digest(email);
   const ipKey = digest(clientIp || 'unknown');
   const today = new Date().toISOString().slice(0, 10);
-  const emailAllowed = await allowWithinLimit(`email-code:email:${emailKey}`, 3, 24 * 60 * 60);
-  const ipAllowed = await allowWithinLimit(`email-code:ip:${ipKey}`, 10, 60 * 60);
-  const globalAllowed = await allowWithinLimit(`email-code:global:${today}`, 100, 24 * 60 * 60);
-  if (!emailAllowed || !ipAllowed || !globalAllowed) throw new EmailServiceError(429, '请求过于频繁，请稍后再试');
+  const emailLimitKey = `email-code:email:${emailKey}`;
+  const ipLimitKey = `email-code:ip:${ipKey}`;
+  const globalLimitKey = `email-code:global:${today}`;
+  const emailAllowed = await allowWithinLimit(emailLimitKey, 30, 24 * 60 * 60);
+  const ipAllowed = await allowWithinLimit(ipLimitKey, 10, 60 * 60);
+  const globalAllowed = await allowWithinLimit(globalLimitKey, 100, 24 * 60 * 60);
+  if (!emailAllowed || !ipAllowed || !globalAllowed) {
+    await releaseRateLimits([emailLimitKey, ipLimitKey, globalLimitKey]);
+    throw new EmailServiceError(429, '请求过于频繁，请稍后再试');
+  }
 
   const code = String(randomInt(100000, 1000000));
   const stored = await redisCommand(['SET', `email-code:${emailKey}`, codeDigest(email, code), 'EX', CODE_TTL_SECONDS, 'NX']);
-  if (stored !== 'OK') throw new EmailServiceError(429, '验证码已发送，请稍后再试');
+  if (stored !== 'OK') {
+    await releaseRateLimits([emailLimitKey, ipLimitKey, globalLimitKey]);
+    throw new EmailServiceError(429, '验证码已发送，请稍后再试');
+  }
 
   try {
     await sendEmail(email, 'NoDDL 邮箱验证码', `你的验证码是 ${code}，10 分钟内有效。若非本人操作，请忽略此邮件。`);
   } catch (error) {
-    await redisCommand(['DEL', `email-code:${emailKey}`]);
+    await Promise.all([
+      redisCommand(['DEL', `email-code:${emailKey}`]),
+      releaseRateLimits([emailLimitKey, ipLimitKey, globalLimitKey])
+    ]);
     throw error;
   }
 }
@@ -128,17 +140,25 @@ export async function sendEmailAlert(
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const userAllowed = await allowWithinLimit(`email-send:user:${digest(email)}:${today}`, 10, 24 * 60 * 60);
-  const globalAllowed = await allowWithinLimit(`email-send:global:${today}`, 400, 24 * 60 * 60);
+  const userLimitKey = `email-send:user:${digest(email)}:${today}`;
+  const globalLimitKey = `email-send:global:${today}`;
+  const userAllowed = await allowWithinLimit(userLimitKey, 10, 24 * 60 * 60);
+  const globalAllowed = await allowWithinLimit(globalLimitKey, 400, 24 * 60 * 60);
   if (!userAllowed || !globalAllowed) {
-    await Promise.all(reservedKeys.map(key => redisCommand(['DEL', key])));
+    await Promise.all([
+      releaseRateLimits([userLimitKey, globalLimitKey]),
+      ...reservedKeys.map(key => redisCommand(['DEL', key]))
+    ]);
     throw new EmailServiceError(429, '今日邮件提醒次数已达上限');
   }
 
   try {
     await sendEmail(email, subject, body);
   } catch (error) {
-    await Promise.all(reservedKeys.map(key => redisCommand(['DEL', key])));
+    await Promise.all([
+      releaseRateLimits([userLimitKey, globalLimitKey]),
+      ...reservedKeys.map(key => redisCommand(['DEL', key]))
+    ]);
     throw error;
   }
   return { sent: true };
