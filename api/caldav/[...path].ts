@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createDeadlineCalendar } from '../../src/core/calendar.js';
+import { createDeadlineCalendar, createEmptyCalendar } from '../../src/core/calendar.js';
 import { Assignment } from '../../src/core/types.js';
 import { CalendarServiceError, readCalendarAssignments } from '../../src/server/calendar.js';
 import type { ApiRequest } from '../../src/server/http.js';
@@ -76,7 +76,7 @@ export default async function handler(request: ApiRequest, response: ServerRespo
       response.statusCode = 200;
       response.setHeader('Content-Type', 'text/calendar; charset=utf-8');
       response.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      response.end(createDeadlineCalendar(assignments, 'http://115.156.107.145') || 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n');
+      response.end(createDeadlineCalendar(assignments, 'http://115.156.107.145') || createEmptyCalendar());
       return;
     }
 

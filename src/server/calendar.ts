@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from 'node:crypto';
-import { createDeadlineCalendar } from '../core/calendar.js';
+import { createDeadlineCalendar, createEmptyCalendar } from '../core/calendar.js';
 import { Assignment } from '../core/types.js';
 import { allowWithinLimit, redisCommand } from './redis.js';
 
@@ -66,16 +66,7 @@ export async function publishCalendarFeed(
 
 export async function readCalendarFeed(feedToken: string): Promise<string> {
   const assignments = await readCalendarAssignments(feedToken);
-  return createDeadlineCalendar(assignments, 'http://115.156.107.145') || [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//NoDDL//Assignment Deadlines//ZH',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
-    'X-WR-CALNAME:NoDDL 作业截止',
-    'END:VCALENDAR',
-    ''
-  ].join('\r\n');
+  return createDeadlineCalendar(assignments, 'http://115.156.107.145') || createEmptyCalendar();
 }
 
 export async function readCalendarAssignments(feedToken: string): Promise<Assignment[]> {

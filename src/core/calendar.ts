@@ -76,3 +76,16 @@ export function createDeadlineCalendar(assignments: Assignment[], baseUrl: strin
   const encoder = new TextEncoder();
   return `${lines.map(line => foldIcsLine(line, encoder)).join('\r\n')}\r\n`;
 }
+
+export function createEmptyCalendar(): string {
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//NoDDL//Assignment Deadlines//ZH',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:NoDDL 作业截止',
+    'END:VCALENDAR',
+    ''
+  ].join('\r\n');
+}
