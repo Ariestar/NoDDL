@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NoDDL (Not Only DDL) - 武大一体化平台助手
 // @namespace    https://github.com/projectluojia/NoDDL
-// @version      1.0.10
+// @version      1.0.11
 // @author       projectluojia
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
@@ -7861,6 +7861,7 @@ ${markdown}` }
     const [emailCode, setEmailCode] = d("");
     const [emailToken, setEmailToken] = d("");
     const [calendarFeedUrl, setCalendarFeedUrl] = d("");
+    const [calendarCaldavUrl, setCalendarCaldavUrl] = d("");
     const [calendarFeedToken, setCalendarFeedToken] = d("");
     const [emailBusy, setEmailBusy] = d(false);
     const [threshold, setThreshold] = d(72);
@@ -7890,6 +7891,7 @@ ${markdown}` }
         if (savedCalendarFeedToken && EMAIL_API_BASE_URL) {
           setCalendarFeedToken(savedCalendarFeedToken);
           setCalendarFeedUrl(`${EMAIL_API_BASE_URL}/api/calendar/feed?token=${encodeURIComponent(savedCalendarFeedToken)}`);
+          setCalendarCaldavUrl(`${EMAIL_API_BASE_URL}/api/caldav/${encodeURIComponent(savedCalendarFeedToken)}/`);
         }
         setThreshold(th);
       })();
@@ -7982,8 +7984,10 @@ ${markdown}` }
         setCalendarFeedToken(result.feedToken);
         const url = `${EMAIL_API_BASE_URL}/api/calendar/feed?token=${encodeURIComponent(result.feedToken)}`;
         setCalendarFeedUrl(url);
+        const caldavUrl = `${EMAIL_API_BASE_URL}/api/caldav/${encodeURIComponent(result.feedToken)}/`;
+        setCalendarCaldavUrl(caldavUrl);
         try {
-          await ((_a = navigator.clipboard) == null ? void 0 : _a.writeText(url));
+          await ((_a = navigator.clipboard) == null ? void 0 : _a.writeText(caldavUrl));
         } catch {
         }
         showToast("订阅地址已更新并复制，可粘贴到手机日历");
@@ -8315,7 +8319,8 @@ ${markdown}` }
               ] }),
               /* @__PURE__ */ u$1("p", { className: "text-xs text-base-content/60", children: "生成订阅地址后，手机日历会定期自动刷新。" }),
               /* @__PURE__ */ u$1("button", { className: "btn btn-outline btn-sm", disabled: emailBusy, onClick: () => publishCalendar(), children: "更新手机日历订阅" }),
-              calendarFeedUrl && /* @__PURE__ */ u$1("input", { className: "input input-sm", readOnly: true, value: calendarFeedUrl, "aria-label": "手机日历订阅地址" })
+              calendarFeedUrl && /* @__PURE__ */ u$1("input", { className: "input input-sm", readOnly: true, value: calendarCaldavUrl, "aria-label": "CalDAV 服务器地址" }),
+              calendarFeedUrl && /* @__PURE__ */ u$1("input", { className: "input input-sm", readOnly: true, value: calendarFeedUrl, "aria-label": "Webcal 订阅地址" })
             ] }) }),
             /* @__PURE__ */ u$1("section", { className: "card border border-base-300 bg-base-100", children: /* @__PURE__ */ u$1("div", { className: "card-body p-4", children: /* @__PURE__ */ u$1("label", { className: "grid gap-1.5 text-sm", children: [
               /* @__PURE__ */ u$1("span", { className: "font-medium text-base-content/70", children: "微信推送 · PushPlus" }),

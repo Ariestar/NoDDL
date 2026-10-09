@@ -32,6 +32,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   const [emailCode, setEmailCode] = useState('');
   const [emailToken, setEmailToken] = useState('');
   const [calendarFeedUrl, setCalendarFeedUrl] = useState('');
+  const [calendarCaldavUrl, setCalendarCaldavUrl] = useState('');
   const [calendarFeedToken, setCalendarFeedToken] = useState('');
   const [emailBusy, setEmailBusy] = useState(false);
   const [threshold, setThreshold] = useState(72);
@@ -67,6 +68,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       if (savedCalendarFeedToken && EMAIL_API_BASE_URL) {
         setCalendarFeedToken(savedCalendarFeedToken);
         setCalendarFeedUrl(`${EMAIL_API_BASE_URL}/api/calendar/feed?token=${encodeURIComponent(savedCalendarFeedToken)}`);
+        setCalendarCaldavUrl(`${EMAIL_API_BASE_URL}/api/caldav/${encodeURIComponent(savedCalendarFeedToken)}/`);
       }
       setThreshold(th);
     })();
@@ -170,8 +172,10 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       setCalendarFeedToken(result.feedToken);
       const url = `${EMAIL_API_BASE_URL}/api/calendar/feed?token=${encodeURIComponent(result.feedToken)}`;
       setCalendarFeedUrl(url);
+      const caldavUrl = `${EMAIL_API_BASE_URL}/api/caldav/${encodeURIComponent(result.feedToken)}/`;
+      setCalendarCaldavUrl(caldavUrl);
       try {
-        await navigator.clipboard?.writeText(url);
+        await navigator.clipboard?.writeText(caldavUrl);
       } catch {
         // Clipboard permission is optional; the URL remains visible for copying.
       }
@@ -529,7 +533,10 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                       更新手机日历订阅
                     </button>
                     {calendarFeedUrl && (
-                      <input className="input input-sm" readOnly value={calendarFeedUrl} aria-label="手机日历订阅地址" />
+                      <input className="input input-sm" readOnly value={calendarCaldavUrl} aria-label="CalDAV 服务器地址" />
+                    )}
+                    {calendarFeedUrl && (
+                      <input className="input input-sm" readOnly value={calendarFeedUrl} aria-label="Webcal 订阅地址" />
                     )}
                   </div>
                 </section>

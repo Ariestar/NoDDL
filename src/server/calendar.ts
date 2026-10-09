@@ -65,13 +65,7 @@ export async function publishCalendarFeed(
 }
 
 export async function readCalendarFeed(feedToken: string): Promise<string> {
-  if (!/^[A-Za-z0-9_-]{32,}$/.test(feedToken)) {
-    throw new CalendarServiceError(404, '日历不存在');
-  }
-
-  const raw = await redisCommand(['HGET', feedKey(feedToken), 'assignments']);
-  if (typeof raw !== 'string') throw new CalendarServiceError(404, '日历不存在');
-  const assignments = JSON.parse(raw) as Assignment[];
+  const assignments = await readCalendarAssignments(feedToken);
   return createDeadlineCalendar(assignments, 'http://115.156.107.145') || [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -82,4 +76,14 @@ export async function readCalendarFeed(feedToken: string): Promise<string> {
     'END:VCALENDAR',
     ''
   ].join('\r\n');
+}
+
+export async function readCalendarAssignments(feedToken: string): Promise<Assignment[]> {
+  if (!/^[A-Za-z0-9_-]{32,}$/.test(feedToken)) {
+    throw new CalendarServiceError(404, '日历不存在');
+  }
+
+  const raw = await redisCommand(['HGET', feedKey(feedToken), 'assignments']);
+  if (typeof raw !== 'string') throw new CalendarServiceError(404, '日历不存在');
+  return JSON.parse(raw) as Assignment[];
 }
