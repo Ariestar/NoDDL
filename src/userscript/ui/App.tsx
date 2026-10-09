@@ -31,6 +31,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   const [emailAddress, setEmailAddress] = useState('');
   const [emailCode, setEmailCode] = useState('');
   const [emailToken, setEmailToken] = useState('');
+  const [calendarFeedUrl, setCalendarFeedUrl] = useState('');
   const [emailBusy, setEmailBusy] = useState(false);
   const [threshold, setThreshold] = useState(72);
 
@@ -54,6 +55,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       const smsUrl = (await storage.get('nodd_sms_webhook_url')) || '';
       const savedEmail = (await storage.get('nodd_email_address')) || '';
       const savedEmailToken = (await storage.get('nodd_email_token')) || '';
+      const savedCalendarFeedToken = (await storage.get('nodd_calendar_feed_token')) || '';
       const th = parseInt((await storage.get('nodd_hours_threshold')) || '72', 10);
       setPushplusToken(token);
       setBarkUrl(bark);
@@ -61,6 +63,9 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       setSmsWebhookUrl(smsUrl);
       setEmailAddress(savedEmail);
       setEmailToken(savedEmailToken);
+      if (savedCalendarFeedToken && EMAIL_API_BASE_URL) {
+        setCalendarFeedUrl(`${EMAIL_API_BASE_URL}/api/calendar/feed?token=${encodeURIComponent(savedCalendarFeedToken)}`);
+      }
       setThreshold(th);
     })();
   }, []);
@@ -142,6 +147,34 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
     showToast('日历文件已导出');
+  };
+
+  const publishCalendar = async () => {
+    if (!emailToken || !EMAIL_API_BASE_URL) {
+      showToast('请先绑定邮箱，再创建手机日历订阅');
+      return;
+    }
+
+    try {
+      const feedToken = (await storage.get('nodd_calendar_feed_token')) || '';
+      const response = await http.post(`${EMAIL_API_BASE_URL}/api/calendar/publish`, {
+        assignments,
+        feedToken: feedToken || undefined
+      }, { Authorization: `Bearer ${emailToken}` });
+      const result = JSON.parse(response) as { feedToken?: string };
+      if (!result.feedToken) throw new Error('Invalid calendar feed response');
+      await storage.set('nodd_calendar_feed_token', result.feedToken);
+      const url = `${EMAIL_API_BASE_URL}/api/calendar/feed?token=${encodeURIComponent(result.feedToken)}`;
+      setCalendarFeedUrl(url);
+      try {
+        await navigator.clipboard?.writeText(url);
+      } catch {
+        // Clipboard permission is optional; the URL remains visible for copying.
+      }
+      showToast('订阅地址已更新并复制，可粘贴到手机日历');
+    } catch {
+      showToast('手机日历订阅更新失败');
+    }
   };
 
   const requestEmailCode = async () => {
@@ -439,6 +472,12 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                               解绑
                             </button>
                           </div>
+                          <button className="btn btn-outline btn-sm" disabled={emailBusy} onClick={publishCalendar}>
+                            更新手机日历订阅
+                          </button>
+                          {calendarFeedUrl && (
+                            <input className="input input-sm" readOnly value={calendarFeedUrl} aria-label="手机日历订阅地址" />
+                          )}
                         </>
                       ) : (
                         <>
