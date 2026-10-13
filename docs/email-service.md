@@ -5,11 +5,10 @@ NoDDL 通过 Resend API 发送邮箱验证码和作业提醒。用户只需验�
 ## 配置 Resend
 
 1. 在 [Resend](https://resend.com/) 注册账号。
-2. 在 **Domains** 添加并验证你管理 DNS 的发信域名。你提供的 `mail.sair-club.com` 可作为发件域。
-3. 在 **API Keys** 创建一个用于发送邮件的 API Key，复制一次性显示的 Key。
-4. 在 Resend 的域名详情中复制 DKIM、SPF 等 DNS 记录，添加到该域名的 DNS 提供商，等待验证通过。
+2. 在 **API Keys** 创建一个用于发送邮件的 API Key，复制一次性显示的 Key。
+3. 如果需要自定义发件人，再在 **Domains** 添加并验证你管理 DNS 的发信域名。
 
-Resend 的 `onboarding@resend.dev` 适合初步验证；多用户发信要使用已验证域名下的 `RESEND_FROM` 地址。
+Resend 的 `onboarding@resend.dev` 可作为个人测试的默认发件人，不需要购买域名。Resend 可能限制未验证域名的收件人；需要稳定发送给任意邮箱时，再使用已验证域名下的可选 `RESEND_FROM` 地址。
 
 ## 配置 Vercel
 
@@ -18,12 +17,11 @@ Resend 的 `onboarding@resend.dev` 适合初步验证；多用户发信要使用
 | 变量 | 值 |
 |---|---|
 | `RESEND_API_KEY` | Resend API Key（设为 Sensitive） |
-| `RESEND_FROM` | 发件地址，例如 `NoDDL <no-reply@mail.sair-club.com>` |
 | `EMAIL_CODE_SECRET` | 随机生成、至少 32 字符的密钥（设为 Sensitive） |
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis 的 REST URL（设为 Sensitive） |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis 的 REST Token（设为 Sensitive） |
 
-`VITE_EMAIL_API_BASE_URL` 配置为 `https://mail.sair-club.com`。不要把 API Key 或 Redis Token 提交到 Git，也不要发到聊天里。
+`RESEND_FROM` 是可选项，缺省使用 `NoDDL <onboarding@resend.dev>`。`VITE_EMAIL_API_BASE_URL` 也不需要手填，Vercel 构建时会自动把生产地址写入 userscript。不要把 API Key 或 Redis Token 提交到 Git，也不要发到聊天里。
 
 在 [Upstash Console](https://console.upstash.com/) 创建 Redis 数据库后，从数据库详情页复制 REST URL 和 REST Token。数据库用于验证码、已验证邮箱绑定和发送限流。
 

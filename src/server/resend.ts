@@ -1,3 +1,5 @@
+const DEFAULT_FROM = 'NoDDL <onboarding@resend.dev>';
+
 export async function sendEmail(
   to: string,
   subject: string,
@@ -5,8 +7,8 @@ export async function sendEmail(
   fetcher: typeof fetch = fetch
 ): Promise<string> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM;
-  if (!apiKey || !from) throw new Error('Resend credentials are not configured');
+  const from = process.env.RESEND_FROM || DEFAULT_FROM;
+  if (!apiKey) throw new Error('Resend API key is not configured');
   if (!/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(to)) {
     throw new Error('Invalid recipient email address');
   }
