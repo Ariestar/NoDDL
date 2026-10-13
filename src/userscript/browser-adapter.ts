@@ -91,8 +91,7 @@ export class BrowserHttpClient implements HttpClient {
 export class BrowserStorage implements StorageAdapter {
   async get(key: string): Promise<string | null> {
     if (typeof GM_getValue !== 'undefined') {
-      const val = GM_getValue<string>(key, '');
-      return val || null;
+      return GM_getValue<string | null>(key, null);
     }
     return localStorage.getItem(key);
   }

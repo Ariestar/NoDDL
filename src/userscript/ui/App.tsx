@@ -1,10 +1,17 @@
 import { h } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { Assignment, HttpClient, SubmissionResult } from '../../core/types';
 import { CourseGradingClient } from '../../core/client';
 import { BrowserStorage } from '../browser-adapter';
 import { createDeadlineCalendar } from '../../core/calendar';
-import { EMAIL_API_BASE_URL, callEmailApi } from '../email-api';
+import { parseActiveCourseInfo } from '../../core/parsers';
+import {
+  API_BASE_URL_STORAGE_KEY,
+  callEmailApi,
+  getServiceConfig,
+  normalizeApiBaseUrl,
+  type ServiceConfig
+} from '../email-api';
 import petImage from './assets/nodd-pet.png';
 
 interface AppProps {
@@ -31,13 +38,16 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   const [emailAddress, setEmailAddress] = useState('');
   const [emailCode, setEmailCode] = useState('');
   const [emailToken, setEmailToken] = useState('');
-  const [calendarFeedUrl, setCalendarFeedUrl] = useState('');
-  const [calendarCaldavUrl, setCalendarCaldavUrl] = useState('');
-  const [calendarCaldavUsername, setCalendarCaldavUsername] = useState('nodd');
-  const [calendarCaldavPassword, setCalendarCaldavPassword] = useState('');
   const [calendarFeedToken, setCalendarFeedToken] = useState('');
+  const [service, setService] = useState<ServiceConfig | null>(null);
+  const [apiDraft, setApiDraft] = useState('');
+  const [calendarBusy, setCalendarBusy] = useState(false);
   const [emailBusy, setEmailBusy] = useState(false);
   const [threshold, setThreshold] = useState(72);
+  const syncInProgress = useRef(false);
+  const apiBaseUrl = service?.baseUrl || '';
+  const calendarFeedUrl = apiBaseUrl && calendarFeedToken
+    ? `${apiBaseUrl}/api/calendar/feed?token=${encodeURIComponent(calendarFeedToken)}` : '';
 
   // Submissions State
   const [submissions, setSubmissions] = useState<SubmissionResult[]>([]);
@@ -57,9 +67,10 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       const bark = (await storage.get('nodd_bark_url')) || '';
       const phone = (await storage.get('nodd_sms_phone')) || '';
       const smsUrl = (await storage.get('nodd_sms_webhook_url')) || '';
-      const savedEmail = (await storage.get('nodd_email_address')) || '';
-      const savedEmailToken = (await storage.get('nodd_email_token')) || '';
-      const savedCalendarFeedToken = (await storage.get('nodd_calendar_feed_token')) || '';
+      const configured = await getServiceConfig(storage);
+      const savedEmail = (await configured.storage.get('nodd_email_address')) || '';
+      const savedEmailToken = (await configured.storage.get('nodd_email_token')) || '';
+      const savedCalendarFeedToken = (await configured.storage.get('nodd_calendar_feed_token')) || '';
       const th = parseInt((await storage.get('nodd_hours_threshold')) || '72', 10);
       setPushplusToken(token);
       setBarkUrl(bark);
@@ -67,33 +78,35 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       setSmsWebhookUrl(smsUrl);
       setEmailAddress(savedEmail);
       setEmailToken(savedEmailToken);
-      if (savedCalendarFeedToken && EMAIL_API_BASE_URL) {
-        setCalendarFeedToken(savedCalendarFeedToken);
-        setCalendarFeedUrl(`${EMAIL_API_BASE_URL}/api/calendar/feed?token=${encodeURIComponent(savedCalendarFeedToken)}`);
-        setCalendarCaldavUrl(`${EMAIL_API_BASE_URL}/api/caldav/`);
-        setCalendarCaldavPassword(savedCalendarFeedToken);
-      }
+      setService(configured);
+      setApiDraft(configured.baseUrl);
+      setCalendarFeedToken(savedCalendarFeedToken);
       setThreshold(th);
-    })();
+      await syncAllCourses(configured);
+    })().catch(() => showToast('读取同步配置失败，请刷新页面重试'));
   }, []);
 
   // 一键全量同步所有课程（带安全 Session 恢复）
-  const syncAllCourses = async () => {
+  const syncAllCourses = async (configured = service) => {
+    if (!configured || syncInProgress.current) return;
+    syncInProgress.current = true;
     setLoading(true);
     showToast('正在全量安全同步所有课程...');
     try {
-      const curMatch = document.documentElement.innerHTML.match(/courselist\.jsp\?courseID=([a-zA-Z0-9_-]+)/i) ||
-                       window.location.search.match(/courseID=([a-zA-Z0-9_-]+)/i);
-      const curId = curMatch ? curMatch[1] : undefined;
+      const curId = new URLSearchParams(window.location.search).get('courseID') ||
+        parseActiveCourseInfo(document.documentElement.innerHTML).id || undefined;
 
       const list = await client.safeSyncAllCourses(curId, (msg) => showToast(msg));
       setAssignments(list);
-      if (calendarFeedToken) await publishCalendar(list);
+      if (configured.baseUrl && await configured.storage.get('nodd_calendar_feed_token')) {
+        await publishCalendar(list, configured);
+      }
       showToast(`同步完成！共汇总 ${list.length} 项作业`);
     } catch {
-      showToast('同步全部课程失败');
+      showToast('同步未全部完成，请重试并检查课程登录和日历服务');
     } finally {
       setLoading(false);
+      syncInProgress.current = false;
     }
   };
 
@@ -117,6 +130,33 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     await storage.set('nodd_sms_webhook_url', smsWebhookUrl.trim());
     await storage.set('nodd_hours_threshold', String(threshold));
     showToast('推送与提醒配置已保存！');
+  };
+
+  const saveApiConfig = async () => {
+    const normalized = normalizeApiBaseUrl(apiDraft);
+    if (apiDraft.trim() && !normalized) {
+      showToast('请输入 HTTPS 服务根地址，不含路径、参数或账号密码');
+      return;
+    }
+    setEmailBusy(true);
+    try {
+      await storage.set(API_BASE_URL_STORAGE_KEY, normalized);
+      const configured = await getServiceConfig(storage);
+      const savedEmail = (await configured.storage.get('nodd_email_address')) || '';
+      const savedEmailToken = (await configured.storage.get('nodd_email_token')) || '';
+      const savedFeedToken = (await configured.storage.get('nodd_calendar_feed_token')) || '';
+      setService(configured);
+      setApiDraft(configured.baseUrl);
+      setEmailAddress(savedEmail);
+      setEmailToken(savedEmailToken);
+      setEmailCode('');
+      setCalendarFeedToken(savedFeedToken);
+      showToast(normalized ? '服务地址已保存，请在此服务启用日历或绑定邮箱' : '日历和邮件服务已关闭');
+    } catch {
+      showToast('保存服务配置失败，请重试');
+    } finally {
+      setEmailBusy(false);
+    }
   };
 
   const testPush = async () => {
@@ -157,44 +197,31 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     showToast('日历文件已导出');
   };
 
-  const publishCalendar = async (sourceAssignments = assignments) => {
-    if (!EMAIL_API_BASE_URL) {
-      showToast('日历服务未配置');
-      return;
-    }
-
+  const publishCalendar = async (sourceAssignments: Assignment[], configured: ServiceConfig) => {
+    if (!configured.baseUrl) throw new Error('Calendar service is not configured');
+    setCalendarBusy(true);
     try {
-      const feedToken = (await storage.get('nodd_calendar_feed_token')) || '';
-      const response = await http.post(`${EMAIL_API_BASE_URL}/api/calendar/publish`, {
+      const feedToken = (await configured.storage.get('nodd_calendar_feed_token')) || '';
+      const response = await http.post(`${configured.baseUrl}/api/calendar/publish`, {
         assignments: sourceAssignments,
         feedToken: feedToken || undefined
-      }, { Authorization: `Bearer ${emailToken}` });
+      });
       const result = JSON.parse(response) as { feedToken?: string };
       if (!result.feedToken) throw new Error('Invalid calendar feed response');
-      await storage.set('nodd_calendar_feed_token', result.feedToken);
+      await configured.storage.set('nodd_calendar_feed_token', result.feedToken);
       setCalendarFeedToken(result.feedToken);
-      const url = `${EMAIL_API_BASE_URL}/api/calendar/feed?token=${encodeURIComponent(result.feedToken)}`;
-      setCalendarFeedUrl(url);
-      const caldavUrl = `${EMAIL_API_BASE_URL}/api/caldav/`;
-      setCalendarCaldavUrl(caldavUrl);
-      setCalendarCaldavPassword(result.feedToken);
-      try {
-        await navigator.clipboard?.writeText(caldavUrl);
-      } catch {
-        // Clipboard permission is optional; the URL remains visible for copying.
-      }
-      showToast('订阅地址已更新并复制，可粘贴到手机日历');
-    } catch {
-      showToast('手机日历订阅更新失败');
+    } finally {
+      setCalendarBusy(false);
     }
   };
 
   const requestEmailCode = async () => {
+    if (!service?.baseUrl) return;
     setEmailBusy(true);
     try {
       const email = emailAddress.trim().toLowerCase();
-      await callEmailApi(http, 'request-code', { email });
-      await storage.set('nodd_email_address', email);
+      await callEmailApi(http, service.baseUrl, 'request-code', { email });
+      await service.storage.set('nodd_email_address', email);
       setEmailAddress(email);
       showToast('验证码已发送');
     } catch {
@@ -205,17 +232,18 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   };
 
   const verifyEmail = async () => {
+    if (!service?.baseUrl) return;
     setEmailBusy(true);
     try {
-      const result = await callEmailApi(http, 'verify-code', {
+      const result = await callEmailApi(http, service.baseUrl, 'verify-code', {
         email: emailAddress.trim().toLowerCase(),
         code: emailCode.trim()
       });
       const token = typeof result.token === 'string' ? result.token : '';
       const verifiedEmail = typeof result.email === 'string' ? result.email : '';
       if (!token || !verifiedEmail) throw new Error('Invalid email verification response');
-      await storage.set('nodd_email_address', verifiedEmail);
-      await storage.set('nodd_email_token', token);
+      await service.storage.set('nodd_email_address', verifiedEmail);
+      await service.storage.set('nodd_email_token', token);
       setEmailAddress(verifiedEmail);
       setEmailToken(token);
       setEmailCode('');
@@ -228,9 +256,10 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   };
 
   const testEmail = async () => {
+    if (!service?.baseUrl) return;
     setEmailBusy(true);
     try {
-      await callEmailApi(http, 'alert', { test: true }, emailToken);
+      await callEmailApi(http, service.baseUrl, 'alert', { test: true }, emailToken);
       showToast('测试邮件已发送');
     } catch {
       showToast('测试邮件发送失败');
@@ -240,11 +269,12 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   };
 
   const unbindEmail = async () => {
+    if (!service?.baseUrl) return;
     setEmailBusy(true);
     try {
-      await callEmailApi(http, 'unbind', {}, emailToken);
-      await storage.remove('nodd_email_address');
-      await storage.remove('nodd_email_token');
+      await callEmailApi(http, service.baseUrl, 'unbind', {}, emailToken);
+      await service.storage.remove('nodd_email_address');
+      await service.storage.remove('nodd_email_token');
       setEmailAddress('');
       setEmailToken('');
       showToast('邮箱已解绑');
@@ -312,7 +342,8 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                 type="button"
                 className="btn btn-primary btn-sm whitespace-nowrap"
                 title="全量扫描并同步所有课程作业"
-                onClick={syncAllCourses}
+                disabled={!service || loading || calendarBusy || emailBusy}
+                onClick={() => syncAllCourses()}
               >
                 <span aria-hidden="true">↻</span> 同步全部
               </button>
@@ -388,7 +419,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   </button>
                 </div>
                 <label className="flex items-center justify-between gap-3 text-xs text-base-content/60">
-                  <span>排序</span>
                   <select
                     className="select select-sm flex-1"
                     value={sortKey}
@@ -466,7 +496,32 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
 
             {activeTab === 'settings' && (
               <div className="space-y-3">
-                {EMAIL_API_BASE_URL && (
+                <section className="card border border-base-300 bg-base-100">
+                  <div className="card-body gap-3 p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <h2 className="card-title text-base">同步服务</h2>
+                      <span className={`badge ${apiBaseUrl ? 'badge-success' : 'badge-ghost'}`}>
+                        {apiBaseUrl ? '已配置' : '未配置'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-base-content/60">
+                      填写你自己部署的 Vercel 地址，例如 https://你的项目.vercel.app
+                    </p>
+                    <input
+                      type="url"
+                      aria-label="同步服务地址"
+                      className="input w-full"
+                      placeholder="https://你的项目.vercel.app"
+                      value={apiDraft}
+                      onInput={(e) => setApiDraft((e.target as HTMLInputElement).value)}
+                    />
+                    <button className="btn btn-primary btn-sm" disabled={!service || loading || calendarBusy || emailBusy} onClick={saveApiConfig}>
+                      保存服务地址
+                    </button>
+                  </div>
+                </section>
+
+                {apiBaseUrl && (
                   <section className="card border border-base-300 bg-base-100">
                     <div className="card-body gap-3 p-4">
                       <div className="flex items-center justify-between gap-2">
@@ -532,17 +587,25 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                         {calendarFeedToken ? '已启用' : '未设置'}
                       </span>
                     </div>
-                    <p className="text-xs text-base-content/60">生成订阅地址后，手机日历会定期自动刷新。</p>
-                    <button className="btn btn-outline btn-sm" disabled={emailBusy} onClick={() => publishCalendar()}>
+                    <p className="text-xs text-base-content/60">打开课程页面时更新作业；手机按自身同步周期获取日历。关闭页面后暂不抓取新作业。</p>
+                    <button className="btn btn-outline btn-sm" disabled={!apiBaseUrl || emailBusy || loading || calendarBusy} onClick={async () => {
+                      if (!service) return;
+                      try {
+                        await publishCalendar(assignments, service);
+                        showToast('日历已更新，可复制下方订阅信息');
+                      } catch {
+                        showToast('手机日历订阅更新失败');
+                      }
+                    }}>
                       更新手机日历订阅
                     </button>
                     {calendarFeedUrl && (
-                      <input className="input input-sm" readOnly value={calendarCaldavUrl} aria-label="CalDAV 服务器地址" />
+                      <input className="input input-sm" readOnly value={`${apiBaseUrl}/api/caldav/`} aria-label="CalDAV 服务器地址" />
                     )}
-                    {calendarCaldavPassword && (
+                    {calendarFeedUrl && (
                       <>
-                        <input className="input input-sm" readOnly value={calendarCaldavUsername} aria-label="CalDAV 用户名" />
-                        <input className="input input-sm" readOnly value={calendarCaldavPassword} aria-label="CalDAV 密码" />
+                        <input className="input input-sm" readOnly value="nodd" aria-label="CalDAV 用户名" />
+                        <input className="input input-sm" readOnly value={calendarFeedToken} aria-label="CalDAV 密码" />
                       </>
                     )}
                     {calendarFeedUrl && (
