@@ -1,6 +1,7 @@
 # NoDDL (Not Only DDL) 🚀
 
 [![Install with Tampermonkey](https://img.shields.io/badge/Install_with-Tampermonkey-00485B?style=for-the-badge&logo=tampermonkey&logoColor=white)](https://raw.githubusercontent.com/Ariestar/NoDDL/main/dist/nodd-l.user.js)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FAriestar%2FNoDDL&env=UPSTASH_REDIS_REST_URL%2CUPSTASH_REDIS_REST_TOKEN&envDescription=%E5%A1%AB%E5%86%99%E4%BD%A0%E8%87%AA%E5%B7%B1%E7%9A%84%20Upstash%20Redis%20REST%20%E5%9C%B0%E5%9D%80%E5%92%8C%E4%BB%A4%E7%89%8C)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 > **武汉大学人工智能学院一体化专业课平台 (http://115.156.107.145/) 工具包与油猴脚本**  
@@ -126,6 +127,16 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 ## ✉️ 邮件提醒服务
 
 邮件验证码和作业提醒由 Vercel Functions 通过 Resend API 发送。发件域名、API Key 和 Upstash Redis 配置见 [邮件服务配置说明](docs/email-service.md)。
+
+## ☁️ 使用自己的 Vercel 地址
+
+不需要购买域名。Vercel 会为每个项目提供一个 `https://项目名.vercel.app` 的生产地址。
+
+1. 将本仓库部署到自己的 Vercel 项目，并配置自己的 Upstash Redis 环境变量。
+2. 在油猴脚本的「设置 → 同步服务」中填写你的 `vercel.app` 地址并保存。
+3. 之后日历发布、Webcal 和 CalDAV 都会使用这个地址，数据不会写入 NoDDL 的公共服务。
+
+请使用生产地址，不要使用带随机部署编号的 Preview 地址。部署链接只用于创建项目，密码、Redis Token 等敏感值必须在 Vercel 控制台手动填写，不要放进 URL 或提交到仓库。
 
 ---
 

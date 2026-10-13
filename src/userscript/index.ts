@@ -4,7 +4,7 @@ import { calculateUrgency } from '../core/time';
 import { BrowserHttpClient, BrowserStorage } from './browser-adapter';
 import { mountNoDDLUI, setupTestCaseCopyButtons, setupCodeAutoSave } from './ui';
 import { PushConfig, Assignment } from '../core/types';
-import { EMAIL_API_BASE_URL, callEmailApi } from './email-api';
+import { callEmailApi, getServiceConfig } from './email-api';
 import { parseExperimentDeadlineFromDom } from './experiment-dom';
 
 const storage = new BrowserStorage();
@@ -159,13 +159,14 @@ async function initNoDDL() {
       client.triggerPushAlert(pushConfig).catch(console.error);
     }
 
-    const emailToken = (await storage.get('nodd_email_token')) || '';
-    if (emailToken && EMAIL_API_BASE_URL) {
+    const service = await getServiceConfig(storage);
+    const emailToken = (await service.storage.get('nodd_email_token')) || '';
+    if (emailToken && service.baseUrl) {
       const dueSoon = allAssignments.filter(item =>
         item.status === 'pending' && item.deadlineTimestamp > Date.now() && item.remainingHours <= hoursThreshold
       );
       if (dueSoon.length > 0) {
-        callEmailApi(http, 'alert', { assignments: dueSoon }, emailToken).catch(console.error);
+        callEmailApi(http, service.baseUrl, 'alert', { assignments: dueSoon }, emailToken).catch(console.error);
       }
     }
   }
