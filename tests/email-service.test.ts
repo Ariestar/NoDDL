@@ -34,6 +34,27 @@ test('Resend API sends a plain-text email with a server-side API key', async () 
   }
 });
 
+test('Resend uses the hosted onboarding sender when no sender is configured', async () => {
+  const oldApiKey = process.env.RESEND_API_KEY;
+  const oldFrom = process.env.RESEND_FROM;
+  process.env.RESEND_API_KEY = 're_test_api_key';
+  delete process.env.RESEND_FROM;
+  let body = '';
+
+  try {
+    await sendEmail('student@example.com', 'NoDDL 测试', '截止时间提醒', async (_input, init) => {
+      body = String(init?.body);
+      return new Response(JSON.stringify({ id: 'test-message-id' }), { status: 200 });
+    });
+    assert.equal(JSON.parse(body).from, 'NoDDL <onboarding@resend.dev>');
+  } finally {
+    if (oldApiKey === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = oldApiKey;
+    if (oldFrom === undefined) delete process.env.RESEND_FROM;
+    else process.env.RESEND_FROM = oldFrom;
+  }
+});
+
 test('email binding verifies codes, sends alerts once, and can be removed', async () => {
   const envKeys = [
     'RESEND_API_KEY', 'RESEND_FROM', 'EMAIL_CODE_SECRET',

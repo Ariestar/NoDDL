@@ -5,8 +5,10 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const apiHost = env.VITE_EMAIL_API_BASE_URL
-    ? new URL(env.VITE_EMAIL_API_BASE_URL).hostname
+  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  const configuredApiUrl = env.VITE_EMAIL_API_BASE_URL || (vercelUrl ? `https://${vercelUrl}` : '');
+  const apiHost = configuredApiUrl
+    ? new URL(configuredApiUrl).hostname
     : 'localhost';
 
   return {
@@ -41,6 +43,9 @@ export default defineConfig(({ mode }) => {
     ],
     build: {
       emptyOutDir: false
+    },
+    define: {
+      'import.meta.env.VITE_EMAIL_API_BASE_URL': JSON.stringify(configuredApiUrl)
     }
   };
 });

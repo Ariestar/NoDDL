@@ -6,10 +6,8 @@ import { BrowserStorage } from '../browser-adapter';
 import { createDeadlineCalendar } from '../../core/calendar';
 import { parseActiveCourseInfo } from '../../core/parsers';
 import {
-  API_BASE_URL_STORAGE_KEY,
   callEmailApi,
   getServiceConfig,
-  normalizeApiBaseUrl,
   type ServiceConfig
 } from '../email-api';
 import petImage from './assets/nodd-pet.png';
@@ -40,7 +38,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   const [emailToken, setEmailToken] = useState('');
   const [calendarFeedToken, setCalendarFeedToken] = useState('');
   const [service, setService] = useState<ServiceConfig | null>(null);
-  const [apiDraft, setApiDraft] = useState('');
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [emailBusy, setEmailBusy] = useState(false);
   const [threshold, setThreshold] = useState(72);
@@ -79,7 +76,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       setEmailAddress(savedEmail);
       setEmailToken(savedEmailToken);
       setService(configured);
-      setApiDraft(configured.baseUrl);
       setCalendarFeedToken(savedCalendarFeedToken);
       setThreshold(th);
       await syncAllCourses(configured);
@@ -130,33 +126,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     await storage.set('nodd_sms_webhook_url', smsWebhookUrl.trim());
     await storage.set('nodd_hours_threshold', String(threshold));
     showToast('推送与提醒配置已保存！');
-  };
-
-  const saveApiConfig = async () => {
-    const normalized = normalizeApiBaseUrl(apiDraft);
-    if (apiDraft.trim() && !normalized) {
-      showToast('请输入 HTTPS 服务根地址，不含路径、参数或账号密码');
-      return;
-    }
-    setEmailBusy(true);
-    try {
-      await storage.set(API_BASE_URL_STORAGE_KEY, normalized);
-      const configured = await getServiceConfig(storage);
-      const savedEmail = (await configured.storage.get('nodd_email_address')) || '';
-      const savedEmailToken = (await configured.storage.get('nodd_email_token')) || '';
-      const savedFeedToken = (await configured.storage.get('nodd_calendar_feed_token')) || '';
-      setService(configured);
-      setApiDraft(configured.baseUrl);
-      setEmailAddress(savedEmail);
-      setEmailToken(savedEmailToken);
-      setEmailCode('');
-      setCalendarFeedToken(savedFeedToken);
-      showToast(normalized ? '服务地址已保存，请在此服务启用日历或绑定邮箱' : '日历和邮件服务已关闭');
-    } catch {
-      showToast('保存服务配置失败，请重试');
-    } finally {
-      setEmailBusy(false);
-    }
   };
 
   const testPush = async () => {
@@ -505,19 +474,11 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                       </span>
                     </div>
                     <p className="text-xs text-base-content/60">
-                      填写你自己部署的 Vercel 地址，例如 https://你的项目.vercel.app
+                      服务地址已随脚本自动识别；从自己的 Vercel 部署打开脚本即可切换服务。
                     </p>
-                    <input
-                      type="url"
-                      aria-label="同步服务地址"
-                      className="input w-full"
-                      placeholder="https://你的项目.vercel.app"
-                      value={apiDraft}
-                      onInput={(e) => setApiDraft((e.target as HTMLInputElement).value)}
-                    />
-                    <button className="btn btn-primary btn-sm" disabled={!service || loading || calendarBusy || emailBusy} onClick={saveApiConfig}>
-                      保存服务地址
-                    </button>
+                    <code className="break-all rounded-box bg-base-200 px-3 py-2 text-xs">
+                      {apiBaseUrl || '未检测到服务地址，请安装你自己部署的 /nodd-l.user.js'}
+                    </code>
                   </div>
                 </section>
 

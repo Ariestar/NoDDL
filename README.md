@@ -1,7 +1,7 @@
 # NoDDL (Not Only DDL) 🚀
 
 [![Install with Tampermonkey](https://img.shields.io/badge/Install_with-Tampermonkey-00485B?style=for-the-badge&logo=tampermonkey&logoColor=white)](https://raw.githubusercontent.com/Ariestar/NoDDL/main/dist/nodd-l.user.js)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FAriestar%2FNoDDL&env=UPSTASH_REDIS_REST_URL%2CUPSTASH_REDIS_REST_TOKEN%2CRESEND_API_KEY%2CRESEND_FROM%2CEMAIL_CODE_SECRET&envDescription=%E4%B8%80%E6%AC%A1%E5%A1%AB%E5%86%99%20Upstash%20Redis%20%E5%92%8C%20Resend%20%E9%85%8D%E7%BD%AE%EF%BC%8C%E6%95%8F%E6%84%9F%E5%80%BC%E4%B8%8D%E4%BC%9A%E5%86%99%E5%85%A5%E9%93%BE%E6%8E%A5)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FAriestar%2FNoDDL&env=UPSTASH_REDIS_REST_URL%2CUPSTASH_REDIS_REST_TOKEN%2CRESEND_API_KEY%2CEMAIL_CODE_SECRET&envDescription=%E4%B8%80%E6%AC%A1%E5%A1%AB%E5%86%99%20Upstash%20Redis%E3%80%81Resend%20%E5%92%8C%E9%AA%8C%E8%AF%81%E7%A0%81%E5%AF%86%E9%92%A5%EF%BC%8C%E6%9C%8D%E5%8A%A1%E5%9C%B0%E5%9D%80%E4%BC%9A%E8%87%AA%E5%8A%A8%E5%86%99%E5%85%A5%E8%84%9A%E6%9C%AC)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 > **武汉大学人工智能学院一体化专业课平台 (http://115.156.107.145/) 工具包与油猴脚本**  
@@ -126,17 +126,17 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 
 ## ✉️ 邮件提醒服务
 
-邮件验证码和作业提醒由 Vercel Functions 通过 Resend API 发送。发件域名、API Key 和 Upstash Redis 配置见 [邮件服务配置说明](docs/email-service.md)。
+邮件验证码和作业提醒由 Vercel Functions 通过 Resend API 发送。API Key、Redis 和可选发件域名配置见 [邮件服务配置说明](docs/email-service.md)。
 
 ## ☁️ 使用自己的 Vercel 地址
 
 不需要购买域名。Vercel 会为每个项目提供一个 `https://项目名.vercel.app` 的生产地址。
 
-1. 点击上方按钮，在同一个部署页面填写 Upstash Redis 和 Resend 的变量。
-2. 在油猴脚本的「设置 → 同步服务」中填写你的 `vercel.app` 地址并保存。
-3. 之后日历发布、Webcal 和 CalDAV 都会使用这个地址，数据不会写入 NoDDL 的公共服务。
+1. 点击上方按钮，按页面提示连接 Upstash 和 Resend，并填写验证码密钥。
+2. 部署完成后打开 `https://你的项目.vercel.app/nodd-l.user.js` 安装脚本。
+3. 脚本会自动使用当前 Vercel 项目的生产地址，日历、Webcal、CalDAV 和邮件绑定都走这个服务。
 
-请使用生产地址，不要使用带随机部署编号的 Preview 地址。部署链接只声明变量名称，不会把密码、Redis Token 或 API Key 放进 URL；这些值由你在 Vercel 部署页填写，不要提交到仓库。
+邮件默认使用 Resend 的 `onboarding@resend.dev` 发件人，不需要购买域名。需要自定义发件人时，再额外设置可选变量 `RESEND_FROM`。部署链接只声明变量名称，不会把密码、Redis Token 或 API Key 放进 URL；这些值由你在 Vercel 部署页填写，不要提交到仓库。
 
 ---
 
