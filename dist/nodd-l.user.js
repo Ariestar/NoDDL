@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NoDDL (Not Only DDL) - 武大一体化平台助手
 // @namespace    https://github.com/projectluojia/NoDDL
-// @version      1.0.23
+// @version      1.0.24
 // @author       projectluojia
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
@@ -7897,6 +7897,7 @@ ${markdown}` }
     } : {});
     return JSON.parse(response);
   }
+  const PLATFORM_SESSION_COOKIE = "educg_session";
   const AUTO_SYNC_TOKEN_KEY = "nodd_auto_sync_token";
   function readCourseSessionCookie() {
     if (typeof GM_cookie === "undefined") throw new Error("当前脚本管理器不支持读取登录会话，请使用支持 GM_cookie 的 Tampermonkey");
@@ -7907,11 +7908,11 @@ ${markdown}` }
           return;
         }
         const sessionCookie = cookies.find(
-          (item) => item.name.toUpperCase() === "JSESSIONID" && item.value.length > 0
+          (item) => item.name === PLATFORM_SESSION_COOKIE && item.value.length > 0
         );
         const cookieNames = cookies.map((item) => item.name).filter(Boolean);
         if (!sessionCookie) {
-          reject(new Error(`未找到课程平台登录会话（Cookie：${cookieNames.join(", ") || "无"}）`));
+          reject(new Error(`未找到课程平台登录会话（需要 ${PLATFORM_SESSION_COOKIE}；当前 Cookie：${cookieNames.join(", ") || "无"}）`));
           return;
         }
         const cookie = cookies.map((item) => `${item.name}=${item.value}`).join("; ");

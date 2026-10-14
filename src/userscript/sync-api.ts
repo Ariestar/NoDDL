@@ -1,4 +1,5 @@
 import type { HttpClient } from '../core/types';
+import { PLATFORM_SESSION_COOKIE } from '../core/constants';
 
 export const AUTO_SYNC_TOKEN_KEY = 'nodd_auto_sync_token';
 
@@ -13,11 +14,11 @@ export function readCourseSessionCookie(): Promise<string> {
       }
 
       const sessionCookie = cookies.find(
-        (item) => item.name.toUpperCase() === 'JSESSIONID' && item.value.length > 0
+        (item) => item.name === PLATFORM_SESSION_COOKIE && item.value.length > 0
       );
       const cookieNames = cookies.map((item) => item.name).filter(Boolean);
       if (!sessionCookie) {
-        reject(new Error(`未找到课程平台登录会话（Cookie：${cookieNames.join(', ') || '无'}）`));
+        reject(new Error(`未找到课程平台登录会话（需要 ${PLATFORM_SESSION_COOKIE}；当前 Cookie：${cookieNames.join(', ') || '无'}）`));
         return;
       }
 

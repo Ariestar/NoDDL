@@ -104,7 +104,7 @@ ailuo-pm pack . dist
 ```typescript
 import { CourseGradingClient } from '@projectluojia/nodd-l';
 
-const client = new CourseGradingClient({ sessionCookie: 'JSESSIONID=xxxx' });
+const client = new CourseGradingClient({ sessionCookie: 'educg_session=xxxx' });
 const pending = await client.getPendingAssignments(48);
 console.log(pending);
 ```
@@ -112,13 +112,13 @@ console.log(pending);
 也可以直接通过命令行运行：
 ```bash
 # 查询未完成作业
-node cli.cjs list --cookie "JSESSIONID=xxxx" --threshold 72
+node cli.cjs list --cookie "educg_session=xxxx" --threshold 72
 
 # 测试账号密码自动加密登录
 node cli.cjs login --stid "2023xxxxxxxx" --pwd "your_password"
 
 # 查询题目详情与测试用例
-node cli.cjs detail --id "problem_101" --cookie "JSESSIONID=xxxx"
+node cli.cjs detail --id "problem_101" --cookie "educg_session=xxxx"
 
 # 触发死线告警推送
 node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"

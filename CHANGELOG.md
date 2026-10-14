@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.24 - 2026-10-15
+
+- Use the platform's actual `educg_session` cookie for automatic sync.
+
 ## 1.0.23 - 2026-10-15
 
 - Read the current course page session through one authoritative cookie API and report the actual cookie names when the session is unavailable.

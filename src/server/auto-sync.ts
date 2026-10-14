@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { CourseGradingClient } from '../core/client.js';
 import { FetchHttpClient } from '../core/http.js';
+import { PLATFORM_SESSION_COOKIE } from '../core/constants.js';
 import type { Assignment } from '../core/types.js';
 import { publishCalendarFeed } from './calendar.js';
 import { redisCommand } from './redis.js';
@@ -59,7 +60,8 @@ function decrypt(value: string): string {
 function validateCookie(value: unknown): string {
   if (typeof value !== 'string') throw new AutoSyncError(400, '课程登录会话无效');
   const cookie = value.trim();
-  if (cookie.length > 4096 || /[\r\n]/.test(cookie) || !/(?:^|;\s*)JSESSIONID=[^;]+/i.test(cookie)) {
+  const sessionCookiePattern = new RegExp(`(?:^|;\\s*)${PLATFORM_SESSION_COOKIE}=[^;]+`);
+  if (cookie.length > 4096 || /[\r\n]/.test(cookie) || !sessionCookiePattern.test(cookie)) {
     throw new AutoSyncError(400, '课程登录会话无效');
   }
   return cookie;
