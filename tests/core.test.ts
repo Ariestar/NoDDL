@@ -399,7 +399,7 @@ test('全量同步：返回课程上下文不一致时拒绝写入错误课程',
     () => client.safeSyncAllCourses('176'),
     /课程上下文不一致/
   );
-  assert.deepEqual(await client.db?.getAllAssignments(), []);
+  assert.equal((await client.db?.getAllAssignments())?.[0]?.id, 'stale-1');
 });
 
 test('短信提醒 (SMS)：占位符解析与触发支持', async () => {

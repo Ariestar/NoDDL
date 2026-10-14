@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.52 - 2026-10-15
+
+- Refresh CalDAV clients with data-based collection ETags and preserve existing assignments when a full sync fails.
+
 ## 1.0.51 - 2026-10-15
 
 - Use one browser-session sync path for page load and manual full sync.

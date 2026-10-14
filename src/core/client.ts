@@ -193,7 +193,6 @@ export class CourseGradingClient {
       }
       await this.db?.replaceAssignments(syncedAssignments, courses);
     } catch (error) {
-      await this.db?.replaceAssignments([], courses);
       throw error;
     } finally {
       // 关键安全重置：必须立刻切回用户当前所在的课程上下文！

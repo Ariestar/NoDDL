@@ -37,15 +37,34 @@ function eventHref(base: string, item: Assignment): string {
   return `${base}${encodeURIComponent(`${item.courseId || 'course'}-${item.id}`)}.ics`;
 }
 
+function assignmentTag(item: Assignment): string {
+  return createHash('sha1').update(JSON.stringify([
+    item.id,
+    item.courseId,
+    item.courseName,
+    item.title,
+    item.deadline,
+    item.deadlineTimestamp,
+    item.status,
+    item.url
+  ])).digest('hex');
+}
+
+function assignmentsTag(assignments: Assignment[]): string {
+  return createHash('sha1').update(assignments.map(assignmentTag).join('')).digest('hex');
+}
+
 function eventXml(base: string, item: Assignment, calendar: string): string {
-  return `<D:response><D:href>${xml(eventHref(base, item))}</D:href><D:propstat><D:prop><D:getetag>&quot;${createHash('sha1').update(calendar).digest('hex')}&quot;</D:getetag><D:getcontenttype>text/calendar; component=&quot;VEVENT&quot;</D:getcontenttype><C:calendar-data>${xml(calendar)}</C:calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>`;
+  return `<D:response><D:href>${xml(eventHref(base, item))}</D:href><D:propstat><D:prop><D:getetag>&quot;${assignmentTag(item)}&quot;</D:getetag><D:getcontenttype>text/calendar; component=&quot;VEVENT&quot;</D:getcontenttype><C:calendar-data>${xml(calendar)}</C:calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>`;
 }
 
 function collectionXml(base: string, assignments: Assignment[], includeEvents: boolean): string {
+  const calendars = assignments.map(item => createDeadlineCalendar([item], 'http://115.156.107.145') || '');
+  const collectionTag = assignmentsTag(assignments);
   const children = includeEvents
-    ? assignments.map(item => eventXml(base, item, createDeadlineCalendar([item], 'http://115.156.107.145') || '')).join('')
+    ? assignments.map((item, index) => eventXml(base, item, calendars[index])).join('')
     : '';
-  return `<?xml version="1.0" encoding="utf-8" ?><D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:response><D:href>${xml(base)}</D:href><D:propstat><D:prop><D:displayname>课程作业截止</D:displayname><D:resourcetype><D:collection/><C:calendar/></D:resourcetype><D:getetag>&quot;calendar&quot;</D:getetag><C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set><C:supported-calendar-data><C:calendar-data content-type="text/calendar" version="2.0"/></C:supported-calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>${children}</D:multistatus>`;
+  return `<?xml version="1.0" encoding="utf-8" ?><D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/"><D:response><D:href>${xml(base)}</D:href><D:propstat><D:prop><D:displayname>课程作业截止</D:displayname><D:resourcetype><D:collection/><C:calendar/></D:resourcetype><D:getetag>&quot;${collectionTag}&quot;</D:getetag><CS:getctag>${collectionTag}</CS:getctag><C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set><C:supported-calendar-data><C:calendar-data content-type="text/calendar" version="2.0"/></C:supported-calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>${children}</D:multistatus>`;
 }
 
 export default async function handler(request: ApiRequest, response: ServerResponse): Promise<void> {
@@ -77,10 +96,12 @@ export default async function handler(request: ApiRequest, response: ServerRespo
     }
 
     if (request.method === 'GET') {
+      const calendar = createDeadlineCalendar(assignments, 'http://115.156.107.145') || createEmptyCalendar();
       response.statusCode = 200;
       response.setHeader('Content-Type', 'text/calendar; charset=utf-8');
       response.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      response.end(createDeadlineCalendar(assignments, 'http://115.156.107.145') || createEmptyCalendar());
+      response.setHeader('ETag', `"${assignmentsTag(assignments)}"`);
+      response.end(calendar);
       return;
     }
 
