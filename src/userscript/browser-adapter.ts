@@ -19,7 +19,8 @@ export class BrowserHttpClient implements HttpClient {
             if (res.status >= 200 && res.status < 300) {
               resolve(res.responseText);
             } else {
-              reject(new Error(`GM_xmlhttpRequest GET 失败: ${res.status}`));
+              const detail = res.responseText?.trim();
+              reject(new Error(`GM_xmlhttpRequest GET 失败: ${res.status}${detail ? `: ${detail}` : ''}`));
             }
           },
           onerror: err => reject(err)
@@ -64,7 +65,8 @@ export class BrowserHttpClient implements HttpClient {
             if (res.status >= 200 && res.status < 300) {
               resolve(res.responseText);
             } else {
-              reject(new Error(`GM_xmlhttpRequest POST 失败: ${res.status}`));
+              const detail = res.responseText?.trim();
+              reject(new Error(`GM_xmlhttpRequest POST 失败: ${res.status}${detail ? `: ${detail}` : ''}`));
             }
           },
           onerror: err => reject(err)

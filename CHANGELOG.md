@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.29 - 2026-10-15
+
+- Report missing auto-sync service configuration as an actionable server error.
+
 ## 1.0.28 - 2026-10-15
 
 - Connect the session bridge through the real page window when Tampermonkey runs in its sandbox.

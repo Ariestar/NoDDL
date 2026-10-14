@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NoDDL (Not Only DDL) - 武大一体化平台助手
 // @namespace    https://github.com/projectluojia/NoDDL
-// @version      1.0.28
+// @version      1.0.29
 // @author       projectluojia
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
@@ -7325,10 +7325,12 @@ ${markdown}` }
             url,
             headers,
             onload: (res2) => {
+              var _a;
               if (res2.status >= 200 && res2.status < 300) {
                 resolve(res2.responseText);
               } else {
-                reject(new Error(`GM_xmlhttpRequest GET 失败: ${res2.status}`));
+                const detail = (_a = res2.responseText) == null ? void 0 : _a.trim();
+                reject(new Error(`GM_xmlhttpRequest GET 失败: ${res2.status}${detail ? `: ${detail}` : ""}`));
               }
             },
             onerror: (err) => reject(err)
@@ -7365,10 +7367,12 @@ ${markdown}` }
             headers: finalHeaders,
             data: bodyStr,
             onload: (res2) => {
+              var _a;
               if (res2.status >= 200 && res2.status < 300) {
                 resolve(res2.responseText);
               } else {
-                reject(new Error(`GM_xmlhttpRequest POST 失败: ${res2.status}`));
+                const detail = (_a = res2.responseText) == null ? void 0 : _a.trim();
+                reject(new Error(`GM_xmlhttpRequest POST 失败: ${res2.status}${detail ? `: ${detail}` : ""}`));
               }
             },
             onerror: (err) => reject(err)

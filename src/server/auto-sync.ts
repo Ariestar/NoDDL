@@ -31,6 +31,15 @@ function secretKey(): Buffer {
   return createHash('sha256').update(secret).digest();
 }
 
+function assertAutoSyncConfig(): void {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    throw new AutoSyncError(503, '自动同步服务缺少 Upstash Redis 配置');
+  }
+  if (!process.env.SYNC_ENCRYPTION_KEY || process.env.SYNC_ENCRYPTION_KEY.length < 32) {
+    throw new AutoSyncError(503, '自动同步服务缺少有效的 SYNC_ENCRYPTION_KEY');
+  }
+}
+
 function digest(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
@@ -82,6 +91,7 @@ async function writeAccount(token: string, account: StoredAccount): Promise<void
 }
 
 export async function bindAutoSync(input: Record<string, unknown>, clientIp: string): Promise<{ token: string; feedToken: string }> {
+  assertAutoSyncConfig();
   const cookie = validateCookie(input.cookie);
   const existingToken = typeof input.token === 'string' ? input.token : '';
   const token = existingToken || randomBytes(32).toString('base64url');
