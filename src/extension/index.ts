@@ -142,14 +142,6 @@ async function initNoDDL() {
   // 7. 针对即将到期作业进行通知
   if (allAssignments.length > 0) {
     const mostUrgent = allAssignments.find(a => a.remainingHours > 0 && (a.urgency === 'critical' || a.urgency === 'urgent'));
-    if (mostUrgent && typeof GM_notification !== 'undefined') {
-      GM_notification({
-        title: '🚨 NoDDL DDL 提醒',
-        text: `【${mostUrgent.courseName}】${mostUrgent.title} ${mostUrgent.remainingText}，请尽快完成！`,
-        timeout: 8000
-      });
-    }
-
     const pushplusToken = (await storage.get('nodd_pushplus_token')) || '';
     const barkUrl = (await storage.get('nodd_bark_url')) || '';
     const smsWebhookUrl = (await storage.get('nodd_sms_webhook_url')) || '';

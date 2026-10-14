@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.0.31 - 2026-10-15
+
+- Remove the userscript distribution and ship the page assistant as one Chrome extension.
+
+## 1.0.30 - 2026-10-15
+
+- Bundle the page assistant and HttpOnly session bridge into one Chrome extension install.
+
 ## 1.0.29 - 2026-10-15
 
 - Report missing auto-sync service configuration as an actionable server error.

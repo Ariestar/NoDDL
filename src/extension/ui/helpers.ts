@@ -33,11 +33,7 @@ export function setupTestCaseCopyButtons() {
 
     copyBtn.onclick = () => {
       const text = pre.innerText.replace('📋 复制样例', '').trim();
-      if (typeof GM_setClipboard !== 'undefined') {
-        GM_setClipboard(text);
-      } else {
-        navigator.clipboard.writeText(text);
-      }
+      navigator.clipboard.writeText(text);
       copyBtn.innerText = '✅ 已复制';
       setTimeout(() => {
         copyBtn.innerText = '📋 复制样例';

@@ -508,7 +508,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                       服务地址已随脚本自动识别；从自己的 Vercel 部署打开脚本即可切换服务。
                     </p>
                     <code className="break-all rounded-box bg-base-200 px-3 py-2 text-xs">
-                      {apiBaseUrl || '未检测到服务地址，请安装你自己部署的 /nodd-l.user.js'}
+                      {apiBaseUrl || '未检测到服务地址，请配置你自己部署的 Vercel API'}
                     </code>
                   </div>
                 </section>

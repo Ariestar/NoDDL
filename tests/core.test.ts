@@ -13,7 +13,7 @@ import {
 import { HomeworkDB } from '../src/core/db';
 import { CourseGradingClient } from '../src/core/client';
 import { StorageAdapter, Assignment, HttpClient } from '../src/core/types';
-import { parseExperimentDeadlineFromDom } from '../src/userscript/experiment-dom';
+import { parseExperimentDeadlineFromDom } from '../src/extension/experiment-dom';
 
 class MemoryStorage implements StorageAdapter {
   private map = new Map<string, string>();

@@ -1,11 +1,11 @@
 # NoDDL (Not Only DDL) 🚀
 
-[![Install with Tampermonkey](https://img.shields.io/badge/Install_with-Tampermonkey-00485B?style=for-the-badge&logo=tampermonkey&logoColor=white)](https://raw.githubusercontent.com/Ariestar/NoDDL/main/dist/nodd-l.user.js)
+[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](extension/README.md)
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FAriestar%2FNoDDL&env=UPSTASH_REDIS_REST_URL%2CUPSTASH_REDIS_REST_TOKEN%2CRESEND_API_KEY%2CEMAIL_CODE_SECRET%2CSYNC_ENCRYPTION_KEY%2CCRON_SECRET&envDescription=%E4%B8%80%E6%AC%A1%E5%A1%AB%E5%86%99%20Upstash%20Redis%E3%80%81Resend%20%E5%92%8C%E9%AA%8C%E8%AF%81%E7%A0%81%E5%AF%86%E9%92%A5%EF%BC%8C%E6%9C%8D%E5%8A%A1%E5%9C%B0%E5%9D%80%E4%BC%9A%E8%87%AA%E5%8A%A8%E5%86%99%E5%85%A5%E8%84%9A%E6%9C%AC)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-> **武汉大学人工智能学院一体化专业课平台 (http://115.156.107.145/) 工具包与油猴脚本**  
-> 一套 TypeScript 代码，公用底层逻辑：既是**浏览器油猴脚本 (Tampermonkey)**，又是可直接打包进 **ailuo 包管理器** 的通用工具包。
+> **武汉大学人工智能学院一体化专业课平台 (http://115.156.107.145/) Chrome 扩展与工具包**
+> 一套 TypeScript 代码，复用底层解析与业务逻辑，直接安装 Chrome 扩展即可使用。
 
 ---
 
@@ -28,7 +28,7 @@ NoDDL/
 ├── package.json
 ├── tsconfig.json
 ├── tsup.config.ts            # 构建 NPM / TS 工具库与 CLI
-├── vite.config.ts            # 构建油猴脚本 (.user.js)
+├── vite.extension.config.ts  # 构建 Chrome 扩展 content script
 │
 ├── src/
 │   ├── core/                 # 【公用底层核心逻辑】
@@ -41,16 +41,14 @@ NoDDL/
 │   │
 │   ├── cli.ts                # 【命令行入口 / ailuo 包入口】
 │   │
-│   └── userscript/           # 【油猴脚本入口】
+│   └── extension/            # 【Chrome 扩展 content script】
 │       ├── index.ts          # 浏览器环境启动与生命周期
 │       ├── ui.ts             # 顶部横幅、样例复制、代码暂存
-│       ├── browser-adapter.ts# 浏览器 fetch 与 GM API 封装
-│       └── types.d.ts        # 油猴 GM API 类型声明
+│       └── browser-adapter.ts# Chrome fetch 与本地存储封装
 │
 └── dist/
-    ├── nodd-l.user.js        # 产物 1：油猴脚本（直接安装到浏览器）
-    ├── index.js / index.cjs  # 产物 2：TS / JS 工具包（供外部直接 import）
-    └── cli.cjs               # 产物 3：独立 CLI 工具 / ailuo entrypoint
+    ├── index.js / index.cjs  # 产物 1：TS / JS 工具包（供外部直接 import）
+    └── cli.cjs               # 产物 2：独立 CLI 工具 / ailuo entrypoint
 ```
 
 ---
@@ -63,13 +61,13 @@ pnpm install
 pnpm test
 ```
 
-### 2. 双端编译
+### 2. 编译
 ```bash
 pnpm build
 ```
 
 产物生成：
-* **`dist/nodd-l.user.js`**：独立油猴脚本，浏览器打开直接安装。
+* **`extension/nodd-extension.js`**：Chrome 扩展 content script。
 * **`dist/index.js` & `dist/index.d.ts`**：作为 npm / TS 库被外部代码引用。
 * **`cli.cjs`**：包的直接执行入口。
 
@@ -81,10 +79,10 @@ ailuo-pm pack . dist
 
 ---
 
-## 💻 1. 油猴脚本功能说明
+## 💻 1. Chrome 扩展功能说明
 
 ### 一键安装
-直接点击上方 **`Install with Tampermonkey`** 徽章，浏览器扩展将自动拦截并弹出安装确认界面。
+按照 [Chrome 扩展安装说明](extension/README.md) 加载 `extension` 目录。
 
 ### 主要功能
 访问 `http://115.156.107.145/` 后自动启用：
@@ -92,9 +90,7 @@ ailuo-pm pack . dist
 * **测试用例复制**：在题目页所有 `<pre>` 样例右上角注入「📋 复制样例」按钮。
 * **代码自动暂存**：编辑框输入自动保存到本地，误关网页可一键「💾 恢复自动暂存代码」。
 * **推送配置**：横幅右上角点击「⚙️ 推送设置」，填入 PushPlus Token 或 Bark URL。
-* **凭据复制**：点击「📋 复制会话凭据」，自动复制当前 Cookie。
-
-*(本地开发调试构建产物位于 `dist/nodd-l.user.js`)*
+*(本地开发调试构建产物位于 `extension/nodd-extension.js`)*
 
 ---
 
@@ -133,14 +129,14 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 不需要购买域名。Vercel 会为每个项目提供一个 `https://项目名.vercel.app` 的生产地址。
 
 1. 点击上方按钮，按页面提示连接 Upstash 和 Resend，并填写验证码密钥。
-2. 部署完成后打开 `https://你的项目.vercel.app/nodd-l.user.js` 安装脚本。
-3. 脚本会自动使用当前 Vercel 项目的生产地址，日历、Webcal、CalDAV 和邮件绑定都走这个服务。
+2. 部署完成后在扩展设置中使用你的 Vercel 地址，日历、Webcal、CalDAV 和邮件绑定都走这个服务。
+3. 重新加载 `extension` 目录即可使用页面助手。
 
 邮件默认使用 Resend 的 `onboarding@resend.dev` 发件人，不需要购买域名。需要自定义发件人时，再额外设置可选变量 `RESEND_FROM`。部署链接只声明变量名称，不会把密码、Redis Token 或 API Key 放进 URL；这些值由你在 Vercel 部署页填写，不要提交到仓库。
 
 ### 每日自动同步
 
-部署后 userscript 会默认尝试启用自动同步；也可以在“手机日历”区域手动重新绑定会话。稳定版 Chrome 请安装仓库中的 [NoDDL Session Bridge](extension/README.md)，由 Chrome 原生 Cookies API 读取 HttpOnly `educg_session`；服务端只保存 AES-GCM 加密后的 Session 和完整作业快照，不保存学号或密码。Vercel Cron 每天北京时间 02:00 抓取全部课程、普通作业和云实验，并更新日历 feed。
+安装仓库中的 [NoDDL Chrome 扩展](extension/README.md)即可使用页面解析、作业 UI 和自动同步；扩展由 Chrome 原生 Cookies API 读取 HttpOnly `educg_session`。服务端只保存 AES-GCM 加密后的 Session 和完整作业快照，不保存学号或密码。Vercel Cron 每天北京时间 02:00 抓取全部课程、普通作业和云实验，并更新日历 feed。
 
 需要在 Vercel 配置 `SYNC_ENCRYPTION_KEY` 和 `CRON_SECRET`，都使用至少 32 位随机字符串。课程平台 Session 过期后，自动同步会记录失败状态，需要重新点击绑定；日历订阅地址不会改变。
 

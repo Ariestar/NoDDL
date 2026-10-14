@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getServiceConfig, normalizeApiBaseUrl } from '../src/userscript/email-api';
+import { getServiceConfig, normalizeApiBaseUrl } from '../src/extension/email-api';
 import type { StorageAdapter } from '../src/core/types';
 
 class MemoryStorage implements StorageAdapter {

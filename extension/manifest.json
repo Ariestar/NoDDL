@@ -1,17 +1,21 @@
 {
   "manifest_version": 3,
-  "name": "NoDDL Session Bridge",
-  "version": "1.0.0",
-  "description": "让 NoDDL userscript 在稳定版 Chrome 中读取课程平台会话。",
+  "name": "NoDDL",
+  "version": "1.0.31",
+  "description": "武汉大学人工智能学院专业课平台助手与自动同步。",
   "permissions": ["cookies"],
-  "host_permissions": ["http://115.156.107.145/*"],
+  "host_permissions": [
+    "http://115.156.107.145/*",
+    "https://*.vercel.app/*",
+    "https://mail.sair-club.com/*"
+  ],
   "background": {
     "service_worker": "service-worker.js"
   },
   "content_scripts": [
     {
       "matches": ["http://115.156.107.145/*"],
-      "js": ["content.js"],
+      "js": ["nodd-extension.js"],
       "run_at": "document_start"
     }
   ]

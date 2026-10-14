@@ -1,6 +1,6 @@
 {
   "name": "@projectluojia/nodd-l",
-  "version": "1.0.29",
+  "version": "1.0.31",
   "description": "NoDDL (Not Only DDL) - 武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补全与 Agent 工具包",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -19,19 +19,18 @@
   },
   "files": [
     "dist",
+    "extension",
     "ailuo.toml",
     "README.md"
   ],
   "scripts": {
-    "build": "pnpm build:package && pnpm build:userscript",
+    "build": "pnpm build:package && pnpm build:extension",
     "build:package": "tsup",
-    "build:userscript": "vite build",
-    "dev:userscript": "vite",
+    "build:extension": "vite build --config vite.extension.config.ts",
     "test": "tsx --test tests/**/*.test.ts"
   },
   "keywords": [
-    "userscript",
-    "tampermonkey",
+    "chrome-extension",
     "ailuo",
     "agent",
     "whu",
@@ -56,7 +55,6 @@
     "tsup": "^8.3.0",
     "tsx": "^4.23.15",
     "typescript": "^5.5.4",
-    "vite": "^5.4.2",
-    "vite-plugin-monkey": "^5.0.4"
+    "vite": "^5.4.2"
   }
 }
