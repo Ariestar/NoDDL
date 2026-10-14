@@ -102,7 +102,7 @@ export default {
       return new Response('Method not allowed', { status: 405 });
     }
 
-    const base = `${url.origin}${url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`}`;
+    const base = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`;
     const reportBody = request.method === 'REPORT' ? await request.text() : '';
     const requestedIndexes = requestedEventIndexes(reportBody);
     const responseIndexes = requestedIndexes || events.map((_, index) => index);
