@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.59 - 2026-10-15
+
+- Route CalDAV clients through the verified deployment host that avoids the active Vercel challenge.
+
 ## 1.0.58 - 2026-10-15
 
 - Use the canonical Vercel domain for CalDAV clients instead of domains challenged by Vercel Firewall.
