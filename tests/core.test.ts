@@ -167,6 +167,17 @@ test('希冀平台生产真实结构：入口按钮不作为作业名称', () =>
   assert.strictEqual(experimentAssignments.length, 0);
 });
 
+test('云实验入口不进入普通作业解析链路', () => {
+  const html = `
+    <div class="main-zy">
+      <p class="main-title">第一次实验</p>
+      <a href="exp/index.jsp?assignID=612">进入云实验</a>
+    </div>
+  `;
+
+  assert.deepEqual(parseActiveAssignmentsHtml(html, '数据结构与算法', '186'), []);
+});
+
 test('希冀平台生产真实结构：fileUploadList 面包屑导航提取', () => {
   const realBreadcrumbHtml = `
     <nav aria-label="breadcrumb">

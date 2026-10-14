@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NoDDL (Not Only DDL) - 武大一体化平台助手
 // @namespace    https://github.com/projectluojia/NoDDL
-// @version      1.0.19
+// @version      1.0.20
 // @author       projectluojia
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
@@ -6917,6 +6917,7 @@
     while ((m2 = linkRe.exec(activeSection)) !== null) {
       const rawUrl = m2[1];
       const id = m2[2];
+      if (/(?:^|\/)exp\//i.test(rawUrl)) continue;
       let title = m2[3].replace(/<span[^>]*class=["'][^"']*badge[^"']*["'][^>]*>[\s\S]*?<\/span>/gi, "").replace(/<[^>]+>/g, "").trim();
       if (/^(?:进入作业|开始实验|实验文档)$/.test(title)) {
         const cardStart = activeSection.lastIndexOf('<div class="main-zy', m2.index);

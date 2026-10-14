@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.20 - 2026-10-14
+
+- Keep cloud experiment links out of ordinary assignment parsing.
+
 ## 1.0.19 - 2026-10-14
 
 - Sync cloud experiments and keep the pet mounted through course switches.

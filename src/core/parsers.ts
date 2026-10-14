@@ -88,6 +88,7 @@ export function parseActiveAssignmentsHtml(
   while ((m = linkRe.exec(activeSection)) !== null) {
     const rawUrl = m[1];
     const id = m[2];
+    if (/(?:^|\/)exp\//i.test(rawUrl)) continue;
     let title = m[3]
       .replace(/<span[^>]*class=["'][^"']*badge[^"']*["'][^>]*>[\s\S]*?<\/span>/gi, '')
       .replace(/<[^>]+>/g, '')
