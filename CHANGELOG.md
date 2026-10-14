@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.46 - 2026-10-15
+
+- Preserve course results when a calendar publish fails after full sync.
+
 ## 1.0.45 - 2026-10-15
 
 - Publish all parsed course DDLs to calendar feeds, including overdue items.

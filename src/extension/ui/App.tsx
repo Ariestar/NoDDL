@@ -99,18 +99,25 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     syncInProgress.current = true;
     setLoading(true);
     showToast('正在全量安全同步所有课程...');
+    let syncedAssignments: Assignment[] | null = null;
     try {
       const curId = new URLSearchParams(window.location.search).get('courseID') ||
         parseActiveCourseInfo(document.documentElement.innerHTML).id || undefined;
 
       const list = await client.safeSyncAllCourses(curId, (msg) => showToast(msg));
+      syncedAssignments = list;
       setAssignments(list);
       if (configured.baseUrl) {
-        await publishCalendar(list, configured);
+        try {
+          await publishCalendar(list, configured);
+        } catch {
+          showToast('课程已同步，但日历服务更新失败');
+          return;
+        }
       }
       showToast(`同步完成！共汇总 ${list.length} 项作业`);
     } catch {
-      setAssignments([]);
+      if (syncedAssignments === null) setAssignments([]);
       showToast('同步未全部完成，请重试并检查课程登录和日历服务');
     } finally {
       setLoading(false);
