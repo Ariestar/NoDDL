@@ -4,6 +4,12 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.35 - 2026-10-15
+
+- Make automatic sync a default top-level setting.
+- Group calendar and reminder actions into consistent collapsible sections.
+- Rename the mobile calendar to 课程作业截止 and show only the three CalDAV fields.
+
 ## 1.0.34 - 2026-10-15
 
 - Fix Node ESM imports that prevented sync functions from starting.

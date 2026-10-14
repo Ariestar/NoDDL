@@ -107,6 +107,14 @@
   width: 100%;
 }
 
+.nodd-settings-details > summary {
+  list-style: none;
+}
+
+.nodd-settings-details > summary::-webkit-details-marker {
+  display: none;
+}
+
 @keyframes nodd-float {
   0%, 100% { transform: translateY(0) rotate(-2deg); }
   50% { transform: translateY(-4px) rotate(2deg); }

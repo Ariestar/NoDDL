@@ -42,14 +42,14 @@ function eventXml(base: string, item: Assignment, calendar: string): string {
 
 function collectionXml(base: string, assignments: Assignment[]): string {
   const children = assignments.map(item => eventXml(base, item, createDeadlineCalendar([item], 'http://115.156.107.145') || '')).join('');
-  return `<?xml version="1.0" encoding="utf-8" ?><D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:response><D:href>${xml(base)}</D:href><D:propstat><D:prop><D:displayname>NoDDL</D:displayname><D:resourcetype><D:collection/><C:calendar/></D:resourcetype><D:getetag>&quot;calendar&quot;</D:getetag><C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>${children}</D:multistatus>`;
+  return `<?xml version="1.0" encoding="utf-8" ?><D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:response><D:href>${xml(base)}</D:href><D:propstat><D:prop><D:displayname>课程作业截止</D:displayname><D:resourcetype><D:collection/><C:calendar/></D:resourcetype><D:getetag>&quot;calendar&quot;</D:getetag><C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>${children}</D:multistatus>`;
 }
 
 export default async function handler(request: ApiRequest, response: ServerResponse): Promise<void> {
   const token = tokenFromRequest(request);
   if (!token) {
     response.statusCode = 401;
-    response.setHeader('WWW-Authenticate', 'Basic realm="NoDDL Calendar"');
+    response.setHeader('WWW-Authenticate', 'Basic realm="课程作业日历"');
     response.end('CalDAV credentials required');
     return;
   }

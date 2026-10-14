@@ -47,8 +47,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   const [threshold, setThreshold] = useState(72);
   const syncInProgress = useRef(false);
   const apiBaseUrl = service?.baseUrl || '';
-  const calendarFeedUrl = apiBaseUrl && calendarFeedToken
-    ? `${apiBaseUrl}/api/calendar/feed?token=${encodeURIComponent(calendarFeedToken)}` : '';
 
   // Submissions State
   const [submissions, setSubmissions] = useState<SubmissionResult[]>([]);
@@ -496,205 +494,167 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
 
             {activeTab === 'settings' && (
               <div className="space-y-3">
-                <section className="card border border-base-300 bg-base-100">
+                <section className="card border border-primary/20 bg-base-100 shadow-sm">
                   <div className="card-body gap-3 p-4">
                     <div className="flex items-center justify-between gap-2">
-                      <h2 className="card-title text-base">同步服务</h2>
-                      <span className={`badge ${apiBaseUrl ? 'badge-success' : 'badge-ghost'}`}>
-                        {apiBaseUrl ? '已配置' : '未配置'}
+                      <h2 className="card-title text-base">自动同步</h2>
+                      <span className={`badge ${autoSyncToken ? 'badge-success' : apiBaseUrl ? 'badge-warning' : 'badge-ghost'}`}>
+                        {autoSyncToken ? '默认开启' : apiBaseUrl ? '等待绑定' : '服务未配置'}
                       </span>
                     </div>
                     <p className="text-xs text-base-content/60">
-                      服务地址已随脚本自动识别；从自己的 Vercel 部署打开脚本即可切换服务。
+                      扩展打开后自动绑定课程会话；服务端每天抓取全部课程、作业和云实验，日历订阅也会随之更新。
                     </p>
-                    <code className="break-all rounded-box bg-base-200 px-3 py-2 text-xs">
-                      {apiBaseUrl || '未检测到服务地址，请配置你自己部署的 Vercel API'}
-                    </code>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs text-base-content/60">
+                        {autoSyncToken ? '课程会话已绑定，后台同步已生效' : '首次打开页面时会自动完成绑定'}
+                      </span>
+                      <button className="btn btn-primary btn-sm" disabled={!apiBaseUrl || autoSyncBusy || loading || calendarBusy || emailBusy} onClick={() => enableAutomaticSync()}>
+                        {autoSyncBusy ? '正在绑定…' : autoSyncToken ? '重新绑定' : '立即启用'}
+                      </button>
+                    </div>
                   </div>
                 </section>
 
-                {apiBaseUrl && (
-                  <section className="card border border-base-300 bg-base-100">
-                    <div className="card-body gap-3 p-4">
-                      <div className="flex items-center justify-between gap-2">
-                        <h2 className="card-title text-base">邮件提醒</h2>
-                        {emailToken && <span className="badge badge-success">已绑定</span>}
+                <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
+                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                    <span>手机日历</span>
+                    <span className={`badge ${calendarFeedToken ? 'badge-success' : 'badge-ghost'}`}>
+                      {calendarFeedToken ? '已准备' : '等待自动同步'}
+                    </span>
+                  </summary>
+                  <div className="space-y-3 border-t border-base-300 p-4">
+                    <p className="text-xs text-base-content/60">在手机日历中添加 CalDAV 账户，填写下面三项即可。日历会随自动同步更新，无需手动刷新。</p>
+                    {calendarFeedToken ? (
+                      <>
+                        <label className="grid gap-1.5 text-sm">
+                          <span className="font-medium text-base-content/70">服务器地址</span>
+                          <input className="input input-sm" readOnly value={`${apiBaseUrl}/api/caldav/`} />
+                        </label>
+                        <label className="grid gap-1.5 text-sm">
+                          <span className="font-medium text-base-content/70">账户名称</span>
+                          <input className="input input-sm" readOnly value="课程日历" />
+                        </label>
+                        <label className="grid gap-1.5 text-sm">
+                          <span className="font-medium text-base-content/70">账户密码</span>
+                          <input className="input input-sm" readOnly value={calendarFeedToken} />
+                        </label>
+                      </>
+                    ) : (
+                      <div className="alert alert-info py-3 text-sm">自动同步绑定后会生成手机日历账户信息。</div>
+                    )}
+                    <details className="nodd-settings-details rounded-box border border-base-300 bg-base-200">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-medium">
+                        <span>导出日历文件</span>
+                        <span className="text-xs text-base-content/60">.ics</span>
+                      </summary>
+                      <div className="border-t border-base-300 p-3">
+                        <p className="mb-3 text-xs text-base-content/60">适合只想导入一次的日历应用。</p>
+                        <button className="btn btn-outline btn-primary btn-sm w-full" onClick={exportCalendar}>
+                          下载课程日历 (.ics)
+                        </button>
                       </div>
+                    </details>
+                  </div>
+                </details>
+
+                {apiBaseUrl && (
+                  <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
+                    <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                      <span>邮件提醒</span>
+                      <span className={`badge ${emailToken ? 'badge-success' : 'badge-ghost'}`}>{emailToken ? '已绑定' : '未绑定'}</span>
+                    </summary>
+                    <div className="space-y-3 border-t border-base-300 p-4">
                       {emailToken ? (
                         <>
                           <p className="break-all text-sm text-base-content/70">{emailAddress}</p>
                           <div className="grid grid-cols-2 gap-2">
-                            <button className="btn btn-primary btn-sm" disabled={emailBusy} onClick={testEmail}>
-                              测试邮件
-                            </button>
-                            <button className="btn btn-outline btn-error btn-sm" disabled={emailBusy} onClick={unbindEmail}>
-                              解绑
-                            </button>
+                            <button className="btn btn-primary btn-sm" disabled={emailBusy} onClick={testEmail}>测试邮件</button>
+                            <button className="btn btn-outline btn-error btn-sm" disabled={emailBusy} onClick={unbindEmail}>解绑</button>
                           </div>
                         </>
                       ) : (
                         <>
                           <label className="grid gap-1.5 text-sm">
                             <span className="font-medium text-base-content/70">邮箱地址</span>
-                            <input
-                              type="email"
-                              className="input w-full"
-                              placeholder="name@example.com"
-                              value={emailAddress}
-                              disabled={emailBusy}
-                              onInput={(e) => setEmailAddress((e.target as HTMLInputElement).value)}
-                            />
+                            <input type="email" className="input w-full" placeholder="name@example.com" value={emailAddress} disabled={emailBusy} onInput={(e) => setEmailAddress((e.target as HTMLInputElement).value)} />
                           </label>
                           <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-2">
                             <label className="grid min-w-0 gap-1.5 text-sm">
                               <span className="font-medium text-base-content/70">验证码</span>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                className="input w-full"
-                                placeholder="6 位验证码"
-                                value={emailCode}
-                                disabled={emailBusy}
-                                onInput={(e) => setEmailCode((e.target as HTMLInputElement).value)}
-                              />
+                              <input type="text" inputMode="numeric" className="input w-full" placeholder="6 位验证码" value={emailCode} disabled={emailBusy} onInput={(e) => setEmailCode((e.target as HTMLInputElement).value)} />
                             </label>
-                            <button className="btn btn-outline btn-primary btn-sm" disabled={emailBusy} onClick={requestEmailCode}>
-                              获取验证码
-                            </button>
-                            <button className="btn btn-primary btn-sm" disabled={emailBusy} onClick={verifyEmail}>
-                              绑定
-                            </button>
+                            <button className="btn btn-outline btn-primary btn-sm" disabled={emailBusy} onClick={requestEmailCode}>获取验证码</button>
+                            <button className="btn btn-primary btn-sm" disabled={emailBusy} onClick={verifyEmail}>绑定</button>
                           </div>
                         </>
                       )}
                     </div>
-                  </section>
+                  </details>
                 )}
 
-                <section className="card border border-base-300 bg-base-100">
-                  <div className="card-body gap-3 p-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <h2 className="card-title text-base">手机日历</h2>
-                      <span className={`badge ${autoSyncToken ? 'badge-success' : calendarFeedToken ? 'badge-info' : 'badge-ghost'}`}>
-                        {autoSyncToken ? '自动同步已启用' : calendarFeedToken ? '已启用' : '未设置'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-base-content/60">启用自动同步后，服务端每天抓取课程和云实验；手机日历按自身周期读取最新数据。</p>
-                    <button className="btn btn-primary btn-sm" disabled={!apiBaseUrl || autoSyncBusy || loading || calendarBusy || emailBusy} onClick={() => enableAutomaticSync()}>
-                      {autoSyncBusy ? '正在绑定…' : autoSyncToken ? '更新自动同步会话' : '启用自动同步'}
-                    </button>
-                    <button className="btn btn-outline btn-sm" disabled={!apiBaseUrl || emailBusy || loading || calendarBusy} onClick={async () => {
-                      if (!service) return;
-                      try {
-                        await publishCalendar(assignments, service);
-                        showToast('日历已更新，可复制下方订阅信息');
-                      } catch {
-                        showToast('手机日历订阅更新失败');
-                      }
-                    }}>
-                      更新手机日历订阅
-                    </button>
-                    {calendarFeedUrl && (
-                      <input className="input input-sm" readOnly value={`${apiBaseUrl}/api/caldav/`} aria-label="CalDAV 服务器地址" />
-                    )}
-                    {calendarFeedUrl && (
-                      <>
-                        <input className="input input-sm" readOnly value="nodd" aria-label="CalDAV 用户名" />
-                        <input className="input input-sm" readOnly value={calendarFeedToken} aria-label="CalDAV 密码" />
-                      </>
-                    )}
-                    {calendarFeedUrl && (
-                      <input className="input input-sm" readOnly value={calendarFeedUrl} aria-label="Webcal 订阅地址" />
-                    )}
+                <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
+                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                    <span>微信推送 · PushPlus</span>
+                    <span className="text-xs text-base-content/60">可选</span>
+                  </summary>
+                  <div className="border-t border-base-300 p-4">
+                    <input type="text" className="input w-full" placeholder="PushPlus Token" value={pushplusToken} onInput={(e) => setPushplusToken((e.target as HTMLInputElement).value)} />
                   </div>
-                </section>
+                </details>
 
-                <section className="card border border-base-300 bg-base-100">
-                  <div className="card-body p-4">
-                    <label className="grid gap-1.5 text-sm">
-                      <span className="font-medium text-base-content/70">微信推送 · PushPlus</span>
-                      <input
-                        type="text"
-                        className="input w-full"
-                        placeholder="PushPlus Token"
-                        value={pushplusToken}
-                        onInput={(e) => setPushplusToken((e.target as HTMLInputElement).value)}
-                      />
-                    </label>
-                  </div>
-                </section>
-
-                <details className="collapse collapse-arrow border border-base-300 bg-base-100">
-                  <summary className="collapse-title min-h-0 px-4 py-3 font-medium">短信网关</summary>
-                  <div className="collapse-content space-y-3">
+                <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
+                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                    <span>短信网关</span>
+                    <span className="text-xs text-base-content/60">可选</span>
+                  </summary>
+                  <div className="space-y-3 border-t border-base-300 p-4">
                     <label className="grid gap-1.5 text-sm">
                       <span className="font-medium text-base-content/70">接收手机号</span>
-                      <input
-                        type="text"
-                        className="input w-full"
-                        placeholder="手机号"
-                        value={smsPhone}
-                        onInput={(e) => setSmsPhone((e.target as HTMLInputElement).value)}
-                      />
+                      <input type="text" className="input w-full" placeholder="手机号" value={smsPhone} onInput={(e) => setSmsPhone((e.target as HTMLInputElement).value)} />
                     </label>
                     <label className="grid gap-1.5 text-sm">
                       <span className="font-medium text-base-content/70">Webhook 地址</span>
-                      <input
-                        type="text"
-                        className="input w-full"
-                        placeholder="短信网关 Webhook 地址"
-                        value={smsWebhookUrl}
-                        onInput={(e) => setSmsWebhookUrl((e.target as HTMLInputElement).value)}
-                      />
+                      <input type="text" className="input w-full" placeholder="短信网关 Webhook 地址" value={smsWebhookUrl} onInput={(e) => setSmsWebhookUrl((e.target as HTMLInputElement).value)} />
                     </label>
                   </div>
                 </details>
 
-                <section className="card border border-base-300 bg-base-100">
-                  <div className="card-body p-4">
-                    <label className="grid gap-1.5 text-sm">
-                      <span className="font-medium text-base-content/70">苹果设备推送 · Bark</span>
-                      <input
-                        type="text"
-                        className="input w-full"
-                        placeholder="Bark 推送 URL"
-                        value={barkUrl}
-                        onInput={(e) => setBarkUrl((e.target as HTMLInputElement).value)}
-                      />
-                    </label>
+                <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
+                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                    <span>苹果设备推送 · Bark</span>
+                    <span className="text-xs text-base-content/60">可选</span>
+                  </summary>
+                  <div className="border-t border-base-300 p-4">
+                    <input type="text" className="input w-full" placeholder="Bark 推送 URL" value={barkUrl} onInput={(e) => setBarkUrl((e.target as HTMLInputElement).value)} />
                   </div>
-                </section>
+                </details>
 
-                <section className="card border border-base-300 bg-base-100">
-                  <div className="card-body p-4">
-                    <label className="grid gap-1.5 text-sm">
-                      <span className="font-medium text-base-content/70">提前提醒</span>
-                      <select
-                        className="select w-full"
-                        value={threshold}
-                        onChange={(e) => setThreshold(parseInt((e.target as HTMLSelectElement).value, 10))}
-                      >
-                        <option value={24}>24 小时以内</option>
-                        <option value={48}>48 小时以内</option>
-                        <option value={72}>72 小时以内</option>
-                        <option value={168}>1 周以内</option>
-                      </select>
-                    </label>
+                <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
+                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                    <span>提醒时间</span>
+                    <span className="text-xs text-base-content/60">提前 {threshold} 小时</span>
+                  </summary>
+                  <div className="border-t border-base-300 p-4">
+                    <select className="select w-full" value={threshold} onChange={(e) => setThreshold(parseInt((e.target as HTMLSelectElement).value, 10))}>
+                      <option value={24}>24 小时以内</option>
+                      <option value={48}>48 小时以内</option>
+                      <option value={72}>72 小时以内</option>
+                      <option value={168}>1 周以内</option>
+                    </select>
                   </div>
-                </section>
+                </details>
 
-                <button className="btn btn-outline btn-primary w-full" onClick={exportCalendar}>
-                  📅 导出日历 (.ics)
-                </button>
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button className="btn btn-primary" onClick={savePushConfig}>
-                    保存配置
-                  </button>
-                  <button className="btn btn-outline btn-primary" onClick={testPush}>
-                    发送测试提醒
-                  </button>
-                </div>
+                <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
+                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                    <span>提醒工具</span>
+                    <span className="text-xs text-base-content/60">保存与测试</span>
+                  </summary>
+                  <div className="grid grid-cols-2 gap-2 border-t border-base-300 p-4">
+                    <button className="btn btn-primary" onClick={savePushConfig}>保存配置</button>
+                    <button className="btn btn-outline btn-primary" onClick={testPush}>发送测试提醒</button>
+                  </div>
+                </details>
               </div>
             )}
 

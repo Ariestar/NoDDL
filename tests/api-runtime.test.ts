@@ -70,7 +70,9 @@ test('compiled API handlers load in plain Node and bind an encrypted session', (
       const { getAutoSyncStatus } = await import(${JSON.stringify(serverBase)} + 'auto-sync.js');
       assert.equal((await getAutoSyncStatus(token)).enabled, true);
       const { readCalendarFeed } = await import(${JSON.stringify(serverBase)} + 'calendar.js');
-      assert.match(await readCalendarFeed(feedToken), /BEGIN:VCALENDAR/);
+      const calendar = await readCalendarFeed(feedToken);
+      assert.match(calendar, /BEGIN:VCALENDAR/);
+      assert.match(calendar, /X-WR-CALNAME:课程作业截止/);
       console.log('API runtime and encrypted binding passed');
     `], { env, encoding: 'utf8' });
     assert.match(result, /API runtime and encrypted binding passed/);

@@ -45,10 +45,10 @@ export function createDeadlineCalendar(assignments: Assignment[], baseUrl: strin
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//NoDDL//Assignment Deadlines//ZH',
+    'PRODID:-//Course Deadline Calendar//ZH',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    'X-WR-CALNAME:NoDDL 作业截止'
+    'X-WR-CALNAME:课程作业截止'
   ];
 
   for (const item of upcoming) {
@@ -81,10 +81,10 @@ export function createEmptyCalendar(): string {
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//NoDDL//Assignment Deadlines//ZH',
+    'PRODID:-//Course Deadline Calendar//ZH',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    'X-WR-CALNAME:NoDDL 作业截止',
+    'X-WR-CALNAME:课程作业截止',
     'END:VCALENDAR',
     ''
   ].join('\r\n');
