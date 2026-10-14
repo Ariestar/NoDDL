@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.41 - 2026-10-15
+
+- Expose explicit CalDAV entry handlers for Vercel function discovery.
+
 ## 1.0.40 - 2026-10-15
 
 - Share one CalDAV handler between the root and collection routes for Vercel runtime compatibility.
