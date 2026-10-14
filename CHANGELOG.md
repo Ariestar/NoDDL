@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.27 - 2026-10-15
+
+- Add a stable Chrome MV3 bridge for reading the platform's HttpOnly session cookie.
+
 ## 1.0.26 - 2026-10-15
 
 - Keep automatic sync failure notices concise while retaining diagnostics in the console.

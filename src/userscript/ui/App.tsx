@@ -10,7 +10,8 @@ import {
   getServiceConfig,
   type ServiceConfig
 } from '../email-api';
-import { AUTO_SYNC_TOKEN_KEY, bindAutomaticSync, readCourseSessionCookie } from '../sync-api';
+import { AUTO_SYNC_TOKEN_KEY, bindAutomaticSync } from '../sync-api';
+import { readCourseSessionCookie } from '../session-bridge';
 import petImage from './assets/nodd-pet.png';
 
 interface AppProps {

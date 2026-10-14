@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "NoDDL Session Bridge",
+  "version": "1.0.0",
+  "description": "让 NoDDL userscript 在稳定版 Chrome 中读取课程平台会话。",
+  "permissions": ["cookies"],
+  "host_permissions": ["http://115.156.107.145/*"],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://115.156.107.145/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
