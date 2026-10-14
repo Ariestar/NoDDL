@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.65 - 2026-10-15
+
+- Add deadline reminders one day and fifteen minutes in advance.
+
 ## 1.0.64 - 2026-10-15
 
 - Keep a one-minute end time so Vivo does not render point events as 1970.
