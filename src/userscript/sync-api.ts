@@ -2,11 +2,6 @@ import type { HttpClient } from '../core/types';
 
 export const AUTO_SYNC_TOKEN_KEY = 'nodd_auto_sync_token';
 
-interface CookieItem {
-  name: string;
-  value: string;
-}
-
 export function readCourseSessionCookie(): Promise<string> {
   if (typeof GM_cookie === 'undefined') throw new Error('当前脚本管理器不支持读取登录会话，请使用支持 GM_cookie 的 Tampermonkey');
 
@@ -18,15 +13,15 @@ export function readCourseSessionCookie(): Promise<string> {
       }
 
       const sessionCookie = cookies.find(
-        (item: CookieItem) => item.name.toUpperCase() === 'JSESSIONID' && item.value.length > 0
+        (item) => item.name.toUpperCase() === 'JSESSIONID' && item.value.length > 0
       );
-      const cookieNames = cookies.map((item: CookieItem) => item.name).filter(Boolean);
+      const cookieNames = cookies.map((item) => item.name).filter(Boolean);
       if (!sessionCookie) {
         reject(new Error(`未找到课程平台登录会话（Cookie：${cookieNames.join(', ') || '无'}）`));
         return;
       }
 
-      const cookie = cookies.map((item: CookieItem) => `${item.name}=${item.value}`).join('; ');
+      const cookie = cookies.map((item) => `${item.name}=${item.value}`).join('; ');
       resolve(cookie);
     });
   });
