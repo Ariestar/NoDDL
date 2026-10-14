@@ -143,7 +143,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   const exportCalendar = () => {
     const calendar = createDeadlineCalendar(assignments, window.location.origin);
     if (!calendar) {
-      showToast('当前没有可导出的未截止作业');
+      showToast('当前没有可导出的作业');
       return;
     }
 

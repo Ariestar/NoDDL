@@ -4,6 +4,11 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.45 - 2026-10-15
+
+- Publish all parsed course DDLs to calendar feeds, including overdue items.
+- Return CalDAV collection metadata according to the requested depth.
+
 ## 1.0.44 - 2026-10-15
 
 - Make full sync always publish the latest assignments to the calendar service.

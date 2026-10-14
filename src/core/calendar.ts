@@ -34,14 +34,13 @@ function foldIcsLine(line: string, encoder: TextEncoder): string {
 }
 
 export function createDeadlineCalendar(assignments: Assignment[], baseUrl: string): string | null {
-  const currentTime = Date.now();
   const upcoming = assignments
-    .filter(item => Number.isFinite(item.deadlineTimestamp) && item.deadlineTimestamp > currentTime)
+    .filter(item => Number.isFinite(item.deadlineTimestamp) && item.deadlineTimestamp > 0)
     .sort((a, b) => a.deadlineTimestamp - b.deadlineTimestamp);
 
   if (upcoming.length === 0) return null;
 
-  const now = formatIcsDate(currentTime);
+  const now = formatIcsDate(Date.now());
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',

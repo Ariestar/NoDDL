@@ -14,6 +14,7 @@ import { HomeworkDB } from '../src/core/db';
 import { CourseGradingClient } from '../src/core/client';
 import { StorageAdapter, Assignment, HttpClient } from '../src/core/types';
 import { parseExperimentDeadlineFromDom } from '../src/extension/experiment-dom';
+import { createDeadlineCalendar } from '../src/core/calendar';
 
 class MemoryStorage implements StorageAdapter {
   private map = new Map<string, string>();
@@ -431,4 +432,22 @@ test('短信提醒 (SMS)：占位符解析与触发支持', async () => {
   assert.strictEqual(res.count, 1);
   assert.ok(http.lastGetUrl.includes('phone=13812345678'));
   assert.ok(decodeURIComponent(http.lastGetUrl).includes('操作系统'));
+});
+
+test('日历同步保留已过期课程 DDL', () => {
+  const calendar = createDeadlineCalendar([{
+    id: 'past-1',
+    courseId: '10',
+    courseName: '操作系统',
+    title: '进程管理实验',
+    deadline: '2026-10-01 12:00:00',
+    deadlineTimestamp: Date.now() - 3600000,
+    remainingHours: -1,
+    remainingText: '已超 DDL 1 小时',
+    status: 'pending',
+    urgency: 'passed',
+    url: '/assignment/index.jsp?assignID=past-1'
+  }], 'http://115.156.107.145');
+
+  assert.match(calendar || '', /SUMMARY:操作系统 - 进程管理实验 截止/);
 });

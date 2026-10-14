@@ -38,12 +38,14 @@ function eventHref(base: string, item: Assignment): string {
 }
 
 function eventXml(base: string, item: Assignment, calendar: string): string {
-  return `<D:response><D:href>${xml(eventHref(base, item))}</D:href><D:propstat><D:prop><D:getetag>&quot;${createHash('sha1').update(calendar).digest('hex')}&quot;</D:getetag><C:calendar-data>${xml(calendar)}</C:calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>`;
+  return `<D:response><D:href>${xml(eventHref(base, item))}</D:href><D:propstat><D:prop><D:getetag>&quot;${createHash('sha1').update(calendar).digest('hex')}&quot;</D:getetag><D:getcontenttype>text/calendar; component=&quot;VEVENT&quot;</D:getcontenttype><C:calendar-data>${xml(calendar)}</C:calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>`;
 }
 
-function collectionXml(base: string, assignments: Assignment[]): string {
-  const children = assignments.map(item => eventXml(base, item, createDeadlineCalendar([item], 'http://115.156.107.145') || '')).join('');
-  return `<?xml version="1.0" encoding="utf-8" ?><D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:response><D:href>${xml(base)}</D:href><D:propstat><D:prop><D:displayname>课程作业截止</D:displayname><D:resourcetype><D:collection/><C:calendar/></D:resourcetype><D:getetag>&quot;calendar&quot;</D:getetag><C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>${children}</D:multistatus>`;
+function collectionXml(base: string, assignments: Assignment[], includeEvents: boolean): string {
+  const children = includeEvents
+    ? assignments.map(item => eventXml(base, item, createDeadlineCalendar([item], 'http://115.156.107.145') || '')).join('')
+    : '';
+  return `<?xml version="1.0" encoding="utf-8" ?><D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:response><D:href>${xml(base)}</D:href><D:propstat><D:prop><D:displayname>课程作业截止</D:displayname><D:resourcetype><D:collection/><C:calendar/></D:resourcetype><D:getetag>&quot;calendar&quot;</D:getetag><C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set><C:supported-calendar-data><C:calendar-data content-type="text/calendar" version="2.0"/></C:supported-calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>${children}</D:multistatus>`;
 }
 
 export default async function handler(request: ApiRequest, response: ServerResponse): Promise<void> {
@@ -68,8 +70,9 @@ export default async function handler(request: ApiRequest, response: ServerRespo
 
     if (request.method === 'PROPFIND' || request.method === 'REPORT') {
       response.statusCode = 207;
+      response.setHeader('DAV', '1, 2, calendar-access');
       response.setHeader('Content-Type', 'application/xml; charset=utf-8');
-      response.end(collectionXml(base, assignments));
+      response.end(collectionXml(base, assignments, request.method === 'REPORT' || request.headers.depth !== '0'));
       return;
     }
 
