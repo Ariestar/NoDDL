@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-- Remove an unused CLI copy script and a one-use UI barrel export.
+- Remove a one-use UI barrel export.
+
+## 1.0.33 - 2026-10-15
+
+- Preserve the Vercel build hook required to publish the CLI entrypoint.
 
 ## 1.0.32 - 2026-10-15
 
