@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.62 - 2026-10-15
+
+- Require CalDAV capability discovery to complete Basic authentication for Vivo clients.
+
 ## 1.0.61 - 2026-10-15
 
 - Move CalDAV reads to the Cloudflare Worker and remove the Vercel CalDAV handlers and temporary deployment hosts.
