@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.32 - 2026-10-15
+
+- Route extension API calls through the service worker to avoid page CORS restrictions.
+
 ## 1.0.31 - 2026-10-15
 
 - Remove the userscript distribution and ship the page assistant as one Chrome extension.

@@ -19,6 +19,9 @@ declare module '*.png' {
 declare const chrome: {
   runtime: {
     lastError?: { message?: string };
-    sendMessage(message: unknown, callback: (response?: { cookie?: string; error?: string }) => void): void;
+    sendMessage(
+      message: unknown,
+      callback: (response?: { cookie?: string; error?: string; ok?: boolean; status?: number; body?: string }) => void
+    ): void;
   };
 };
