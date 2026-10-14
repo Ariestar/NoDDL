@@ -84,8 +84,12 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       setAutoSyncToken(savedAutoSyncToken);
       setThreshold(th);
       if (savedAutoSyncToken && configured.baseUrl) {
-        const status = await getAutomaticSyncStatus(http, configured.baseUrl, savedAutoSyncToken);
-        setAutoSyncEnabled(status.enabled);
+        try {
+          const status = await getAutomaticSyncStatus(http, configured.baseUrl, savedAutoSyncToken);
+          setAutoSyncEnabled(status.enabled);
+        } catch (error) {
+          console.error('[NoDDL] 自动同步状态读取失败', error);
+        }
       } else if (!savedAutoSyncToken) {
         await enableAutomaticSync(configured, '', savedCalendarFeedToken);
       }
@@ -107,15 +111,16 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
 
       const list = await client.safeSyncAllCourses(curId, (msg) => showToast(msg));
       setAssignments(list);
+      let publishedCount = 0;
       if (configured.baseUrl) {
         try {
-          await publishCalendar(list, configured);
+          publishedCount = await publishCalendar(list, configured);
         } catch (error) {
           showToast(`课程已同步，日历更新失败：${error instanceof Error ? error.message : String(error)}`);
           return;
         }
       }
-      showToast(`同步完成！共汇总 ${list.length} 项作业`);
+      showToast(`同步完成 · 日历 ${publishedCount} 项`);
     } catch (error) {
       showToast(`同步失败：${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -164,7 +169,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     showToast('日历文件已导出');
   };
 
-  const publishCalendar = async (sourceAssignments: Assignment[], configured: ServiceConfig) => {
+  const publishCalendar = async (sourceAssignments: Assignment[], configured: ServiceConfig): Promise<number> => {
     if (!configured.baseUrl) throw new Error('Calendar service is not configured');
     setCalendarBusy(true);
     try {
@@ -173,10 +178,13 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
         assignments: sourceAssignments,
         feedToken: feedToken || undefined
       });
-      const result = JSON.parse(response) as { feedToken?: string };
-      if (!result.feedToken) throw new Error('Invalid calendar feed response');
+      const result = JSON.parse(response) as { feedToken?: string; assignments?: number };
+      if (!result.feedToken || result.assignments !== sourceAssignments.length) {
+        throw new Error('日历服务未确认完整写入');
+      }
       await configured.storage.set('nodd_calendar_feed_token', result.feedToken);
       setCalendarFeedToken(result.feedToken);
+      return result.assignments;
     } finally {
       setCalendarBusy(false);
     }

@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.53 - 2026-10-15
+
+- Confirm the server-side calendar item count after every full sync and keep sync independent from auto-sync status reads.
+
 ## 1.0.52 - 2026-10-15
 
 - Refresh CalDAV clients with data-based collection ETags and preserve existing assignments when a full sync fails.
