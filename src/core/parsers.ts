@@ -6,7 +6,7 @@ import { parseDeadlineBeijing } from './time';
  * 真实结构: <span class="... dropdown-item-course font-weight-bold" value="184">离散数学</span>
  */
 export function parseActiveCourseInfo(html: string): { id?: string; name?: string } {
-  const activeCourseM = html.match(/<span[^>]*class=["'][^"']*dropdown-item-course[^"']*font-weight-bold[^"']*["'][^>]*value=["']([^"']+)["'][^>]*>([\s\S]*?)<\/span>/i);
+  const activeCourseM = html.match(/<span(?=[^>]*class=["'][^"']*\bdropdown-item-course\b[^"']*["'])(?=[^>]*class=["'][^"']*\bfont-weight-bold\b[^"']*["'])[^>]*value=["']([^"']+)["'][^>]*>([\s\S]*?)<\/span>/i);
   if (activeCourseM) {
     return {
       id: activeCourseM[1],

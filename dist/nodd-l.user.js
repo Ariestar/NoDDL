@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NoDDL (Not Only DDL) - 武大一体化平台助手
 // @namespace    https://github.com/projectluojia/NoDDL
-// @version      1.0.15
+// @version      1.0.16
 // @author       projectluojia
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
@@ -6892,7 +6892,7 @@
     };
   }
   function parseActiveCourseInfo(html) {
-    const activeCourseM = html.match(/<span[^>]*class=["'][^"']*dropdown-item-course[^"']*font-weight-bold[^"']*["'][^>]*value=["']([^"']+)["'][^>]*>([\s\S]*?)<\/span>/i);
+    const activeCourseM = html.match(/<span(?=[^>]*class=["'][^"']*\bdropdown-item-course\b[^"']*["'])(?=[^>]*class=["'][^"']*\bfont-weight-bold\b[^"']*["'])[^>]*value=["']([^"']+)["'][^>]*>([\s\S]*?)<\/span>/i);
     if (activeCourseM) {
       return {
         id: activeCourseM[1],
@@ -7119,49 +7119,35 @@
      */
     async getCourses() {
       const html = await this.http.get(`${this.baseUrl}/courselist.jsp`, this.getAuthHeaders());
-      let courses = parseCourseListHtml(html);
-      if (courses.length === 0) {
-        const mainHtml = await this.http.get(`${this.baseUrl}/main.jsp`, this.getAuthHeaders());
-        courses = parseCourseListHtml(mainHtml);
-      }
-      return courses;
+      return parseCourseListHtml(html);
     }
     /**
      * 切换当前激活课程上下文
      */
     async enterCourse(courseId) {
-      const body = new URLSearchParams({
-        doChangeCourse: "true",
-        changeCourse: courseId
-      }).toString();
-      await this.http.post(`${this.baseUrl}/main.jsp`, body, {
-        ...this.getAuthHeaders(),
-        "Content-Type": "application/x-www-form-urlencoded"
-      });
+      await this.http.get(
+        `${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`,
+        this.getAuthHeaders()
+      );
     }
     /**
      * 只读读取当前活跃课程的作业列表（不篡改 Session 状态）
      */
     async getPendingAssignments() {
-      const allAssignments = [];
-      const seenIds = /* @__PURE__ */ new Set();
       const indexHtml = await this.http.get(
         `${this.baseUrl}/assignment/index.jsp`,
         this.getAuthHeaders()
       );
       const activeCourse = parseActiveCourseInfo(indexHtml);
-      const courseId = activeCourse.id || "";
-      const courseName = activeCourse.name || "";
-      if (this.db && courseId && courseName) {
+      if (!activeCourse.id || !activeCourse.name) {
+        throw new Error("无法从作业页面识别当前课程");
+      }
+      const courseId = activeCourse.id;
+      const courseName = activeCourse.name;
+      if (this.db) {
         await this.db.upsertCourse(courseId, courseName);
       }
-      const list = parseActiveAssignmentsHtml(indexHtml, courseName, courseId);
-      for (const item of list) {
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          allAssignments.push(item);
-        }
-      }
+      const allAssignments = parseActiveAssignmentsHtml(indexHtml, courseName, courseId);
       for (const item of allAssignments) {
         const detailUrl = item.courseId ? `${this.baseUrl}/assignment/index.jsp?courseID=${item.courseId}&assignID=${item.id}` : `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`;
         await this.fillAssignmentDeadline(item, detailUrl);
@@ -7189,8 +7175,9 @@
       var _a;
       const courses = await this.getCourses();
       if (courses.length === 0) {
-        return this.getPendingAssignments();
+        throw new Error("未读取到课程列表，已停止同步");
       }
+      const syncedAssignments = [];
       try {
         for (let i2 = 0; i2 < courses.length; i2++) {
           const c2 = courses[i2];
@@ -7200,18 +7187,20 @@
           }
           await this.enterCourse(c2.id);
           const indexHtml = await this.http.get(
-            `${this.baseUrl}/assignment/index.jsp?courseID=${encodeURIComponent(c2.id)}`,
+            `${this.baseUrl}/assignment/index.jsp`,
             this.getAuthHeaders()
           );
-          const list = parseActiveAssignmentsHtml(indexHtml, c2.name, c2.id, true);
+          const activeCourse = parseActiveCourseInfo(indexHtml);
+          if (activeCourse.id !== c2.id || !activeCourse.name) {
+            throw new Error(`课程上下文不一致：请求 ${c2.id}，页面返回 ${activeCourse.id || "未知"}`);
+          }
+          const list = parseActiveAssignmentsHtml(indexHtml, activeCourse.name, activeCourse.id, true);
           for (const item of list) {
-            item.courseId = c2.id;
-            item.courseName = c2.name;
-            item.url = `/assignment/index.jsp?courseID=${c2.id}&assignID=${item.id}`;
             await this.fillAssignmentDeadline(
               item,
               `${this.baseUrl}/assignment/index.jsp?courseID=${c2.id}&assignID=${item.id}`
             );
+            syncedAssignments.push(item);
             if (this.db) {
               await this.db.upsertAssignment(item);
             }
@@ -7224,7 +7213,7 @@
           await this.enterCourse(currentCourseId);
         }
       }
-      return this.db ? this.db.getAllAssignments() : this.getPendingAssignments();
+      return this.db ? this.db.getAllAssignments() : syncedAssignments;
     }
     /**
      * 获取题目详情与测试用例（兼容 programList.jsp 与 fileUploadList.jsp）

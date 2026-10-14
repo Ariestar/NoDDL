@@ -82,54 +82,39 @@ export class CourseGradingClient {
    */
   async getCourses(): Promise<Course[]> {
     const html = await this.http.get(`${this.baseUrl}/courselist.jsp`, this.getAuthHeaders());
-    let courses = parseCourseListHtml(html);
-    if (courses.length === 0) {
-      const mainHtml = await this.http.get(`${this.baseUrl}/main.jsp`, this.getAuthHeaders());
-      courses = parseCourseListHtml(mainHtml);
-    }
-    return courses;
+    return parseCourseListHtml(html);
   }
 
   /**
    * 切换当前激活课程上下文
    */
   async enterCourse(courseId: string): Promise<void> {
-    const body = new URLSearchParams({
-      doChangeCourse: 'true',
-      changeCourse: courseId
-    }).toString();
-    await this.http.post(`${this.baseUrl}/main.jsp`, body, {
-      ...this.getAuthHeaders(),
-      'Content-Type': 'application/x-www-form-urlencoded'
-    });
+    await this.http.get(
+      `${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`,
+      this.getAuthHeaders()
+    );
   }
 
   /**
    * 只读读取当前活跃课程的作业列表（不篡改 Session 状态）
    */
   async getPendingAssignments(): Promise<Assignment[]> {
-    const allAssignments: Assignment[] = [];
-    const seenIds = new Set<string>();
-
     const indexHtml = await this.http.get(
       `${this.baseUrl}/assignment/index.jsp`,
       this.getAuthHeaders()
     );
     const activeCourse = parseActiveCourseInfo(indexHtml);
-    const courseId = activeCourse.id || '';
-    const courseName = activeCourse.name || '';
+    if (!activeCourse.id || !activeCourse.name) {
+      throw new Error('无法从作业页面识别当前课程');
+    }
+    const courseId = activeCourse.id;
+    const courseName = activeCourse.name;
 
-    if (this.db && courseId && courseName) {
+    if (this.db) {
       await this.db.upsertCourse(courseId, courseName);
     }
 
-    const list = parseActiveAssignmentsHtml(indexHtml, courseName, courseId);
-    for (const item of list) {
-      if (!seenIds.has(item.id)) {
-        seenIds.add(item.id);
-        allAssignments.push(item);
-      }
-    }
+    const allAssignments = parseActiveAssignmentsHtml(indexHtml, courseName, courseId);
 
     // 补齐详情页精确截止时间（真实卡片作业时间）
     for (const item of allAssignments) {
@@ -166,8 +151,9 @@ export class CourseGradingClient {
   async safeSyncAllCourses(currentCourseId?: string, onProgress?: (msg: string) => void): Promise<Assignment[]> {
     const courses = await this.getCourses();
     if (courses.length === 0) {
-      return this.getPendingAssignments();
+      throw new Error('未读取到课程列表，已停止同步');
     }
+    const syncedAssignments: Assignment[] = [];
 
     try {
       for (let i = 0; i < courses.length; i++) {
@@ -178,20 +164,21 @@ export class CourseGradingClient {
         }
         await this.enterCourse(c.id);
         const indexHtml = await this.http.get(
-          `${this.baseUrl}/assignment/index.jsp?courseID=${encodeURIComponent(c.id)}`,
+          `${this.baseUrl}/assignment/index.jsp`,
           this.getAuthHeaders()
         );
-        const list = parseActiveAssignmentsHtml(indexHtml, c.name, c.id, true);
+        const activeCourse = parseActiveCourseInfo(indexHtml);
+        if (activeCourse.id !== c.id || !activeCourse.name) {
+          throw new Error(`课程上下文不一致：请求 ${c.id}，页面返回 ${activeCourse.id || '未知'}`);
+        }
+        const list = parseActiveAssignmentsHtml(indexHtml, activeCourse.name, activeCourse.id, true);
 
         for (const item of list) {
-          item.courseId = c.id;
-          item.courseName = c.name;
-          item.url = `/assignment/index.jsp?courseID=${c.id}&assignID=${item.id}`;
-
           await this.fillAssignmentDeadline(
             item,
             `${this.baseUrl}/assignment/index.jsp?courseID=${c.id}&assignID=${item.id}`
           );
+          syncedAssignments.push(item);
 
           if (this.db) {
             await this.db.upsertAssignment(item);
@@ -207,7 +194,7 @@ export class CourseGradingClient {
       }
     }
 
-    return this.db ? this.db.getAllAssignments() : this.getPendingAssignments();
+    return this.db ? this.db.getAllAssignments() : syncedAssignments;
   }
 
   /**

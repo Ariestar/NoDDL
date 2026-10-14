@@ -50,7 +50,7 @@ test('AES-ECB 密码加密与解密一致性', () => {
 test('希冀平台生产真实结构：激活课程名称提取', () => {
   const realDropdownHtml = `
     <div class="dropdown-menu">
-      <span class="dropdown-item dropdown-item-course font-weight-bold" value="184">离散数学</span>
+      <span class="font-weight-bold dropdown-item-course dropdown-item" value="184">离散数学</span>
       <span class="dropdown-item dropdown-item-course" value="182">计算机系统结构</span>
     </div>
   `;
@@ -301,9 +301,10 @@ test('归一化结构存储：彻底杜绝重复课程，规范解析与排序',
 
 test('全量同步：提交真实课程切换并刷新时间与完成状态', async () => {
   const storage = new MemoryStorage();
-  const posts: Array<{ url: string; body: string }> = [];
-  const courseHtml = '<span class="dropdown-item dropdown-item-course" value="184">离散数学</span>';
+  const gets: string[] = [];
+  const courseHtml = '<span class="dropdown-item dropdown-item-course font-weight-bold" value="184">离散数学</span>';
   const assignmentHtml = `
+    <span class="dropdown-item dropdown-item-course font-weight-bold" value="184">离散数学</span>
     <span class="text-muted"><strong><i class="fas fa-clock"></i> 当前作业</strong></span>
     <a href="index.jsp?courseID=184&amp;assignID=3548">旧标题</a>
     <span class="text-muted"><strong><i class="fas fa-history"></i> 历史作业</strong></span>
@@ -316,15 +317,13 @@ test('全量同步：提交真实课程切换并刷新时间与完成状态', as
   `;
   const http: HttpClient = {
     async get(url) {
-      if (url.endsWith('/courselist.jsp')) return courseHtml;
+      gets.push(url);
+      if (url.endsWith('/courselist.jsp') || url.includes('/courselist.jsp?courseID=184')) return courseHtml;
       if (url.includes('assignID=3548')) return detailHtml;
-      if (url.includes('/assignment/index.jsp?courseID=184')) return assignmentHtml;
+      if (url.endsWith('/assignment/index.jsp')) return assignmentHtml;
       throw new Error(`Unexpected GET ${url}`);
     },
-    async post(url, data) {
-      posts.push({ url, body: String(data) });
-      return '';
-    }
+    async post() { throw new Error('全量同步不应使用 POST 切课'); }
   };
 
   const client = new CourseGradingClient({}, http, storage);
@@ -347,9 +346,33 @@ test('全量同步：提交真实课程切换并刷新时间与完成状态', as
   assert.equal(list[0].title, '第四周作业');
   assert.equal(list[0].deadline, '2026-10-19 23:59:00');
   assert.equal(list[0].status, 'submitted');
-  assert.equal(posts.length, 2);
-  assert.ok(posts.every(post => post.url.endsWith('/main.jsp')));
-  assert.ok(posts.every(post => post.body.includes('doChangeCourse=true')));
+  assert.ok(gets.includes('http://115.156.107.145/courselist.jsp?courseID=184'));
+});
+
+test('全量同步：返回课程上下文不一致时拒绝写入错误课程', async () => {
+  const storage = new MemoryStorage();
+  const http: HttpClient = {
+    async get(url) {
+      if (url.endsWith('/courselist.jsp')) {
+        return '<span class="dropdown-item dropdown-item-course font-weight-bold" value="176">计算机系统导论</span>';
+      }
+      if (url.includes('/courselist.jsp?courseID=176')) {
+        return '<span class="dropdown-item dropdown-item-course font-weight-bold" value="176">计算机系统导论</span>';
+      }
+      if (url.endsWith('/assignment/index.jsp')) {
+        return '<span class="dropdown-item dropdown-item-course font-weight-bold" value="184">离散数学</span>';
+      }
+      throw new Error(`Unexpected GET ${url}`);
+    },
+    async post() { throw new Error('全量同步不应使用 POST 切课'); }
+  };
+
+  const client = new CourseGradingClient({}, http, storage);
+  await assert.rejects(
+    () => client.safeSyncAllCourses('176'),
+    /课程上下文不一致/
+  );
+  assert.deepEqual(await client.db?.getAllAssignments(), []);
 });
 
 test('短信提醒 (SMS)：占位符解析与触发支持', async () => {
