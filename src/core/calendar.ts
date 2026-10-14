@@ -58,6 +58,7 @@ export function createDeadlineCalendar(assignments: Assignment[], baseUrl: strin
       `UID:${encodeURIComponent(item.courseId || 'course')}-${encodeURIComponent(item.id)}@nodd-l`,
       `DTSTAMP:${now}`,
       `DTSTART:${formatIcsDate(deadline)}`,
+      `DTEND:${formatIcsDate(deadline + 60 * 1000)}`,
       `SUMMARY:${escapeIcsText(`${item.courseName} - ${item.title} 截止`)}`,
       `DESCRIPTION:${escapeIcsText(`截止时间：${item.deadline}\n课程：${item.courseName}`)}`,
       `URL:${url}`,

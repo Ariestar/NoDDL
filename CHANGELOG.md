@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.64 - 2026-10-15
+
+- Keep a one-minute end time so Vivo does not render point events as 1970.
+
 ## 1.0.63 - 2026-10-15
 
 - Represent course deadlines as point events with a fifteen-minute reminder.
