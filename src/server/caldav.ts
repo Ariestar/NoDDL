@@ -91,7 +91,7 @@ export default async function handler(request: ApiRequest, response: ServerRespo
       response.statusCode = 207;
       response.setHeader('DAV', '1, 2, calendar-access');
       response.setHeader('Content-Type', 'application/xml; charset=utf-8');
-      response.end(collectionXml(base, assignments, request.method === 'REPORT' || request.headers.depth !== '0'));
+      response.end(collectionXml(base, assignments, true));
       return;
     }
 

@@ -55,6 +55,7 @@ test('compiled API handlers load in plain Node and bind an encrypted session', (
           case 'SET': records.set(key, args[0]); result = 'OK'; break;
           case 'HSET': records.set(key + ':' + args[0], args[1]); result = 1; break;
           case 'HGET': result = records.get(key + ':' + args[0]) ?? null; break;
+            case 'EXISTS': result = [...records.keys()].some(existing => existing === key || existing.startsWith(key + ':')) ? 1 : 0; break;
           case 'SADD': case 'EXPIRE': result = 1; break;
           default: throw new Error('Unexpected Redis command: ' + command);
         }
@@ -73,17 +74,30 @@ test('compiled API handlers load in plain Node and bind an encrypted session', (
       assert.equal((await getAutoSyncStatus(token)).enabled, false);
       await setAutoSyncEnabled(token, true);
       assert.equal((await getAutoSyncStatus(token)).enabled, true);
-      const { readCalendarFeed } = await import(${JSON.stringify(serverBase)} + 'calendar.js');
-      const calendar = await readCalendarFeed(feedToken);
+      const { publishCalendarFeed, readCalendarFeed } = await import(${JSON.stringify(serverBase)} + 'calendar.js');
+      const published = await publishCalendarFeed('test', {
+        feedToken,
+        assignments: [{
+          id: 'cal-1', courseId: 'course-1', courseName: '测试课程', title: '测试作业',
+          deadline: '2099-01-01 23:59:00', deadlineTimestamp: 4070908740000,
+          remainingHours: 999999, remainingText: '长期有效', status: 'pending', urgency: 'normal',
+          url: '/assignment/index.jsp?assignID=cal-1'
+        }]
+      });
+      const calendar = await readCalendarFeed(published.feedToken);
       assert.match(calendar, /BEGIN:VCALENDAR/);
       assert.match(calendar, /X-WR-CALNAME:课程作业截止/);
       const { default: caldav } = await import(base + 'caldav-server.js');
+      const credentials = Buffer.from('noddl:' + published.feedToken).toString('base64');
       const unauthenticatedOptions = response();
       await caldav({ method: 'OPTIONS', url: '/api/caldav-server', headers: {} }, unauthenticatedOptions);
       assert.equal(unauthenticatedOptions.statusCode, 200);
       assert.equal(unauthenticatedOptions.headers.DAV, '1, 2, calendar-access');
+      const propfindResponse = response();
+      await caldav({ method: 'PROPFIND', url: '/api/caldav-server', headers: { authorization: 'Basic ' + credentials, depth: '0' } }, propfindResponse);
+      assert.equal(propfindResponse.statusCode, 207, propfindResponse.body);
+      assert.match(propfindResponse.body, /BEGIN:VCALENDAR/);
       const caldavResponse = response();
-      const credentials = Buffer.from('noddl:' + feedToken).toString('base64');
       await caldav({ method: 'GET', url: '/api/caldav', headers: { authorization: 'Basic ' + credentials } }, caldavResponse);
       assert.equal(caldavResponse.statusCode, 200, caldavResponse.body);
       assert.match(caldavResponse.headers.ETag, /^[\"]?[a-f0-9]{40}[\"]?$/);
