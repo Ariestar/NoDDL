@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.23 - 2026-10-15
+
+- Read the current course page session through one authoritative cookie API and report the actual cookie names when the session is unavailable.
+
 ## 1.0.22 - 2026-10-15
 
 - Enable automatic sync by default and store server-side assignment snapshots.
