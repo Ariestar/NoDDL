@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.21 - 2026-10-14
+
+- Add encrypted daily server-side course synchronization.
+
 ## 1.0.20 - 2026-10-14
 
 - Keep cloud experiment links out of ordinary assignment parsing.

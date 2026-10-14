@@ -1,7 +1,7 @@
 # NoDDL (Not Only DDL) 🚀
 
 [![Install with Tampermonkey](https://img.shields.io/badge/Install_with-Tampermonkey-00485B?style=for-the-badge&logo=tampermonkey&logoColor=white)](https://raw.githubusercontent.com/Ariestar/NoDDL/main/dist/nodd-l.user.js)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FAriestar%2FNoDDL&env=UPSTASH_REDIS_REST_URL%2CUPSTASH_REDIS_REST_TOKEN%2CRESEND_API_KEY%2CEMAIL_CODE_SECRET&envDescription=%E4%B8%80%E6%AC%A1%E5%A1%AB%E5%86%99%20Upstash%20Redis%E3%80%81Resend%20%E5%92%8C%E9%AA%8C%E8%AF%81%E7%A0%81%E5%AF%86%E9%92%A5%EF%BC%8C%E6%9C%8D%E5%8A%A1%E5%9C%B0%E5%9D%80%E4%BC%9A%E8%87%AA%E5%8A%A8%E5%86%99%E5%85%A5%E8%84%9A%E6%9C%AC)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FAriestar%2FNoDDL&env=UPSTASH_REDIS_REST_URL%2CUPSTASH_REDIS_REST_TOKEN%2CRESEND_API_KEY%2CEMAIL_CODE_SECRET%2CSYNC_ENCRYPTION_KEY%2CCRON_SECRET&envDescription=%E4%B8%80%E6%AC%A1%E5%A1%AB%E5%86%99%20Upstash%20Redis%E3%80%81Resend%20%E5%92%8C%E9%AA%8C%E8%AF%81%E7%A0%81%E5%AF%86%E9%92%A5%EF%BC%8C%E6%9C%8D%E5%8A%A1%E5%9C%B0%E5%9D%80%E4%BC%9A%E8%87%AA%E5%8A%A8%E5%86%99%E5%85%A5%E8%84%9A%E6%9C%AC)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 > **武汉大学人工智能学院一体化专业课平台 (http://115.156.107.145/) 工具包与油猴脚本**  
@@ -137,6 +137,12 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 3. 脚本会自动使用当前 Vercel 项目的生产地址，日历、Webcal、CalDAV 和邮件绑定都走这个服务。
 
 邮件默认使用 Resend 的 `onboarding@resend.dev` 发件人，不需要购买域名。需要自定义发件人时，再额外设置可选变量 `RESEND_FROM`。部署链接只声明变量名称，不会把密码、Redis Token 或 API Key 放进 URL；这些值由你在 Vercel 部署页填写，不要提交到仓库。
+
+### 每日自动同步
+
+部署后在 userscript 的“手机日历”区域点击“启用自动同步”。脚本通过 `GM_cookie` 读取当前课程平台的登录会话，服务端只保存 AES-GCM 加密后的 Session，不保存学号或密码。Vercel Cron 每天北京时间 02:00 抓取全部课程、普通作业和云实验，并更新日历 feed。
+
+需要在 Vercel 配置 `SYNC_ENCRYPTION_KEY` 和 `CRON_SECRET`，都使用至少 32 位随机字符串。课程平台 Session 过期后，自动同步会记录失败状态，需要重新点击绑定；日历订阅地址不会改变。
 
 ---
 

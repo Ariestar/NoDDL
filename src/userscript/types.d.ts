@@ -37,3 +37,6 @@ declare function GM_notification(details: {
 declare function GM_setValue(name: string, value: any): void;
 declare function GM_getValue<T>(name: string, defaultValue?: T): T;
 declare function GM_setClipboard(data: string, info?: string): void;
+declare const GM_cookie: {
+  list(details: { url: string }, callback: (cookies: Array<{ name: string; value: string }>, error?: string) => void): void;
+};
