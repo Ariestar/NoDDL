@@ -10,7 +10,7 @@ import {
   getServiceConfig,
   type ServiceConfig
 } from '../email-api';
-import { AUTO_SYNC_TOKEN_KEY, bindAutomaticSync, getAutomaticSyncStatus, refreshAutomaticSync, setAutomaticSyncEnabled } from '../sync-api';
+import { AUTO_SYNC_TOKEN_KEY, bindAutomaticSync, getAutomaticSyncStatus, setAutomaticSyncEnabled } from '../sync-api';
 import { readCourseSessionCookie } from '../session-bridge';
 import petImage from './assets/nodd-pet.png';
 
@@ -105,11 +105,9 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       const curId = new URLSearchParams(window.location.search).get('courseID') ||
         parseActiveCourseInfo(document.documentElement.innerHTML).id || undefined;
 
-      const list = autoSyncToken && configured.baseUrl
-        ? await refreshAutomaticSync(http, configured.baseUrl, autoSyncToken)
-        : await client.safeSyncAllCourses(curId, (msg) => showToast(msg));
+      const list = await client.safeSyncAllCourses(curId, (msg) => showToast(msg));
       setAssignments(list);
-      if (configured.baseUrl && !autoSyncToken) {
+      if (configured.baseUrl) {
         try {
           await publishCalendar(list, configured);
         } catch (error) {

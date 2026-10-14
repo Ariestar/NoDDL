@@ -4,6 +4,11 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.51 - 2026-10-15
+
+- Use one browser-session sync path for page load and manual full sync.
+- Remove the server refresh path that cannot reach the course platform from Vercel.
+
 ## 1.0.50 - 2026-10-15
 
 - Keep manual full sync on the bound server session even when background sync is disabled.

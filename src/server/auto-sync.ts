@@ -139,12 +139,6 @@ export async function getAutoSyncAssignments(token: string): Promise<Assignment[
   return account.assignments || [];
 }
 
-export async function refreshAutoSync(token: string): Promise<Assignment[]> {
-  assertAutoSyncConfig();
-  const account = await readAccount(token);
-  return syncAutoAccountTokenDigest(digest(token), JSON.stringify(account));
-}
-
 export async function syncAllAutoAccounts(): Promise<{ total: number; succeeded: number; failed: number }> {
   const raw = await redisCommand(['SMEMBERS', ACCOUNT_INDEX_KEY]);
   const ids = Array.isArray(raw) ? raw.filter((value): value is string => typeof value === 'string') : [];
