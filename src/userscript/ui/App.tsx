@@ -254,13 +254,13 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     }
   };
 
-  const activeCount = assignments.filter((a) => a.remainingHours > 0).length;
-  const overdueCount = assignments.filter((a) => a.remainingHours <= 0).length;
-  const urgentCount = assignments.filter((a) => a.remainingHours > 0 && (a.urgency === 'critical' || a.urgency === 'urgent')).length;
+  const activeCount = assignments.filter((a) => a.status === 'pending' && a.remainingHours > 0).length;
+  const overdueCount = assignments.filter((a) => a.status === 'pending' && a.remainingHours <= 0).length;
+  const urgentCount = assignments.filter((a) => a.status === 'pending' && a.remainingHours > 0 && (a.urgency === 'critical' || a.urgency === 'urgent')).length;
 
   const filteredAssignments = assignments.filter((item) => {
-    if (filter === 'active') return item.remainingHours > 0;
-    if (filter === 'overdue') return item.remainingHours <= 0;
+    if (filter === 'active') return item.status === 'pending' && item.remainingHours > 0;
+    if (filter === 'overdue') return item.status === 'pending' && item.remainingHours <= 0;
     return true;
   });
 
@@ -425,13 +425,16 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   <div className="list w-full rounded-box border border-base-300 bg-base-100">
                     {sortedAssignments.map((hw) => {
                       const badgeClass =
-                        hw.remainingHours <= 0 || hw.urgency === 'critical'
+                        hw.status !== 'pending'
+                          ? 'badge-success'
+                          : hw.remainingHours <= 0 || hw.urgency === 'critical'
                           ? 'badge-error'
                           : hw.urgency === 'urgent'
                           ? 'badge-warning'
                           : hw.urgency === 'warning'
                           ? 'badge-info'
                           : 'badge-success';
+                      const statusText = hw.status === 'graded' ? '已批改' : hw.status === 'submitted' ? '已提交' : hw.remainingText;
 
                       return (
                         <article className="list-row" key={hw.id}>
@@ -442,7 +445,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                           </div>
                           <div className="flex flex-col items-end gap-2">
                             <span className={`badge badge-sm badge-soft whitespace-nowrap ${badgeClass}`}>
-                              {hw.remainingText}
+                              {statusText}
                             </span>
                             {hw.url && (
                               <a

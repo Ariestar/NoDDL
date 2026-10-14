@@ -60,14 +60,19 @@ export function parseCourseListHtml(html: string): Course[] {
  * <span class="text-muted"><strong><i class="fas fa-history"></i> 历史作业</strong></span>
  * <div class="list-group list-group-flush">...</div>
  */
-export function parseActiveAssignmentsHtml(html: string, courseName = '', defaultCourseId = ''): Assignment[] {
+export function parseActiveAssignmentsHtml(
+  html: string,
+  courseName = '',
+  defaultCourseId = '',
+  includeHistory = false
+): Assignment[] {
   const list: Assignment[] = [];
   const seen = new Set<string>();
 
   // 1. 按希冀平台原生结构截取侧边栏 "当前作业" 区域，在 "历史作业" 处截止
   let activeSection = html;
   const historyIdx = html.search(/fas\s+fa-history|历史作业/i);
-  if (historyIdx !== -1) {
+  if (!includeHistory && historyIdx !== -1) {
     const clockIdx = html.search(/fas\s+fa-clock|当前作业/i);
     if (clockIdx !== -1 && clockIdx < historyIdx) {
       activeSection = html.slice(clockIdx, historyIdx);
@@ -83,7 +88,10 @@ export function parseActiveAssignmentsHtml(html: string, courseName = '', defaul
   while ((m = linkRe.exec(activeSection)) !== null) {
     const rawUrl = m[1];
     const id = m[2];
-    let title = m[3].replace(/<[^>]+>/g, '').trim();
+    let title = m[3]
+      .replace(/<span[^>]*class=["'][^"']*badge[^"']*["'][^>]*>[\s\S]*?<\/span>/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .trim();
 
     // 主页面的入口链接文案是“进入作业”，名称在同卡片的 main-title 中。
     if (/^(?:进入作业|开始实验|实验文档)$/.test(title)) {
@@ -103,6 +111,7 @@ export function parseActiveAssignmentsHtml(html: string, courseName = '', defaul
 
     const courseIdM = rawUrl.match(/courseID=([a-zA-Z0-9_-]+)/i);
     const courseId = courseIdM ? courseIdM[1] : defaultCourseId;
+    if (defaultCourseId && courseIdM && courseId !== defaultCourseId) continue;
 
     // 格式化为根路径可直接点击的作业入口 URL
     const finalUrl = courseId
@@ -141,6 +150,7 @@ export function parseAssignmentDetailHtml(html: string, nowMs = Date.now()): {
   deadlineTimestamp: number;
   remainingHours: number;
   remainingText: string;
+  status: Assignment['status'];
 } {
   // 1. 精准提取卡片标题 h4 (例如 "第四周作业")
   const h4Match = html.match(/<div[^>]*class=["'][^"']*bg-light[^"']*["'][^>]*>[\s\S]*?<h[3-5][^>]*>([\s\S]*?)<\/h[3-5]>/i) ||
@@ -161,13 +171,23 @@ export function parseAssignmentDetailHtml(html: string, nowMs = Date.now()): {
 
   // 3. 精准提取截止时间（希冀平台: 作业时间：<b>...</b> 至 <b>2026-10-11 23:59:00</b>）
   const ddl = parseDeadlineBeijing(html, nowMs);
+  const plainText = html
+    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const status: Assignment['status'] = /(?:初次提交时间|最近一次提交时间|最后一次修改时间)\s*:\s*\d{4}[-/]\d{1,2}[-/]\d{1,2}/i.test(plainText)
+    ? 'submitted'
+    : 'pending';
 
   return {
     title,
     deadline: ddl.timestamp > 0 ? ddl.normalized : undefined,
     deadlineTimestamp: ddl.timestamp,
     remainingHours: ddl.remainingHours,
-    remainingText: ddl.remainingText
+    remainingText: ddl.remainingText,
+    status
   };
 }
 

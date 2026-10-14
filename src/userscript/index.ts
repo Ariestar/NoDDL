@@ -64,7 +64,7 @@ async function initNoDDL() {
       const curAssignId = urlMatch[1];
       const isExperimentPage = window.location.pathname.startsWith('/exp/');
       let curDetail = isExperimentPage
-        ? { deadlineTimestamp: 0, remainingHours: 9999, remainingText: '待定' }
+        ? { title: undefined, deadline: undefined, deadlineTimestamp: 0, remainingHours: 9999, remainingText: '待定', status: 'pending' as const }
         : parseAssignmentDetailHtml(document.documentElement.innerHTML);
 
       // 云实验页直接从当前 DOM 的截止字段读取，不请求作业模块页面。
@@ -115,7 +115,7 @@ async function initNoDDL() {
         deadlineTimestamp: curDetail.deadlineTimestamp,
         remainingHours: curDetail.remainingHours,
         remainingText: curDetail.remainingText,
-        status: 'pending',
+        status: curDetail.status,
         urgency: calculateUrgency(curDetail.remainingHours),
         url: finalUrl
       };

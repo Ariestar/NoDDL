@@ -156,6 +156,18 @@ export class HomeworkDB {
     }
   }
 
+  async removeAssignmentsNotInCourse(courseId: string, assignmentIds: Set<string>): Promise<void> {
+    const store = await this.load();
+    let changed = false;
+    for (const [id, assignment] of Object.entries(store.assignments)) {
+      if (assignment.courseId === courseId && !assignmentIds.has(id)) {
+        delete store.assignments[id];
+        changed = true;
+      }
+    }
+    if (changed) await this.save(store);
+  }
+
   /**
    * 获取结构化数据库中全部聚合作业列表，并进行最佳实践排序
    * 排序逻辑：

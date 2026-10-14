@@ -40,19 +40,18 @@ export class CourseGradingClient {
   }
 
   private async fillAssignmentDeadline(item: Assignment, detailUrl: string): Promise<void> {
-    if (item.deadline !== '请查看详情' && item.deadlineTimestamp !== 0) return;
-    try {
-      const detail = parseAssignmentDetailHtml(
-        await this.http.get(detailUrl, this.getAuthHeaders())
-      );
-      if (detail.deadlineTimestamp > 0) {
-        item.deadline = detail.deadline!;
-        item.deadlineTimestamp = detail.deadlineTimestamp;
-        item.remainingHours = detail.remainingHours;
-        item.remainingText = detail.remainingText;
-        item.urgency = calculateUrgency(detail.remainingHours);
-      }
-    } catch {}
+    const detail = parseAssignmentDetailHtml(
+      await this.http.get(detailUrl, this.getAuthHeaders())
+    );
+    if (detail.title) item.title = detail.title;
+    if (detail.deadlineTimestamp > 0) {
+      item.deadline = detail.deadline!;
+      item.deadlineTimestamp = detail.deadlineTimestamp;
+      item.remainingHours = detail.remainingHours;
+      item.remainingText = detail.remainingText;
+      item.urgency = calculateUrgency(detail.remainingHours);
+    }
+    item.status = detail.status;
   }
 
   /**
@@ -82,24 +81,27 @@ export class CourseGradingClient {
    * 获取学生加入的课程列表（只读查询）
    */
   async getCourses(): Promise<Course[]> {
-    try {
-      const html = await this.http.get(`${this.baseUrl}/courselist.jsp`, this.getAuthHeaders());
-      let courses = parseCourseListHtml(html);
-      if (courses.length === 0) {
-        const mainHtml = await this.http.get(`${this.baseUrl}/main.jsp`, this.getAuthHeaders());
-        courses = parseCourseListHtml(mainHtml);
-      }
-      return courses;
-    } catch {
-      return [];
+    const html = await this.http.get(`${this.baseUrl}/courselist.jsp`, this.getAuthHeaders());
+    let courses = parseCourseListHtml(html);
+    if (courses.length === 0) {
+      const mainHtml = await this.http.get(`${this.baseUrl}/main.jsp`, this.getAuthHeaders());
+      courses = parseCourseListHtml(mainHtml);
     }
+    return courses;
   }
 
   /**
    * 切换当前激活课程上下文
    */
   async enterCourse(courseId: string): Promise<void> {
-    await this.http.get(`${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`, this.getAuthHeaders());
+    const body = new URLSearchParams({
+      doChangeCourse: 'true',
+      changeCourse: courseId
+    }).toString();
+    await this.http.post(`${this.baseUrl}/main.jsp`, body, {
+      ...this.getAuthHeaders(),
+      'Content-Type': 'application/x-www-form-urlencoded'
+    });
   }
 
   /**
@@ -109,27 +111,25 @@ export class CourseGradingClient {
     const allAssignments: Assignment[] = [];
     const seenIds = new Set<string>();
 
-    try {
-      const indexHtml = await this.http.get(
-        `${this.baseUrl}/assignment/index.jsp`,
-        this.getAuthHeaders()
-      );
-      const activeCourse = parseActiveCourseInfo(indexHtml);
-      const courseId = activeCourse.id || '';
-      const courseName = activeCourse.name || '';
+    const indexHtml = await this.http.get(
+      `${this.baseUrl}/assignment/index.jsp`,
+      this.getAuthHeaders()
+    );
+    const activeCourse = parseActiveCourseInfo(indexHtml);
+    const courseId = activeCourse.id || '';
+    const courseName = activeCourse.name || '';
 
-      if (this.db && courseId && courseName) {
-        await this.db.upsertCourse(courseId, courseName);
-      }
+    if (this.db && courseId && courseName) {
+      await this.db.upsertCourse(courseId, courseName);
+    }
 
-      const list = parseActiveAssignmentsHtml(indexHtml, courseName, courseId);
-      for (const item of list) {
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          allAssignments.push(item);
-        }
+    const list = parseActiveAssignmentsHtml(indexHtml, courseName, courseId);
+    for (const item of list) {
+      if (!seenIds.has(item.id)) {
+        seenIds.add(item.id);
+        allAssignments.push(item);
       }
-    } catch {}
+    }
 
     // 补齐详情页精确截止时间（真实卡片作业时间）
     for (const item of allAssignments) {
@@ -169,16 +169,19 @@ export class CourseGradingClient {
       return this.getPendingAssignments();
     }
 
-    for (let i = 0; i < courses.length; i++) {
-      const c = courses[i];
-      if (onProgress) onProgress(`正在同步 [${i + 1}/${courses.length}] 《${c.name}》...`);
-      try {
+    try {
+      for (let i = 0; i < courses.length; i++) {
+        const c = courses[i];
+        if (onProgress) onProgress(`正在同步 [${i + 1}/${courses.length}] 《${c.name}》...`);
         if (this.db) {
           await this.db.upsertCourse(c.id, c.name);
         }
         await this.enterCourse(c.id);
-        const indexHtml = await this.http.get(`${this.baseUrl}/assignment/index.jsp`, this.getAuthHeaders());
-        const list = parseActiveAssignmentsHtml(indexHtml, c.name, c.id);
+        const indexHtml = await this.http.get(
+          `${this.baseUrl}/assignment/index.jsp?courseID=${encodeURIComponent(c.id)}`,
+          this.getAuthHeaders()
+        );
+        const list = parseActiveAssignmentsHtml(indexHtml, c.name, c.id, true);
 
         for (const item of list) {
           item.courseId = c.id;
@@ -194,15 +197,14 @@ export class CourseGradingClient {
             await this.db.upsertAssignment(item);
           }
         }
-      } catch {}
-    }
-
-    // 关键安全重置：必须立刻切回用户当前所在的课程上下文！
-    if (currentCourseId) {
-      if (onProgress) onProgress('正在恢复当前页面课程状态...');
-      try {
+        await this.db?.removeAssignmentsNotInCourse(c.id, new Set(list.map(item => item.id)));
+      }
+    } finally {
+      // 关键安全重置：必须立刻切回用户当前所在的课程上下文！
+      if (currentCourseId) {
+        if (onProgress) onProgress('正在恢复当前页面课程状态...');
         await this.enterCourse(currentCourseId);
-      } catch {}
+      }
     }
 
     return this.db ? this.db.getAllAssignments() : this.getPendingAssignments();

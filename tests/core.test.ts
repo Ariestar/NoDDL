@@ -119,6 +119,31 @@ test('希冀平台生产真实结构：侧边栏当前作业与历史作业切�
   assert.strictEqual(list[0].courseName, '离散数学');
 });
 
+test('希冀平台生产真实结构：全量同步包含历史作业并去掉补交标签', () => {
+  const html = `
+    <span class="text-muted"><strong><i class="fas fa-clock"></i> 当前作业</strong></span>
+    <a href="index.jsp?courseID=184&amp;assignID=3548">第四周作业 <span class="badge badge-danger">补交中</span></a>
+    <span class="text-muted"><strong><i class="fas fa-history"></i> 历史作业</strong></span>
+    <a href="index.jsp?courseID=184&amp;assignID=3543">第3周作业</a>
+  `;
+
+  const list = parseActiveAssignmentsHtml(html, '离散数学', '184', true);
+
+  assert.deepEqual(list.map(item => item.title), ['第四周作业', '第3周作业']);
+});
+
+test('希冀平台生产真实结构：作业详情解析提交状态', () => {
+  const html = `
+    <div class="shadow-sm p-3 mb-3 bg-light rounded">
+      <h4>第四周作业</h4>
+      <p>作业时间：<b>2026-09-30 21:28:00</b> 至 <b>2026-10-11 23:59:00</b></p>
+    </div>
+    <table><tr><th>提交/评阅状态</th></tr><tr><td>初次提交时间: 2026-10-11 23:21:06</td></tr></table>
+  `;
+
+  assert.equal(parseAssignmentDetailHtml(html).status, 'submitted');
+});
+
 test('希冀平台生产真实结构：入口按钮不作为作业名称', () => {
   const mainPageHtml = `
     <div class="main-zy">
@@ -272,6 +297,59 @@ test('归一化结构存储：彻底杜绝重复课程，规范解析与排序',
   assert.strictEqual(item.courseName, '离散数学'); // 课程名称必须关联为规范名称
   assert.strictEqual(item.deadline, '2026-10-11 23:59:00'); // 合法 DDL 得到保留
   assert.strictEqual(item.url, '/assignment/index.jsp?courseID=184&assignID=3548'); // 链接必须带有 courseID
+});
+
+test('全量同步：提交真实课程切换并刷新时间与完成状态', async () => {
+  const storage = new MemoryStorage();
+  const posts: Array<{ url: string; body: string }> = [];
+  const courseHtml = '<span class="dropdown-item dropdown-item-course" value="184">离散数学</span>';
+  const assignmentHtml = `
+    <span class="text-muted"><strong><i class="fas fa-clock"></i> 当前作业</strong></span>
+    <a href="index.jsp?courseID=184&amp;assignID=3548">旧标题</a>
+    <span class="text-muted"><strong><i class="fas fa-history"></i> 历史作业</strong></span>
+  `;
+  const detailHtml = `
+    <div class="shadow-sm p-3 mb-3 bg-light rounded"><h4>第四周作业</h4>
+      <p>作业时间：<b>2026-09-30 21:28:00</b> 至 <b>2026-10-19 23:59:00</b></p>
+    </div>
+    <table><tr><td>初次提交时间: 2026-10-11 23:21:06</td></tr></table>
+  `;
+  const http: HttpClient = {
+    async get(url) {
+      if (url.endsWith('/courselist.jsp')) return courseHtml;
+      if (url.includes('assignID=3548')) return detailHtml;
+      if (url.includes('/assignment/index.jsp?courseID=184')) return assignmentHtml;
+      throw new Error(`Unexpected GET ${url}`);
+    },
+    async post(url, data) {
+      posts.push({ url, body: String(data) });
+      return '';
+    }
+  };
+
+  const client = new CourseGradingClient({}, http, storage);
+  await client.db?.upsertAssignment({
+    id: 'stale-3543',
+    courseId: '184',
+    courseName: '离散数学',
+    title: '已删除的旧作业',
+    deadline: '2026-09-01 23:59:00',
+    deadlineTimestamp: Date.UTC(2026, 8, 1, 15, 59),
+    remainingHours: 0,
+    remainingText: '已超 DDL',
+    status: 'pending',
+    urgency: 'passed',
+    url: '/assignment/index.jsp?courseID=184&assignID=stale-3543'
+  });
+  const list = await client.safeSyncAllCourses('184');
+
+  assert.equal(list.length, 1);
+  assert.equal(list[0].title, '第四周作业');
+  assert.equal(list[0].deadline, '2026-10-19 23:59:00');
+  assert.equal(list[0].status, 'submitted');
+  assert.equal(posts.length, 2);
+  assert.ok(posts.every(post => post.url.endsWith('/main.jsp')));
+  assert.ok(posts.every(post => post.body.includes('doChangeCourse=true')));
 });
 
 test('短信提醒 (SMS)：占位符解析与触发支持', async () => {
