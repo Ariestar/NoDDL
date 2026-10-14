@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.60 - 2026-10-15
+
+- Point CalDAV setup at the latest verified deployment host after Vercel system mitigation on older hosts.
+
 ## 1.0.59 - 2026-10-15
 
 - Route CalDAV clients through the verified deployment host that avoids the active Vercel challenge.
