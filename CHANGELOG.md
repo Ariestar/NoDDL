@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.63 - 2026-10-15
+
+- Represent course deadlines as point events with a fifteen-minute reminder.
+
 ## 1.0.62 - 2026-10-15
 
 - Require CalDAV capability discovery to complete Basic authentication for Vivo clients.

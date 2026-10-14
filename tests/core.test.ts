@@ -451,3 +451,23 @@ test('日历同步保留已过期课程 DDL', () => {
 
   assert.match(calendar || '', /SUMMARY:操作系统 - 进程管理实验 截止/);
 });
+
+test('日历截止时间使用时间点并提前十五分钟提醒', () => {
+  const calendar = createDeadlineCalendar([{
+    id: 'deadline-1',
+    courseId: '10',
+    courseName: '操作系统',
+    title: '进程管理实验',
+    deadline: '2026-10-22 15:59:00',
+    deadlineTimestamp: Date.parse('2026-10-22T15:59:00+08:00'),
+    remainingHours: 1,
+    remainingText: '剩余 1 小时',
+    status: 'pending',
+    urgency: 'normal',
+    url: '/assignment/index.jsp?assignID=deadline-1'
+  }], 'http://115.156.107.145');
+
+  assert.match(calendar || '', /DTSTART:20261022T075900Z/);
+  assert.doesNotMatch(calendar || '', /DTEND:/);
+  assert.match(calendar || '', /TRIGGER:-PT15M/);
+});
