@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.66 - 2026-10-15
+
+- End deadline events at the cutoff instead of extending past it.
+
 ## 1.0.65 - 2026-10-15
 
 - Add deadline reminders one day and fifteen minutes in advance.
