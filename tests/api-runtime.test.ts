@@ -78,6 +78,10 @@ test('compiled API handlers load in plain Node and bind an encrypted session', (
       assert.match(calendar, /BEGIN:VCALENDAR/);
       assert.match(calendar, /X-WR-CALNAME:课程作业截止/);
       const { default: caldav } = await import(base + 'caldav-server.js');
+      const unauthenticatedOptions = response();
+      await caldav({ method: 'OPTIONS', url: '/api/caldav-server', headers: {} }, unauthenticatedOptions);
+      assert.equal(unauthenticatedOptions.statusCode, 200);
+      assert.equal(unauthenticatedOptions.headers.DAV, '1, 2, calendar-access');
       const caldavResponse = response();
       const credentials = Buffer.from('noddl:' + feedToken).toString('base64');
       await caldav({ method: 'GET', url: '/api/caldav', headers: { authorization: 'Basic ' + credentials } }, caldavResponse);

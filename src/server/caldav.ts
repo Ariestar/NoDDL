@@ -68,6 +68,14 @@ function collectionXml(base: string, assignments: Assignment[], includeEvents: b
 }
 
 export default async function handler(request: ApiRequest, response: ServerResponse): Promise<void> {
+  if (request.method === 'OPTIONS') {
+    response.statusCode = 200;
+    response.setHeader('DAV', '1, 2, calendar-access');
+    response.setHeader('Allow', 'OPTIONS, PROPFIND, REPORT, GET, HEAD');
+    response.end();
+    return;
+  }
+
   const token = tokenFromRequest(request);
   if (!token) {
     response.statusCode = 401;
@@ -78,14 +86,6 @@ export default async function handler(request: ApiRequest, response: ServerRespo
   try {
     const assignments = await readCalendarAssignments(token);
     const base = baseUrl(request);
-
-    if (request.method === 'OPTIONS') {
-      response.statusCode = 200;
-      response.setHeader('DAV', '1, 2, calendar-access');
-      response.setHeader('Allow', 'OPTIONS, PROPFIND, REPORT, GET');
-      response.end();
-      return;
-    }
 
     if (request.method === 'PROPFIND' || request.method === 'REPORT') {
       response.statusCode = 207;
@@ -102,6 +102,14 @@ export default async function handler(request: ApiRequest, response: ServerRespo
       response.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       response.setHeader('ETag', `"${assignmentsTag(assignments)}"`);
       response.end(calendar);
+      return;
+    }
+
+    if (request.method === 'HEAD') {
+      response.statusCode = 200;
+      response.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+      response.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      response.end();
       return;
     }
 
