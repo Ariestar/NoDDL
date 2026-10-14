@@ -142,7 +142,6 @@ export async function getAutoSyncAssignments(token: string): Promise<Assignment[
 export async function refreshAutoSync(token: string): Promise<Assignment[]> {
   assertAutoSyncConfig();
   const account = await readAccount(token);
-  if (account.enabled === false) throw new AutoSyncError(409, '自动同步已关闭');
   return syncAutoAccountTokenDigest(digest(token), JSON.stringify(account));
 }
 

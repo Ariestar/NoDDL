@@ -105,11 +105,11 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       const curId = new URLSearchParams(window.location.search).get('courseID') ||
         parseActiveCourseInfo(document.documentElement.innerHTML).id || undefined;
 
-      const list = autoSyncToken && autoSyncEnabled && configured.baseUrl
+      const list = autoSyncToken && configured.baseUrl
         ? await refreshAutomaticSync(http, configured.baseUrl, autoSyncToken)
         : await client.safeSyncAllCourses(curId, (msg) => showToast(msg));
       setAssignments(list);
-      if (configured.baseUrl && !(autoSyncToken && autoSyncEnabled)) {
+      if (configured.baseUrl && !autoSyncToken) {
         try {
           await publishCalendar(list, configured);
         } catch (error) {

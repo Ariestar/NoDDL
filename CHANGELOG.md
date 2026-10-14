@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.50 - 2026-10-15
+
+- Keep manual full sync on the bound server session even when background sync is disabled.
+
 ## 1.0.49 - 2026-10-15
 
 - Reuse the sync status endpoint for manual refresh to stay within Vercel Hobby's function limit.
