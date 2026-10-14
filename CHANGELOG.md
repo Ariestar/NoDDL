@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.42 - 2026-10-15
+
+- Use a dedicated CalDAV endpoint to avoid Vercel file-route conflicts.
+
 ## 1.0.41 - 2026-10-15
 
 - Expose explicit CalDAV entry handlers for Vercel function discovery.
