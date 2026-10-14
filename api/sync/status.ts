@@ -1,4 +1,4 @@
-import { getAutoSyncStatus, setAutoSyncEnabled } from '../../src/server/auto-sync.js';
+import { getAutoSyncStatus, refreshAutoSync, setAutoSyncEnabled } from '../../src/server/auto-sync.js';
 import { ApiRequest, bearerToken, handleOptions, requestBody, sendApiError, sendJson } from '../../src/server/http.js';
 import type { ServerResponse } from 'node:http';
 
@@ -13,6 +13,10 @@ export default async function handler(request: ApiRequest, response: ServerRespo
     }
     if (request.method === 'POST') {
       const body = requestBody(request);
+      if (body.action === 'refresh') {
+        sendJson(response, 200, { assignments: await refreshAutoSync(token) });
+        return;
+      }
       if (typeof body.enabled !== 'boolean') return sendJson(response, 400, { error: '自动同步开关无效' });
       sendJson(response, 200, await setAutoSyncEnabled(token, body.enabled));
       return;

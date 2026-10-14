@@ -48,7 +48,7 @@ export async function refreshAutomaticSync(
   baseUrl: string,
   token: string
 ): Promise<Assignment[]> {
-  const response = await http.post(`${baseUrl}/api/sync/refresh`, {}, {
+  const response = await http.post(`${baseUrl}/api/sync/status`, { action: 'refresh' }, {
     Authorization: `Bearer ${token}`
   });
   const result = JSON.parse(response) as { assignments?: unknown };

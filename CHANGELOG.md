@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.49 - 2026-10-15
+
+- Reuse the sync status endpoint for manual refresh to stay within Vercel Hobby's function limit.
+
 ## 1.0.48 - 2026-10-15
 
 - Run manual full sync through the bound server session and update the calendar feed in the same request.
