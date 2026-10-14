@@ -1,5 +1,5 @@
-import { Assignment, Course, ProblemDetail, SubmissionResult, TestCase } from './types';
-import { parseDeadlineBeijing } from './time';
+import type { Assignment, Course, ProblemDetail, SubmissionResult, TestCase } from './types.js';
+import { parseDeadlineBeijing } from './time.js';
 
 /**
  * 解析希冀平台当前激活课程信息

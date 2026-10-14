@@ -1,4 +1,4 @@
-import { Assignment } from './types';
+import type { Assignment } from './types.js';
 
 function escapeIcsText(value: string): string {
   return value

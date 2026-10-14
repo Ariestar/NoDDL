@@ -1,4 +1,4 @@
-import { HttpClient } from './types';
+import type { HttpClient } from './types.js';
 
 export class FetchHttpClient implements HttpClient {
   private defaultHeaders: Record<string, string>;

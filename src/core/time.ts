@@ -1,4 +1,4 @@
-import { UrgencyLevel } from './types';
+import type { UrgencyLevel } from './types.js';
 
 export interface ParsedDeadline {
   raw: string;

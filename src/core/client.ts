@@ -1,7 +1,7 @@
-import { Assignment, Course, HttpClient, PlatformConfig, ProblemDetail, PushConfig, SubmissionResult, StorageAdapter } from './types';
-import { FetchHttpClient } from './http';
-import { encryptPassword } from './crypto';
-import { HomeworkDB } from './db';
+import type { Assignment, Course, HttpClient, PlatformConfig, ProblemDetail, PushConfig, SubmissionResult, StorageAdapter } from './types.js';
+import { FetchHttpClient } from './http.js';
+import { encryptPassword } from './crypto.js';
+import { HomeworkDB } from './db.js';
 import {
   parseActiveAssignmentsHtml,
   parseAssignmentDetailHtml,
@@ -10,8 +10,8 @@ import {
   parseExperimentAssignmentsHtml,
   parseProblemDetailHtml,
   parseSubmissionsHtml
-} from './parsers';
-import { calculateUrgency } from './time';
+} from './parsers.js';
+import { calculateUrgency } from './time.js';
 
 export class CourseGradingClient {
   private baseUrl: string;

@@ -4,6 +4,12 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.34 - 2026-10-15
+
+- Fix Node ESM imports that prevented sync functions from starting.
+- Verify compiled API handlers and encrypted session binding in plain Node.
+- Keep the Vercel CLI build hook and fix the lockfile JSON.
+
 ## 1.0.33 - 2026-10-15
 
 - Preserve the Vercel build hook required to publish the CLI entrypoint.

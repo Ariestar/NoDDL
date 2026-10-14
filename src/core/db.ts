@@ -1,4 +1,4 @@
-import { Assignment, Course, StorageAdapter, UrgencyLevel } from './types';
+import type { Assignment, Course, StorageAdapter, UrgencyLevel } from './types.js';
 
 export interface CourseRecord {
   id: string;
