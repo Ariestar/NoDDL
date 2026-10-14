@@ -83,6 +83,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       setCalendarFeedToken(savedCalendarFeedToken);
       setAutoSyncToken(savedAutoSyncToken);
       setThreshold(th);
+      if (!savedAutoSyncToken) await enableAutomaticSync(configured, '', savedCalendarFeedToken);
       await syncAllCourses(configured);
     })().catch(() => showToast('读取同步配置失败，请刷新页面重试'));
   }, []);
@@ -190,17 +191,17 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     }
   };
 
-  const enableAutomaticSync = async () => {
-    if (!service?.baseUrl) return;
+  const enableAutomaticSync = async (configured = service, currentToken = autoSyncToken, currentFeedToken = calendarFeedToken) => {
+    if (!configured?.baseUrl) return;
     setAutoSyncBusy(true);
     try {
       const cookie = await readCourseSessionCookie();
-      const result = await bindAutomaticSync(http, service.baseUrl, cookie, autoSyncToken, calendarFeedToken);
-      await service.storage.set(AUTO_SYNC_TOKEN_KEY, result.token);
-      await service.storage.set('nodd_calendar_feed_token', result.feedToken);
+      const result = await bindAutomaticSync(http, configured.baseUrl, cookie, currentToken, currentFeedToken);
+      await configured.storage.set(AUTO_SYNC_TOKEN_KEY, result.token);
+      await configured.storage.set('nodd_calendar_feed_token', result.feedToken);
       setAutoSyncToken(result.token);
       setCalendarFeedToken(result.feedToken);
-      await publishCalendar(assignments, service);
+      await publishCalendar(assignments, configured);
       showToast('自动同步已启用，每天会在服务端更新课程和日历');
     } catch (error) {
       showToast(error instanceof Error ? error.message : '自动同步启用失败');
@@ -577,7 +578,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                       </span>
                     </div>
                     <p className="text-xs text-base-content/60">启用自动同步后，服务端每天抓取课程和云实验；手机日历按自身周期读取最新数据。</p>
-                    <button className="btn btn-primary btn-sm" disabled={!apiBaseUrl || autoSyncBusy || loading || calendarBusy || emailBusy} onClick={enableAutomaticSync}>
+                    <button className="btn btn-primary btn-sm" disabled={!apiBaseUrl || autoSyncBusy || loading || calendarBusy || emailBusy} onClick={() => enableAutomaticSync()}>
                       {autoSyncBusy ? '正在绑定…' : autoSyncToken ? '更新自动同步会话' : '启用自动同步'}
                     </button>
                     <button className="btn btn-outline btn-sm" disabled={!apiBaseUrl || emailBusy || loading || calendarBusy} onClick={async () => {

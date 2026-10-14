@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.22 - 2026-10-15
+
+- Enable automatic sync by default and store server-side assignment snapshots.
+
 ## 1.0.21 - 2026-10-14
 
 - Add encrypted daily server-side course synchronization.

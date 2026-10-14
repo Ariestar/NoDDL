@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { CourseGradingClient } from '../core/client.js';
 import { FetchHttpClient } from '../core/http.js';
+import type { Assignment } from '../core/types.js';
 import { publishCalendarFeed } from './calendar.js';
 import { redisCommand } from './redis.js';
 
@@ -14,6 +15,7 @@ interface StoredAccount {
   updatedAt: number;
   lastSyncAt?: number;
   lastError?: string;
+  assignments?: Assignment[];
 }
 
 export class AutoSyncError extends Error {
@@ -87,7 +89,8 @@ export async function bindAutoSync(input: Record<string, unknown>, clientIp: str
   await writeAccount(token, {
     cookie: encrypt(cookie),
     feedToken: published.feedToken,
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
+    assignments: []
   });
   return { token, feedToken: published.feedToken };
 }
@@ -98,6 +101,7 @@ export async function getAutoSyncStatus(token: string): Promise<{
   updatedAt: number;
   lastSyncAt?: number;
   lastError?: string;
+  assignments: number;
 }> {
   const account = await readAccount(token);
   return {
@@ -105,8 +109,14 @@ export async function getAutoSyncStatus(token: string): Promise<{
     feedToken: account.feedToken,
     updatedAt: account.updatedAt,
     lastSyncAt: account.lastSyncAt,
-    lastError: account.lastError
+    lastError: account.lastError,
+    assignments: account.assignments?.length || 0
   };
+}
+
+export async function getAutoSyncAssignments(token: string): Promise<Assignment[]> {
+  const account = await readAccount(token);
+  return account.assignments || [];
 }
 
 export async function syncAllAutoAccounts(): Promise<{ total: number; succeeded: number; failed: number }> {
@@ -153,6 +163,7 @@ async function syncAutoAccountTokenDigest(id: string, raw: string): Promise<void
     feedToken: published.feedToken,
     updatedAt: Date.now(),
     lastSyncAt: Date.now(),
-    lastError: undefined
+    lastError: undefined,
+    assignments
   }), 'EX', ACCOUNT_TTL_SECONDS]);
 }

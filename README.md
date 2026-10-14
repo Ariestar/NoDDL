@@ -140,7 +140,7 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 
 ### 每日自动同步
 
-部署后在 userscript 的“手机日历”区域点击“启用自动同步”。脚本通过 `GM_cookie` 读取当前课程平台的登录会话，服务端只保存 AES-GCM 加密后的 Session，不保存学号或密码。Vercel Cron 每天北京时间 02:00 抓取全部课程、普通作业和云实验，并更新日历 feed。
+部署后 userscript 会默认尝试启用自动同步；也可以在“手机日历”区域手动重新绑定会话。脚本通过 `GM_cookie` 读取当前课程平台的登录会话，服务端只保存 AES-GCM 加密后的 Session 和完整作业快照，不保存学号或密码。Vercel Cron 每天北京时间 02:00 抓取全部课程、普通作业和云实验，并更新日历 feed。
 
 需要在 Vercel 配置 `SYNC_ENCRYPTION_KEY` 和 `CRON_SECRET`，都使用至少 32 位随机字符串。课程平台 Session 过期后，自动同步会记录失败状态，需要重新点击绑定；日历订阅地址不会改变。
 

@@ -8,7 +8,9 @@ interface CookieItem {
 }
 
 export function readCourseSessionCookie(): Promise<string> {
-  if (typeof GM_cookie === 'undefined') throw new Error('当前脚本管理器不支持读取登录会话');
+  const visibleCookie = document.cookie;
+  if (/(?:^|;\s*)JSESSIONID=[^;]+/i.test(visibleCookie)) return Promise.resolve(visibleCookie);
+  if (typeof GM_cookie === 'undefined') throw new Error('当前脚本管理器不支持读取登录会话，请使用支持 GM_cookie 的 Tampermonkey');
 
   return new Promise((resolve, reject) => {
     GM_cookie.list({ url: 'http://115.156.107.145/' }, (cookies, error) => {

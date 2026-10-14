@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NoDDL (Not Only DDL) - 武大一体化平台助手
 // @namespace    https://github.com/projectluojia/NoDDL
-// @version      1.0.21
+// @version      1.0.22
 // @author       projectluojia
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
@@ -7899,7 +7899,9 @@ ${markdown}` }
   }
   const AUTO_SYNC_TOKEN_KEY = "nodd_auto_sync_token";
   function readCourseSessionCookie() {
-    if (typeof GM_cookie === "undefined") throw new Error("当前脚本管理器不支持读取登录会话");
+    const visibleCookie = document.cookie;
+    if (/(?:^|;\s*)JSESSIONID=[^;]+/i.test(visibleCookie)) return Promise.resolve(visibleCookie);
+    if (typeof GM_cookie === "undefined") throw new Error("当前脚本管理器不支持读取登录会话，请使用支持 GM_cookie 的 Tampermonkey");
     return new Promise((resolve, reject) => {
       GM_cookie.list({ url: "http://115.156.107.145/" }, (cookies, error) => {
         if (error) {
@@ -7978,6 +7980,7 @@ ${markdown}` }
         setCalendarFeedToken(savedCalendarFeedToken);
         setAutoSyncToken(savedAutoSyncToken);
         setThreshold(th);
+        if (!savedAutoSyncToken) await enableAutomaticSync(configured, "", savedCalendarFeedToken);
         await syncAllCourses(configured);
       })().catch(() => showToast("读取同步配置失败，请刷新页面重试"));
     }, []);
@@ -8073,17 +8076,17 @@ ${markdown}` }
         setCalendarBusy(false);
       }
     };
-    const enableAutomaticSync = async () => {
-      if (!(service == null ? void 0 : service.baseUrl)) return;
+    const enableAutomaticSync = async (configured = service, currentToken = autoSyncToken, currentFeedToken = calendarFeedToken) => {
+      if (!(configured == null ? void 0 : configured.baseUrl)) return;
       setAutoSyncBusy(true);
       try {
         const cookie = await readCourseSessionCookie();
-        const result = await bindAutomaticSync(http2, service.baseUrl, cookie, autoSyncToken, calendarFeedToken);
-        await service.storage.set(AUTO_SYNC_TOKEN_KEY, result.token);
-        await service.storage.set("nodd_calendar_feed_token", result.feedToken);
+        const result = await bindAutomaticSync(http2, configured.baseUrl, cookie, currentToken, currentFeedToken);
+        await configured.storage.set(AUTO_SYNC_TOKEN_KEY, result.token);
+        await configured.storage.set("nodd_calendar_feed_token", result.feedToken);
         setAutoSyncToken(result.token);
         setCalendarFeedToken(result.feedToken);
-        await publishCalendar(assignments, service);
+        await publishCalendar(assignments, configured);
         showToast("自动同步已启用，每天会在服务端更新课程和日历");
       } catch (error) {
         showToast(error instanceof Error ? error.message : "自动同步启用失败");
@@ -8427,7 +8430,7 @@ ${markdown}` }
                 /* @__PURE__ */ u$1("span", { className: `badge ${autoSyncToken ? "badge-success" : calendarFeedToken ? "badge-info" : "badge-ghost"}`, children: autoSyncToken ? "自动同步已启用" : calendarFeedToken ? "已启用" : "未设置" })
               ] }),
               /* @__PURE__ */ u$1("p", { className: "text-xs text-base-content/60", children: "启用自动同步后，服务端每天抓取课程和云实验；手机日历按自身周期读取最新数据。" }),
-              /* @__PURE__ */ u$1("button", { className: "btn btn-primary btn-sm", disabled: !apiBaseUrl || autoSyncBusy || loading || calendarBusy || emailBusy, onClick: enableAutomaticSync, children: autoSyncBusy ? "正在绑定…" : autoSyncToken ? "更新自动同步会话" : "启用自动同步" }),
+              /* @__PURE__ */ u$1("button", { className: "btn btn-primary btn-sm", disabled: !apiBaseUrl || autoSyncBusy || loading || calendarBusy || emailBusy, onClick: () => enableAutomaticSync(), children: autoSyncBusy ? "正在绑定…" : autoSyncToken ? "更新自动同步会话" : "启用自动同步" }),
               /* @__PURE__ */ u$1("button", { className: "btn btn-outline btn-sm", disabled: !apiBaseUrl || emailBusy || loading || calendarBusy, onClick: async () => {
                 if (!service) return;
                 try {
