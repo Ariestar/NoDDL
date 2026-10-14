@@ -2,6 +2,7 @@
 
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](extension/README.md)
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FAriestar%2FNoDDL&env=UPSTASH_REDIS_REST_URL%2CUPSTASH_REDIS_REST_TOKEN%2CRESEND_API_KEY%2CEMAIL_CODE_SECRET%2CSYNC_ENCRYPTION_KEY%2CCRON_SECRET&envDescription=%E4%B8%80%E6%AC%A1%E5%A1%AB%E5%86%99%20Upstash%20Redis%E3%80%81Resend%20%E5%92%8C%E9%AA%8C%E8%AF%81%E7%A0%81%E5%AF%86%E9%92%A5%EF%BC%8C%E6%9C%8D%E5%8A%A1%E5%9C%B0%E5%9D%80%E4%BC%9A%E8%87%AA%E5%8A%A8%E5%86%99%E5%85%A5%E8%84%9A%E6%9C%AC)
+[![Deploy calendar edge to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Ariestar/NoDDL/tree/main/cloudflare/calendar-worker)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 > **武汉大学人工智能学院一体化专业课平台 (http://115.156.107.145/) Chrome 扩展与工具包**
@@ -139,6 +140,26 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 安装仓库中的 [NoDDL Chrome 扩展](extension/README.md)即可使用页面解析、作业 UI 和自动同步；扩展由 Chrome 原生 Cookies API 读取 HttpOnly `educg_session`。服务端只保存 AES-GCM 加密后的 Session 和完整作业快照，不保存学号或密码。Vercel Cron 每天北京时间 02:00 抓取全部课程、普通作业和云实验，并更新日历 feed。
 
 需要在 Vercel 配置 `SYNC_ENCRYPTION_KEY` 和 `CRON_SECRET`，都使用至少 32 位随机字符串。课程平台 Session 过期后，自动同步会记录失败状态，需要重新点击绑定；日历订阅地址不会改变。
+
+### 一键部署自己的手机日历服务
+
+[![Deploy calendar edge to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Ariestar/NoDDL/tree/main/cloudflare/calendar-worker)
+
+点击按钮并登录 Cloudflare，Cloudflare 会把日历 Worker 部署到你的账号，并自动提供一个 `workers.dev` 地址，不需要购买域名。部署完成后，把下面的地址填入 Vivo 日历的服务器地址：
+
+```text
+https://你的 Worker 名称.你的 Cloudflare 子域.workers.dev/api/caldav-server/
+```
+
+Vivo 日历填写：
+
+| 字段 | 填写内容 |
+| --- | --- |
+| 服务器地址 | 你的 Worker 地址（必须保留 `/api/caldav-server/`） |
+| 账户名称 | `noddl` 或任意名称 |
+| 密码 | NoDDL 扩展设置中的日历 Feed Token |
+
+这个 Worker 只负责手机 CalDAV 接入；课程抓取、日历 Feed、自动同步和邮件服务仍由 Vercel 后端提供。普通用户直接使用项目默认地址即可，不需要自己部署 Worker。
 
 ---
 
