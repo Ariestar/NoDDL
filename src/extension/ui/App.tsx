@@ -90,7 +90,9 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
         await enableAutomaticSync(configured, '', savedCalendarFeedToken);
       }
       await syncAllCourses(configured);
-    })().catch(() => showToast('读取同步配置失败，请刷新页面重试'));
+    })().catch((error) => {
+      showToast(`同步失败：${error instanceof Error ? error.message : String(error)}`);
+    });
   }, []);
 
   // 一键全量同步所有课程（带安全 Session 恢复）
@@ -99,26 +101,23 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     syncInProgress.current = true;
     setLoading(true);
     showToast('正在全量安全同步所有课程...');
-    let syncedAssignments: Assignment[] | null = null;
     try {
       const curId = new URLSearchParams(window.location.search).get('courseID') ||
         parseActiveCourseInfo(document.documentElement.innerHTML).id || undefined;
 
       const list = await client.safeSyncAllCourses(curId, (msg) => showToast(msg));
-      syncedAssignments = list;
       setAssignments(list);
       if (configured.baseUrl) {
         try {
           await publishCalendar(list, configured);
-        } catch {
-          showToast('课程已同步，但日历服务更新失败');
+        } catch (error) {
+          showToast(`课程已同步，日历更新失败：${error instanceof Error ? error.message : String(error)}`);
           return;
         }
       }
       showToast(`同步完成！共汇总 ${list.length} 项作业`);
-    } catch {
-      if (syncedAssignments === null) setAssignments([]);
-      showToast('同步未全部完成，请重试并检查课程登录和日历服务');
+    } catch (error) {
+      showToast(`同步失败：${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
       syncInProgress.current = false;

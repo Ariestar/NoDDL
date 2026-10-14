@@ -72,34 +72,32 @@ export function setupCodeAutoSave() {
     const savedData = localStorage.getItem(storageKey);
     if (savedData && !area.getAttribute('data-nodd-restore-injected')) {
       area.setAttribute('data-nodd-restore-injected', 'true');
-      try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.code && parsed.code !== area.value) {
-          const restoreBtn = document.createElement('button');
-          restoreBtn.innerText = `💾 恢复自动暂存代码 (${parsed.time})`;
-          restoreBtn.type = 'button';
-          restoreBtn.style.cssText = `
-            margin: 6px 0;
-            background: #319795;
-            color: #ffffff;
-            border: none;
-            border-radius: 4px;
-            padding: 4px 10px;
-            font-size: 12px;
-            cursor: pointer;
-            font-weight: 500;
-          `;
-          restoreBtn.onclick = () => {
-            if (confirm(`是否确认恢复于 ${parsed.time} 自动暂存的代码？`)) {
-              area.value = parsed.code;
-              area.dispatchEvent(new Event('input', { bubbles: true }));
-              restoreBtn.remove();
-            }
-          };
+      const parsed = JSON.parse(savedData) as { code?: string; time?: string };
+      if (parsed.code && parsed.code !== area.value) {
+        const restoreBtn = document.createElement('button');
+        restoreBtn.innerText = `💾 恢复自动暂存代码 (${parsed.time || '未知时间'})`;
+        restoreBtn.type = 'button';
+        restoreBtn.style.cssText = `
+          margin: 6px 0;
+          background: #319795;
+          color: #ffffff;
+          border: none;
+          border-radius: 4px;
+          padding: 4px 10px;
+          font-size: 12px;
+          cursor: pointer;
+          font-weight: 500;
+        `;
+        restoreBtn.onclick = () => {
+          if (confirm(`是否确认恢复于 ${parsed.time || '未知时间'} 自动暂存的代码？`)) {
+            area.value = parsed.code!;
+            area.dispatchEvent(new Event('input', { bubbles: true }));
+            restoreBtn.remove();
+          }
+        };
 
-          area.parentElement?.insertBefore(restoreBtn, area);
-        }
-      } catch {}
+        area.parentElement?.insertBefore(restoreBtn, area);
+      }
     }
   });
 }

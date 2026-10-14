@@ -4,6 +4,11 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.47 - 2026-10-15
+
+- Surface sync failures without clearing the current assignment list.
+- Remove the silent autosave JSON fallback.
+
 ## 1.0.46 - 2026-10-15
 
 - Preserve course results when a calendar publish fails after full sync.
