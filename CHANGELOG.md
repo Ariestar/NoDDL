@@ -4,6 +4,11 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.44 - 2026-10-15
+
+- Make full sync always publish the latest assignments to the calendar service.
+- Remove redundant automatic-sync status copy.
+
 ## 1.0.43 - 2026-10-15
 
 - Use an ASCII CalDAV authentication realm so Node accepts the challenge header.

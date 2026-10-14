@@ -105,7 +105,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
 
       const list = await client.safeSyncAllCourses(curId, (msg) => showToast(msg));
       setAssignments(list);
-      if (configured.baseUrl && await configured.storage.get('nodd_calendar_feed_token')) {
+      if (configured.baseUrl) {
         await publishCalendar(list, configured);
       }
       showToast(`同步完成！共汇总 ${list.length} 项作业`);
@@ -188,7 +188,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       setAutoSyncEnabled(true);
       setCalendarFeedToken(result.feedToken);
       await publishCalendar(assignments, configured);
-      showToast('自动同步已启用，每天会在服务端更新课程和日历');
     } catch (error) {
       console.error('[NoDDL] 自动同步绑定失败', error);
       showToast('自动同步绑定失败');
@@ -340,7 +339,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
               <button
                 type="button"
                 className="btn btn-primary btn-sm whitespace-nowrap"
-                title="全量扫描并同步所有课程作业"
+                title="同步全部课程、作业和日历"
                 disabled={!service || loading || calendarBusy || emailBusy}
                 onClick={() => syncAllCourses()}
               >
@@ -520,7 +519,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                       扩展打开后自动绑定课程会话；服务端每天抓取全部课程、作业和云实验，日历订阅也会随之更新。
                     </p>
                     <span className="text-xs text-base-content/60">
-                      {autoSyncToken ? '课程会话已绑定，后台同步已生效' : '首次打开页面时会自动完成绑定'}
                     </span>
                   </div>
                 </section>
