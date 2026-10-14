@@ -205,7 +205,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       showToast('自动同步已启用，每天会在服务端更新课程和日历');
     } catch (error) {
       console.error('[NoDDL] 自动同步绑定失败', error);
-      showToast('自动同步绑定失败，详情已写入控制台');
+      showToast('自动同步绑定失败');
     } finally {
       setAutoSyncBusy(false);
     }

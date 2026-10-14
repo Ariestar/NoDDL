@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NoDDL (Not Only DDL) - 武大一体化平台助手
 // @namespace    https://github.com/projectluojia/NoDDL
-// @version      1.0.25
+// @version      1.0.26
 // @author       projectluojia
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
@@ -8095,7 +8095,7 @@ ${markdown}` }
         showToast("自动同步已启用，每天会在服务端更新课程和日历");
       } catch (error) {
         console.error("[NoDDL] 自动同步绑定失败", error);
-        showToast("自动同步绑定失败，详情已写入控制台");
+        showToast("自动同步绑定失败");
       } finally {
         setAutoSyncBusy(false);
       }

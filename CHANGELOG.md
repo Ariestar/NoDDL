@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.26 - 2026-10-15
+
+- Keep automatic sync failure notices concise while retaining diagnostics in the console.
+
 ## 1.0.25 - 2026-10-15
 
 - Log automatic sync binding diagnostics to the console instead of exposing raw errors in the UI.
