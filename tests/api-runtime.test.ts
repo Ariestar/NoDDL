@@ -67,7 +67,11 @@ test('compiled API handlers load in plain Node and bind an encrypted session', (
       const { token, feedToken } = JSON.parse(bound.body);
       assert.ok(token.length >= 32 && feedToken.length >= 32);
       assert.ok(!JSON.stringify([...records]).includes(cookie));
-      const { getAutoSyncStatus } = await import(${JSON.stringify(serverBase)} + 'auto-sync.js');
+      const { getAutoSyncStatus, setAutoSyncEnabled } = await import(${JSON.stringify(serverBase)} + 'auto-sync.js');
+      assert.equal((await getAutoSyncStatus(token)).enabled, true);
+      await setAutoSyncEnabled(token, false);
+      assert.equal((await getAutoSyncStatus(token)).enabled, false);
+      await setAutoSyncEnabled(token, true);
       assert.equal((await getAutoSyncStatus(token)).enabled, true);
       const { readCalendarFeed } = await import(${JSON.stringify(serverBase)} + 'calendar.js');
       const calendar = await readCalendarFeed(feedToken);

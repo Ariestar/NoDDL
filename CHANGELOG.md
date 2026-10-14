@@ -4,6 +4,11 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.37 - 2026-10-15
+
+- Make automatic sync switchable while keeping it enabled by default.
+- Remove redundant setting labels and expose the CalDAV account as noddl.
+
 ## 1.0.36 - 2026-10-15
 
 - Use a default-on automatic sync switch without rebind controls.

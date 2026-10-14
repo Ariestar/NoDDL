@@ -13,6 +13,7 @@ const ACCOUNT_KEY_PREFIX = 'auto-sync:account:';
 interface StoredAccount {
   cookie: string;
   feedToken: string;
+  enabled: boolean;
   updatedAt: number;
   lastSyncAt?: number;
   lastError?: string;
@@ -101,6 +102,7 @@ export async function bindAutoSync(input: Record<string, unknown>, clientIp: str
   await writeAccount(token, {
     cookie: encrypt(cookie),
     feedToken: published.feedToken,
+    enabled: true,
     updatedAt: Date.now(),
     assignments: []
   });
@@ -117,13 +119,19 @@ export async function getAutoSyncStatus(token: string): Promise<{
 }> {
   const account = await readAccount(token);
   return {
-    enabled: true,
+    enabled: account.enabled !== false,
     feedToken: account.feedToken,
     updatedAt: account.updatedAt,
     lastSyncAt: account.lastSyncAt,
     lastError: account.lastError,
     assignments: account.assignments?.length || 0
   };
+}
+
+export async function setAutoSyncEnabled(token: string, enabled: boolean): Promise<{ enabled: boolean }> {
+  const account = await readAccount(token);
+  await writeAccount(token, { ...account, enabled, updatedAt: Date.now() });
+  return { enabled };
 }
 
 export async function getAutoSyncAssignments(token: string): Promise<Assignment[]> {
@@ -143,13 +151,14 @@ export async function syncAllAutoAccounts(): Promise<{ total: number; succeeded:
       await redisCommand(['SREM', ACCOUNT_INDEX_KEY, id]);
       continue;
     }
+    const account = JSON.parse(rawToken) as StoredAccount;
+    if (account.enabled === false) continue;
     try {
       await syncAutoAccountTokenDigest(id, rawToken);
       succeeded += 1;
     } catch (error) {
       failed += 1;
       console.error('Auto-sync account failed', id, error);
-      const account = JSON.parse(rawToken) as StoredAccount;
       await redisCommand(['SET', `${ACCOUNT_KEY_PREFIX}${id}`, JSON.stringify({
         ...account,
         updatedAt: Date.now(),

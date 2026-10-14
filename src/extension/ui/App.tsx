@@ -10,7 +10,7 @@ import {
   getServiceConfig,
   type ServiceConfig
 } from '../email-api';
-import { AUTO_SYNC_TOKEN_KEY, bindAutomaticSync } from '../sync-api';
+import { AUTO_SYNC_TOKEN_KEY, bindAutomaticSync, getAutomaticSyncStatus, setAutomaticSyncEnabled } from '../sync-api';
 import { readCourseSessionCookie } from '../session-bridge';
 import petImage from './assets/nodd-pet.png';
 
@@ -43,6 +43,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [autoSyncBusy, setAutoSyncBusy] = useState(false);
   const [autoSyncToken, setAutoSyncToken] = useState('');
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
   const [emailBusy, setEmailBusy] = useState(false);
   const [threshold, setThreshold] = useState(72);
   const syncInProgress = useRef(false);
@@ -82,7 +83,12 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       setCalendarFeedToken(savedCalendarFeedToken);
       setAutoSyncToken(savedAutoSyncToken);
       setThreshold(th);
-      if (!savedAutoSyncToken) await enableAutomaticSync(configured, '', savedCalendarFeedToken);
+      if (savedAutoSyncToken && configured.baseUrl) {
+        const status = await getAutomaticSyncStatus(http, configured.baseUrl, savedAutoSyncToken);
+        setAutoSyncEnabled(status.enabled);
+      } else if (!savedAutoSyncToken) {
+        await enableAutomaticSync(configured, '', savedCalendarFeedToken);
+      }
       await syncAllCourses(configured);
     })().catch(() => showToast('读取同步配置失败，请刷新页面重试'));
   }, []);
@@ -179,12 +185,30 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       await configured.storage.set(AUTO_SYNC_TOKEN_KEY, result.token);
       await configured.storage.set('nodd_calendar_feed_token', result.feedToken);
       setAutoSyncToken(result.token);
+      setAutoSyncEnabled(true);
       setCalendarFeedToken(result.feedToken);
       await publishCalendar(assignments, configured);
       showToast('自动同步已启用，每天会在服务端更新课程和日历');
     } catch (error) {
       console.error('[NoDDL] 自动同步绑定失败', error);
       showToast('自动同步绑定失败');
+    } finally {
+      setAutoSyncBusy(false);
+    }
+  };
+
+  const toggleAutomaticSync = async (enabled: boolean) => {
+    if (!service?.baseUrl || !autoSyncToken) {
+      if (enabled) await enableAutomaticSync();
+      return;
+    }
+    setAutoSyncBusy(true);
+    try {
+      await setAutomaticSyncEnabled(http, service.baseUrl, autoSyncToken, enabled);
+      setAutoSyncEnabled(enabled);
+      showToast(enabled ? '自动同步已开启' : '自动同步已关闭');
+    } catch {
+      showToast('自动同步开关更新失败');
     } finally {
       setAutoSyncBusy(false);
     }
@@ -483,11 +507,11 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                         <input
                           type="checkbox"
                           className="toggle toggle-primary"
-                          checked={Boolean(autoSyncToken) || autoSyncBusy}
-                          disabled={Boolean(autoSyncToken) || !apiBaseUrl || autoSyncBusy}
+                          checked={autoSyncEnabled}
+                          disabled={!apiBaseUrl || autoSyncBusy}
                           aria-label="自动同步"
                           onChange={(event) => {
-                            if ((event.currentTarget as HTMLInputElement).checked) void enableAutomaticSync();
+                            void toggleAutomaticSync((event.currentTarget as HTMLInputElement).checked);
                           }}
                         />
                       </label>
@@ -504,9 +528,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                 <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100" open>
                   <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
                     <span>手机日历</span>
-                    <span className={`badge ${calendarFeedToken ? 'badge-success' : 'badge-ghost'}`}>
-                      {calendarFeedToken ? '已准备' : '等待自动同步'}
-                    </span>
                   </summary>
                   <div className="collapse-content space-y-3 border-t border-base-300">
                     <p className="text-xs text-base-content/60">在手机日历中添加 CalDAV 账户，填写下面三项即可。日历会随自动同步更新。</p>
@@ -518,7 +539,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                         </label>
                         <label className="grid gap-1.5 text-sm">
                           <span className="font-medium text-base-content/70">账户名称</span>
-                          <input className="input input-sm" readOnly value="课程日历" />
+                          <input className="input input-sm" readOnly value="noddl" />
                         </label>
                         <label className="grid gap-1.5 text-sm">
                           <span className="font-medium text-base-content/70">账户密码</span>
@@ -539,7 +560,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100" open>
                     <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
                       <span>邮件提醒</span>
-                      <span className={`badge ${emailToken ? 'badge-success' : 'badge-ghost'}`}>{emailToken ? '已绑定' : '未绑定'}</span>
                     </summary>
                     <div className="collapse-content space-y-3 border-t border-base-300">
                       {emailToken ? (
@@ -573,7 +593,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                 <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100" open>
                   <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
                     <span>微信推送 · PushPlus</span>
-                    <span className="text-xs text-base-content/60">可选</span>
                   </summary>
                   <div className="collapse-content border-t border-base-300">
                     <input type="text" className="input w-full" placeholder="PushPlus Token" value={pushplusToken} onInput={(e) => setPushplusToken((e.target as HTMLInputElement).value)} />
@@ -583,7 +602,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                 <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100" open>
                   <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
                     <span>短信网关</span>
-                    <span className="text-xs text-base-content/60">可选</span>
                   </summary>
                   <div className="collapse-content space-y-3 border-t border-base-300">
                     <label className="grid gap-1.5 text-sm">
@@ -600,7 +618,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                 <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100" open>
                   <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
                     <span>苹果设备推送 · Bark</span>
-                    <span className="text-xs text-base-content/60">可选</span>
                   </summary>
                   <div className="collapse-content border-t border-base-300">
                     <input type="text" className="input w-full" placeholder="Bark 推送 URL" value={barkUrl} onInput={(e) => setBarkUrl((e.target as HTMLInputElement).value)} />
@@ -610,7 +627,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                 <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100" open>
                   <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
                     <span>提醒时间</span>
-                    <span className="text-xs text-base-content/60">提前 {threshold} 小时</span>
                   </summary>
                   <div className="collapse-content border-t border-base-300">
                     <select className="select w-full" value={threshold} onChange={(e) => setThreshold(parseInt((e.target as HTMLSelectElement).value, 10))}>

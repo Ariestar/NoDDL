@@ -16,3 +16,29 @@ export async function bindAutomaticSync(
   }
   return { token: result.token, feedToken: result.feedToken };
 }
+
+export async function getAutomaticSyncStatus(
+  http: HttpClient,
+  baseUrl: string,
+  token: string
+): Promise<{ enabled: boolean }> {
+  const response = await http.get(`${baseUrl}/api/sync/status`, {
+    Authorization: `Bearer ${token}`
+  });
+  const result = JSON.parse(response) as { enabled?: unknown };
+  if (typeof result.enabled !== 'boolean') throw new Error('自动同步状态响应无效');
+  return { enabled: result.enabled };
+}
+
+export async function setAutomaticSyncEnabled(
+  http: HttpClient,
+  baseUrl: string,
+  token: string,
+  enabled: boolean
+): Promise<void> {
+  const response = await http.post(`${baseUrl}/api/sync/status`, { enabled }, {
+    Authorization: `Bearer ${token}`
+  });
+  const result = JSON.parse(response) as { enabled?: unknown };
+  if (result.enabled !== enabled) throw new Error('自动同步状态更新失败');
+}
