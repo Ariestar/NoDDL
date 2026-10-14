@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.28 - 2026-10-15
+
+- Connect the session bridge through the real page window when Tampermonkey runs in its sandbox.
+
 ## 1.0.27 - 2026-10-15
 
 - Add a stable Chrome MV3 bridge for reading the platform's HttpOnly session cookie.

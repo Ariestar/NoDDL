@@ -37,3 +37,4 @@ declare function GM_notification(details: {
 declare function GM_setValue(name: string, value: any): void;
 declare function GM_getValue<T>(name: string, defaultValue?: T): T;
 declare function GM_setClipboard(data: string, info?: string): void;
+declare const unsafeWindow: Window;
