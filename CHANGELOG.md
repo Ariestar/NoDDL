@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.48 - 2026-10-15
+
+- Run manual full sync through the bound server session and update the calendar feed in the same request.
+
 ## 1.0.47 - 2026-10-15
 
 - Surface sync failures without clearing the current assignment list.

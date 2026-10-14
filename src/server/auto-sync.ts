@@ -139,6 +139,13 @@ export async function getAutoSyncAssignments(token: string): Promise<Assignment[
   return account.assignments || [];
 }
 
+export async function refreshAutoSync(token: string): Promise<Assignment[]> {
+  assertAutoSyncConfig();
+  const account = await readAccount(token);
+  if (account.enabled === false) throw new AutoSyncError(409, '自动同步已关闭');
+  return syncAutoAccountTokenDigest(digest(token), JSON.stringify(account));
+}
+
 export async function syncAllAutoAccounts(): Promise<{ total: number; succeeded: number; failed: number }> {
   const raw = await redisCommand(['SMEMBERS', ACCOUNT_INDEX_KEY]);
   const ids = Array.isArray(raw) ? raw.filter((value): value is string => typeof value === 'string') : [];
@@ -170,7 +177,7 @@ export async function syncAllAutoAccounts(): Promise<{ total: number; succeeded:
   return { total: succeeded + failed, succeeded, failed };
 }
 
-async function syncAutoAccountTokenDigest(id: string, raw: string): Promise<void> {
+async function syncAutoAccountTokenDigest(id: string, raw: string): Promise<Assignment[]> {
   const account = JSON.parse(raw) as StoredAccount;
   const cookie = decrypt(account.cookie);
   const client = new CourseGradingClient({ sessionCookie: cookie }, new FetchHttpClient());
@@ -187,4 +194,5 @@ async function syncAutoAccountTokenDigest(id: string, raw: string): Promise<void
     lastError: undefined,
     assignments
   }), 'EX', ACCOUNT_TTL_SECONDS]);
+  return assignments;
 }

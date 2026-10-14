@@ -1,4 +1,4 @@
-import type { HttpClient } from '../core/types';
+import type { Assignment, HttpClient } from '../core/types';
 
 export const AUTO_SYNC_TOKEN_KEY = 'nodd_auto_sync_token';
 
@@ -41,4 +41,17 @@ export async function setAutomaticSyncEnabled(
   });
   const result = JSON.parse(response) as { enabled?: unknown };
   if (result.enabled !== enabled) throw new Error('自动同步状态更新失败');
+}
+
+export async function refreshAutomaticSync(
+  http: HttpClient,
+  baseUrl: string,
+  token: string
+): Promise<Assignment[]> {
+  const response = await http.post(`${baseUrl}/api/sync/refresh`, {}, {
+    Authorization: `Bearer ${token}`
+  });
+  const result = JSON.parse(response) as { assignments?: unknown };
+  if (!Array.isArray(result.assignments)) throw new Error('自动同步刷新响应无效');
+  return result.assignments as Assignment[];
 }
