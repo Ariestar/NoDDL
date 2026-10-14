@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.57 - 2026-10-15
+
+- Use the stable Vercel project domain for CalDAV clients that are challenged on the custom domain.
+
 ## 1.0.56 - 2026-10-15
 
 - Serve individual CalDAV events through the existing calendar endpoint instead of an unimplemented event path.

@@ -61,6 +61,10 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const calendarBaseUrl = apiBaseUrl === 'https://mail.sair-club.com'
+    ? 'https://nodd-l-email-git-main-ariestars-projects.vercel.app'
+    : apiBaseUrl;
+
   useEffect(() => {
     (async () => {
       const token = (await storage.get('nodd_pushplus_token')) || '';
@@ -547,7 +551,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                       <>
                         <label className="grid gap-1.5 text-sm">
                           <span className="font-medium text-base-content/70">CalDAV 服务器地址</span>
-                          <input className="input input-sm" readOnly value={`${apiBaseUrl}/api/caldav-server`} />
+                          <input className="input input-sm" readOnly value={`${calendarBaseUrl}/api/caldav-server/`} />
                         </label>
                         <label className="grid gap-1.5 text-sm">
                           <span className="font-medium text-base-content/70">账户名称</span>
