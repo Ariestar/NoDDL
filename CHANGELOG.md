@@ -4,6 +4,11 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.36 - 2026-10-15
+
+- Use a default-on automatic sync switch without rebind controls.
+- Restore animated collapsible settings and simplify reminder actions.
+
 ## 1.0.35 - 2026-10-15
 
 - Make automatic sync a default top-level setting.

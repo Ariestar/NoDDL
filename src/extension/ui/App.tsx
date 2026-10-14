@@ -134,26 +134,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     showToast('推送与提醒配置已保存！');
   };
 
-  const testPush = async () => {
-    if (!pushplusToken && !barkUrl && !smsWebhookUrl) {
-      showToast('请先配置至少一种提醒方式（微信 / Bark / 短信）');
-      return;
-    }
-    showToast('正在发送测试推送...');
-    const res = await client.triggerPushAlert({
-      pushplusToken,
-      barkUrl,
-      smsPhone,
-      smsWebhookUrl,
-      hoursThreshold: threshold
-    });
-    if (res.sent) {
-      showToast(`测试成功！已向设置渠道发送 ${res.count} 项即将到期作业提醒`);
-    } else {
-      showToast(`推送失败: ${res.error || '无即将截止作业或网络错误'}`);
-    }
-  };
-
   const exportCalendar = () => {
     const calendar = createDeadlineCalendar(assignments, window.location.origin);
     if (!calendar) {
@@ -498,33 +478,38 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   <div className="card-body gap-3 p-4">
                     <div className="flex items-center justify-between gap-2">
                       <h2 className="card-title text-base">自动同步</h2>
-                      <span className={`badge ${autoSyncToken ? 'badge-success' : apiBaseUrl ? 'badge-warning' : 'badge-ghost'}`}>
-                        {autoSyncToken ? '默认开启' : apiBaseUrl ? '等待绑定' : '服务未配置'}
-                      </span>
+                      <label className="flex items-center gap-2 text-sm font-medium">
+                        <span>{autoSyncToken ? '已开启' : apiBaseUrl ? '绑定中' : '未配置'}</span>
+                        <input
+                          type="checkbox"
+                          className="toggle toggle-primary"
+                          checked={Boolean(autoSyncToken) || autoSyncBusy}
+                          disabled={Boolean(autoSyncToken) || !apiBaseUrl || autoSyncBusy}
+                          aria-label="自动同步"
+                          onChange={(event) => {
+                            if ((event.currentTarget as HTMLInputElement).checked) void enableAutomaticSync();
+                          }}
+                        />
+                      </label>
                     </div>
                     <p className="text-xs text-base-content/60">
                       扩展打开后自动绑定课程会话；服务端每天抓取全部课程、作业和云实验，日历订阅也会随之更新。
                     </p>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs text-base-content/60">
-                        {autoSyncToken ? '课程会话已绑定，后台同步已生效' : '首次打开页面时会自动完成绑定'}
-                      </span>
-                      <button className="btn btn-primary btn-sm" disabled={!apiBaseUrl || autoSyncBusy || loading || calendarBusy || emailBusy} onClick={() => enableAutomaticSync()}>
-                        {autoSyncBusy ? '正在绑定…' : autoSyncToken ? '重新绑定' : '立即启用'}
-                      </button>
-                    </div>
+                    <span className="text-xs text-base-content/60">
+                      {autoSyncToken ? '课程会话已绑定，后台同步已生效' : '首次打开页面时会自动完成绑定'}
+                    </span>
                   </div>
                 </section>
 
-                <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
-                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100" open>
+                  <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
                     <span>手机日历</span>
                     <span className={`badge ${calendarFeedToken ? 'badge-success' : 'badge-ghost'}`}>
                       {calendarFeedToken ? '已准备' : '等待自动同步'}
                     </span>
                   </summary>
-                  <div className="space-y-3 border-t border-base-300 p-4">
-                    <p className="text-xs text-base-content/60">在手机日历中添加 CalDAV 账户，填写下面三项即可。日历会随自动同步更新，无需手动刷新。</p>
+                  <div className="collapse-content space-y-3 border-t border-base-300">
+                    <p className="text-xs text-base-content/60">在手机日历中添加 CalDAV 账户，填写下面三项即可。日历会随自动同步更新。</p>
                     {calendarFeedToken ? (
                       <>
                         <label className="grid gap-1.5 text-sm">
@@ -543,28 +528,20 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                     ) : (
                       <div className="alert alert-info py-3 text-sm">自动同步绑定后会生成手机日历账户信息。</div>
                     )}
-                    <details className="nodd-settings-details rounded-box border border-base-300 bg-base-200">
-                      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-medium">
-                        <span>导出日历文件</span>
-                        <span className="text-xs text-base-content/60">.ics</span>
-                      </summary>
-                      <div className="border-t border-base-300 p-3">
-                        <p className="mb-3 text-xs text-base-content/60">适合只想导入一次的日历应用。</p>
-                        <button className="btn btn-outline btn-primary btn-sm w-full" onClick={exportCalendar}>
-                          下载课程日历 (.ics)
-                        </button>
-                      </div>
-                    </details>
+                    <div className="flex items-center justify-between gap-3 rounded-box border border-base-300 bg-base-200 px-3 py-2">
+                      <span className="text-sm font-medium">导出日历文件 <span className="text-xs text-base-content/60">(.ics)</span></span>
+                      <button className="btn btn-outline btn-primary btn-sm" onClick={exportCalendar}>导出</button>
+                    </div>
                   </div>
                 </details>
 
                 {apiBaseUrl && (
-                  <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
-                    <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                  <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100" open>
+                    <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
                       <span>邮件提醒</span>
                       <span className={`badge ${emailToken ? 'badge-success' : 'badge-ghost'}`}>{emailToken ? '已绑定' : '未绑定'}</span>
                     </summary>
-                    <div className="space-y-3 border-t border-base-300 p-4">
+                    <div className="collapse-content space-y-3 border-t border-base-300">
                       {emailToken ? (
                         <>
                           <p className="break-all text-sm text-base-content/70">{emailAddress}</p>
@@ -593,22 +570,22 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   </details>
                 )}
 
-                <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
-                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100" open>
+                  <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
                     <span>微信推送 · PushPlus</span>
                     <span className="text-xs text-base-content/60">可选</span>
                   </summary>
-                  <div className="border-t border-base-300 p-4">
+                  <div className="collapse-content border-t border-base-300">
                     <input type="text" className="input w-full" placeholder="PushPlus Token" value={pushplusToken} onInput={(e) => setPushplusToken((e.target as HTMLInputElement).value)} />
                   </div>
                 </details>
 
-                <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
-                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100" open>
+                  <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
                     <span>短信网关</span>
                     <span className="text-xs text-base-content/60">可选</span>
                   </summary>
-                  <div className="space-y-3 border-t border-base-300 p-4">
+                  <div className="collapse-content space-y-3 border-t border-base-300">
                     <label className="grid gap-1.5 text-sm">
                       <span className="font-medium text-base-content/70">接收手机号</span>
                       <input type="text" className="input w-full" placeholder="手机号" value={smsPhone} onInput={(e) => setSmsPhone((e.target as HTMLInputElement).value)} />
@@ -620,22 +597,22 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   </div>
                 </details>
 
-                <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
-                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100" open>
+                  <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
                     <span>苹果设备推送 · Bark</span>
                     <span className="text-xs text-base-content/60">可选</span>
                   </summary>
-                  <div className="border-t border-base-300 p-4">
+                  <div className="collapse-content border-t border-base-300">
                     <input type="text" className="input w-full" placeholder="Bark 推送 URL" value={barkUrl} onInput={(e) => setBarkUrl((e.target as HTMLInputElement).value)} />
                   </div>
                 </details>
 
-                <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
-                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100" open>
+                  <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
                     <span>提醒时间</span>
                     <span className="text-xs text-base-content/60">提前 {threshold} 小时</span>
                   </summary>
-                  <div className="border-t border-base-300 p-4">
+                  <div className="collapse-content border-t border-base-300">
                     <select className="select w-full" value={threshold} onChange={(e) => setThreshold(parseInt((e.target as HTMLSelectElement).value, 10))}>
                       <option value={24}>24 小时以内</option>
                       <option value={48}>48 小时以内</option>
@@ -645,16 +622,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   </div>
                 </details>
 
-                <details className="nodd-settings-details rounded-box border border-base-300 bg-base-100" open>
-                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
-                    <span>提醒工具</span>
-                    <span className="text-xs text-base-content/60">保存与测试</span>
-                  </summary>
-                  <div className="grid grid-cols-2 gap-2 border-t border-base-300 p-4">
-                    <button className="btn btn-primary" onClick={savePushConfig}>保存配置</button>
-                    <button className="btn btn-outline btn-primary" onClick={testPush}>发送测试提醒</button>
-                  </div>
-                </details>
+                <button className="btn btn-primary w-full" onClick={savePushConfig}>保存配置</button>
               </div>
             )}
 
