@@ -50,7 +50,7 @@ export default async function handler(request: ApiRequest, response: ServerRespo
   const token = tokenFromRequest(request);
   if (!token) {
     response.statusCode = 401;
-    response.setHeader('WWW-Authenticate', 'Basic realm="课程作业日历"');
+    response.setHeader('WWW-Authenticate', 'Basic realm="Course Calendar"');
     response.end('CalDAV credentials required');
     return;
   }

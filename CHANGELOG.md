@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.43 - 2026-10-15
+
+- Use an ASCII CalDAV authentication realm so Node accepts the challenge header.
+
 ## 1.0.42 - 2026-10-15
 
 - Use a dedicated CalDAV endpoint to avoid Vercel file-route conflicts.
