@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.56 - 2026-10-15
+
+- Serve individual CalDAV events through the existing calendar endpoint instead of an unimplemented event path.
+
 ## 1.0.55 - 2026-10-15
 
 - Include calendar events in CalDAV collection discovery for clients that do not issue a follow-up report.

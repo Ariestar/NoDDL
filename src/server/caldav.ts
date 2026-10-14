@@ -34,7 +34,7 @@ function baseUrl(request: ApiRequest): string {
 }
 
 function eventHref(base: string, item: Assignment): string {
-  return `${base}${encodeURIComponent(`${item.courseId || 'course'}-${item.id}`)}.ics`;
+  return `${base}?event=${encodeURIComponent(item.id)}`;
 }
 
 function assignmentTag(item: Assignment): string {
@@ -52,6 +52,10 @@ function assignmentTag(item: Assignment): string {
 
 function assignmentsTag(assignments: Assignment[]): string {
   return createHash('sha1').update(assignments.map(assignmentTag).join('')).digest('hex');
+}
+
+function requestedEventId(request: ApiRequest): string {
+  return new URL(request.url || '/', 'https://calendar.local').searchParams.get('event') || '';
 }
 
 function eventXml(base: string, item: Assignment, calendar: string): string {
@@ -96,11 +100,18 @@ export default async function handler(request: ApiRequest, response: ServerRespo
     }
 
     if (request.method === 'GET') {
-      const calendar = createDeadlineCalendar(assignments, 'http://115.156.107.145') || createEmptyCalendar();
+      const eventId = requestedEventId(request);
+      const event = eventId ? assignments.find(item => item.id === eventId) : undefined;
+      if (eventId && !event) {
+        response.statusCode = 404;
+        response.end('Calendar event not found');
+        return;
+      }
+      const calendar = createDeadlineCalendar(event ? [event] : assignments, 'http://115.156.107.145') || createEmptyCalendar();
       response.statusCode = 200;
       response.setHeader('Content-Type', 'text/calendar; charset=utf-8');
       response.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      response.setHeader('ETag', `"${assignmentsTag(assignments)}"`);
+      response.setHeader('ETag', `"${event ? assignmentTag(event) : assignmentsTag(assignments)}"`);
       response.end(calendar);
       return;
     }

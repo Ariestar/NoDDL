@@ -97,6 +97,7 @@ test('compiled API handlers load in plain Node and bind an encrypted session', (
       await caldav({ method: 'PROPFIND', url: '/api/caldav-server', headers: { authorization: 'Basic ' + credentials, depth: '0' } }, propfindResponse);
       assert.equal(propfindResponse.statusCode, 207, propfindResponse.body);
       assert.match(propfindResponse.body, /BEGIN:VCALENDAR/);
+      assert.ok(propfindResponse.body.includes('?event=cal-1'));
       const caldavResponse = response();
       await caldav({ method: 'GET', url: '/api/caldav', headers: { authorization: 'Basic ' + credentials } }, caldavResponse);
       assert.equal(caldavResponse.statusCode, 200, caldavResponse.body);
