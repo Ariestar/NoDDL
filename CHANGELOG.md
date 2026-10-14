@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.17 - 2026-10-14
+
+- Keep the desktop pet on the top-level page only.
+
 - Replace the hand-written panel styling with daisyUI components and its corporate theme.
 
 ## 1.0.16 - 2026-10-14

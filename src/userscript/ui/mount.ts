@@ -12,12 +12,11 @@ export function mountNoDDLUI(
   http: HttpClient
 ) {
   const HOST_ID = 'nodd-shadow-root';
-  let hostEl = document.getElementById(HOST_ID);
-  if (!hostEl) {
-    hostEl = document.createElement('div');
-    hostEl.id = HOST_ID;
-    document.body.appendChild(hostEl);
-  }
+  if (document.getElementById(HOST_ID)) return;
+
+  const hostEl = document.createElement('div');
+  hostEl.id = HOST_ID;
+  document.body.appendChild(hostEl);
 
   // 挂载至隔离 Shadow DOM，杜绝与宿主页面 Bootstrap CSS 冲突
   const shadowRoot = hostEl.shadowRoot || hostEl.attachShadow({ mode: 'open' });

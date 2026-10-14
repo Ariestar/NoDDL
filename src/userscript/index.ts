@@ -12,6 +12,8 @@ const http = new BrowserHttpClient();
 const client = new CourseGradingClient({ baseUrl: window.location.origin }, http, storage);
 
 async function initNoDDL() {
+  if (window.top !== window.self) return;
+
   console.log('[NoDDL] 启动希冀平台原生解析适配');
 
   // 1. 注入辅助增强：复制测试用例 & 代码自动本地暂存
