@@ -6737,6 +6737,17 @@
         await this.upsertAssignment(item);
       }
     }
+    async removeAssignmentsNotInCourse(courseId, assignmentIds) {
+      const store = await this.load();
+      let changed = false;
+      for (const [id, assignment] of Object.entries(store.assignments)) {
+        if (assignment.courseId === courseId && !assignmentIds.has(id)) {
+          delete store.assignments[id];
+          changed = true;
+        }
+      }
+      if (changed) await this.save(store);
+    }
     /**
      * 获取结构化数据库中全部聚合作业列表，并进行最佳实践排序
      * 排序逻辑：
@@ -6914,12 +6925,12 @@
     }
     return list;
   }
-  function parseActiveAssignmentsHtml(html, courseName = "", defaultCourseId = "") {
+  function parseActiveAssignmentsHtml(html, courseName = "", defaultCourseId = "", includeHistory = false) {
     const list = [];
     const seen = /* @__PURE__ */ new Set();
     let activeSection = html;
     const historyIdx = html.search(/fas\s+fa-history|历史作业/i);
-    if (historyIdx !== -1) {
+    if (!includeHistory && historyIdx !== -1) {
       const clockIdx = html.search(/fas\s+fa-clock|当前作业/i);
       if (clockIdx !== -1 && clockIdx < historyIdx) {
         activeSection = html.slice(clockIdx, historyIdx);
@@ -6932,7 +6943,7 @@
     while ((m2 = linkRe.exec(activeSection)) !== null) {
       const rawUrl = m2[1];
       const id = m2[2];
-      let title = m2[3].replace(/<[^>]+>/g, "").trim();
+      let title = m2[3].replace(/<span[^>]*class=["'][^"']*badge[^"']*["'][^>]*>[\s\S]*?<\/span>/gi, "").replace(/<[^>]+>/g, "").trim();
       if (/^(?:进入作业|开始实验|实验文档)$/.test(title)) {
         const cardStart = activeSection.lastIndexOf('<div class="main-zy', m2.index);
         const cardHtml = cardStart >= 0 ? activeSection.slice(cardStart, m2.index) : "";
@@ -6946,6 +6957,7 @@
       seen.add(id);
       const courseIdM = rawUrl.match(/courseID=([a-zA-Z0-9_-]+)/i);
       const courseId = courseIdM ? courseIdM[1] : defaultCourseId;
+      if (defaultCourseId && courseIdM && courseId !== defaultCourseId) continue;
       const finalUrl = courseId ? `/assignment/index.jsp?courseID=${courseId}&assignID=${id}` : `/assignment/index.jsp?assignID=${id}`;
       list.push({
         id,
@@ -6976,12 +6988,15 @@
       }
     }
     const ddl = parseDeadlineBeijing(html, nowMs);
+    const plainText = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim();
+    const status = /(?:初次提交时间|最近一次提交时间|最后一次修改时间)\s*:\s*\d{4}[-/]\d{1,2}[-/]\d{1,2}/i.test(plainText) ? "submitted" : "pending";
     return {
       title,
       deadline: ddl.timestamp > 0 ? ddl.normalized : void 0,
       deadlineTimestamp: ddl.timestamp,
       remainingHours: ddl.remainingHours,
-      remainingText: ddl.remainingText
+      remainingText: ddl.remainingText,
+      status
     };
   }
   function parseTestCases(html) {
@@ -7067,20 +7082,18 @@
       return this.sessionCookie ? { Cookie: this.sessionCookie } : {};
     }
     async fillAssignmentDeadline(item, detailUrl) {
-      if (item.deadline !== "请查看详情" && item.deadlineTimestamp !== 0) return;
-      try {
-        const detail = parseAssignmentDetailHtml(
-          await this.http.get(detailUrl, this.getAuthHeaders())
-        );
-        if (detail.deadlineTimestamp > 0) {
-          item.deadline = detail.deadline;
-          item.deadlineTimestamp = detail.deadlineTimestamp;
-          item.remainingHours = detail.remainingHours;
-          item.remainingText = detail.remainingText;
-          item.urgency = calculateUrgency(detail.remainingHours);
-        }
-      } catch {
+      const detail = parseAssignmentDetailHtml(
+        await this.http.get(detailUrl, this.getAuthHeaders())
+      );
+      if (detail.title) item.title = detail.title;
+      if (detail.deadlineTimestamp > 0) {
+        item.deadline = detail.deadline;
+        item.deadlineTimestamp = detail.deadlineTimestamp;
+        item.remainingHours = detail.remainingHours;
+        item.remainingText = detail.remainingText;
+        item.urgency = calculateUrgency(detail.remainingHours);
       }
+      item.status = detail.status;
     }
     /**
      * 登录平台（自动使用固定 AES 密钥加密）
@@ -7105,23 +7118,26 @@
      * 获取学生加入的课程列表（只读查询）
      */
     async getCourses() {
-      try {
-        const html = await this.http.get(`${this.baseUrl}/courselist.jsp`, this.getAuthHeaders());
-        let courses = parseCourseListHtml(html);
-        if (courses.length === 0) {
-          const mainHtml = await this.http.get(`${this.baseUrl}/main.jsp`, this.getAuthHeaders());
-          courses = parseCourseListHtml(mainHtml);
-        }
-        return courses;
-      } catch {
-        return [];
+      const html = await this.http.get(`${this.baseUrl}/courselist.jsp`, this.getAuthHeaders());
+      let courses = parseCourseListHtml(html);
+      if (courses.length === 0) {
+        const mainHtml = await this.http.get(`${this.baseUrl}/main.jsp`, this.getAuthHeaders());
+        courses = parseCourseListHtml(mainHtml);
       }
+      return courses;
     }
     /**
      * 切换当前激活课程上下文
      */
     async enterCourse(courseId) {
-      await this.http.get(`${this.baseUrl}/courselist.jsp?courseID=${encodeURIComponent(courseId)}`, this.getAuthHeaders());
+      const body = new URLSearchParams({
+        doChangeCourse: "true",
+        changeCourse: courseId
+      }).toString();
+      await this.http.post(`${this.baseUrl}/main.jsp`, body, {
+        ...this.getAuthHeaders(),
+        "Content-Type": "application/x-www-form-urlencoded"
+      });
     }
     /**
      * 只读读取当前活跃课程的作业列表（不篡改 Session 状态）
@@ -7129,25 +7145,22 @@
     async getPendingAssignments() {
       const allAssignments = [];
       const seenIds = /* @__PURE__ */ new Set();
-      try {
-        const indexHtml = await this.http.get(
-          `${this.baseUrl}/assignment/index.jsp`,
-          this.getAuthHeaders()
-        );
-        const activeCourse = parseActiveCourseInfo(indexHtml);
-        const courseId = activeCourse.id || "";
-        const courseName = activeCourse.name || "";
-        if (this.db && courseId && courseName) {
-          await this.db.upsertCourse(courseId, courseName);
+      const indexHtml = await this.http.get(
+        `${this.baseUrl}/assignment/index.jsp`,
+        this.getAuthHeaders()
+      );
+      const activeCourse = parseActiveCourseInfo(indexHtml);
+      const courseId = activeCourse.id || "";
+      const courseName = activeCourse.name || "";
+      if (this.db && courseId && courseName) {
+        await this.db.upsertCourse(courseId, courseName);
+      }
+      const list = parseActiveAssignmentsHtml(indexHtml, courseName, courseId);
+      for (const item of list) {
+        if (!seenIds.has(item.id)) {
+          seenIds.add(item.id);
+          allAssignments.push(item);
         }
-        const list = parseActiveAssignmentsHtml(indexHtml, courseName, courseId);
-        for (const item of list) {
-          if (!seenIds.has(item.id)) {
-            seenIds.add(item.id);
-            allAssignments.push(item);
-          }
-        }
-      } catch {
       }
       for (const item of allAssignments) {
         const detailUrl = item.courseId ? `${this.baseUrl}/assignment/index.jsp?courseID=${item.courseId}&assignID=${item.id}` : `${this.baseUrl}/assignment/index.jsp?assignID=${item.id}`;
@@ -7173,20 +7186,24 @@
      * 【核心保障】爬取前记录当前用户所处课程 ID，依序抓取各门课后立即切回原课程，彻底杜绝串课
      */
     async safeSyncAllCourses(currentCourseId, onProgress) {
+      var _a;
       const courses = await this.getCourses();
       if (courses.length === 0) {
         return this.getPendingAssignments();
       }
-      for (let i2 = 0; i2 < courses.length; i2++) {
-        const c2 = courses[i2];
-        if (onProgress) onProgress(`正在同步 [${i2 + 1}/${courses.length}] 《${c2.name}》...`);
-        try {
+      try {
+        for (let i2 = 0; i2 < courses.length; i2++) {
+          const c2 = courses[i2];
+          if (onProgress) onProgress(`正在同步 [${i2 + 1}/${courses.length}] 《${c2.name}》...`);
           if (this.db) {
             await this.db.upsertCourse(c2.id, c2.name);
           }
           await this.enterCourse(c2.id);
-          const indexHtml = await this.http.get(`${this.baseUrl}/assignment/index.jsp`, this.getAuthHeaders());
-          const list = parseActiveAssignmentsHtml(indexHtml, c2.name, c2.id);
+          const indexHtml = await this.http.get(
+            `${this.baseUrl}/assignment/index.jsp?courseID=${encodeURIComponent(c2.id)}`,
+            this.getAuthHeaders()
+          );
+          const list = parseActiveAssignmentsHtml(indexHtml, c2.name, c2.id, true);
           for (const item of list) {
             item.courseId = c2.id;
             item.courseName = c2.name;
@@ -7199,14 +7216,12 @@
               await this.db.upsertAssignment(item);
             }
           }
-        } catch {
+          await ((_a = this.db) == null ? void 0 : _a.removeAssignmentsNotInCourse(c2.id, new Set(list.map((item) => item.id))));
         }
-      }
-      if (currentCourseId) {
-        if (onProgress) onProgress("正在恢复当前页面课程状态...");
-        try {
+      } finally {
+        if (currentCourseId) {
+          if (onProgress) onProgress("正在恢复当前页面课程状态...");
           await this.enterCourse(currentCourseId);
-        } catch {
         }
       }
       return this.db ? this.db.getAllAssignments() : this.getPendingAssignments();
@@ -8089,12 +8104,12 @@ ${markdown}` }
         setEmailBusy(false);
       }
     };
-    const activeCount = assignments.filter((a2) => a2.remainingHours > 0).length;
-    const overdueCount = assignments.filter((a2) => a2.remainingHours <= 0).length;
-    const urgentCount = assignments.filter((a2) => a2.remainingHours > 0 && (a2.urgency === "critical" || a2.urgency === "urgent")).length;
+    const activeCount = assignments.filter((a2) => a2.status === "pending" && a2.remainingHours > 0).length;
+    const overdueCount = assignments.filter((a2) => a2.status === "pending" && a2.remainingHours <= 0).length;
+    const urgentCount = assignments.filter((a2) => a2.status === "pending" && a2.remainingHours > 0 && (a2.urgency === "critical" || a2.urgency === "urgent")).length;
     const filteredAssignments = assignments.filter((item) => {
-      if (filter === "active") return item.remainingHours > 0;
-      if (filter === "overdue") return item.remainingHours <= 0;
+      if (filter === "active") return item.status === "pending" && item.remainingHours > 0;
+      if (filter === "overdue") return item.status === "pending" && item.remainingHours <= 0;
       return true;
     });
     const sortedAssignments = [...filteredAssignments].sort((a2, b2) => {
@@ -8269,7 +8284,8 @@ ${markdown}` }
               /* @__PURE__ */ u$1("span", { className: "text-3xl", children: "🎉" }),
               /* @__PURE__ */ u$1("p", { className: "text-base-content/70", children: "当前分类下没有作业" })
             ] }) }) : /* @__PURE__ */ u$1("div", { className: "list w-full rounded-box border border-base-300 bg-base-100", children: sortedAssignments.map((hw) => {
-              const badgeClass = hw.remainingHours <= 0 || hw.urgency === "critical" ? "badge-error" : hw.urgency === "urgent" ? "badge-warning" : hw.urgency === "warning" ? "badge-info" : "badge-success";
+              const badgeClass = hw.status !== "pending" ? "badge-success" : hw.remainingHours <= 0 || hw.urgency === "critical" ? "badge-error" : hw.urgency === "urgent" ? "badge-warning" : hw.urgency === "warning" ? "badge-info" : "badge-success";
+              const statusText = hw.status === "graded" ? "已批改" : hw.status === "submitted" ? "已提交" : hw.remainingText;
               return /* @__PURE__ */ u$1("article", { className: "list-row", children: [
                 /* @__PURE__ */ u$1("span", { className: `status ${badgeClass.replace("badge-", "status-")}`, "aria-hidden": "true" }),
                 /* @__PURE__ */ u$1("div", { className: "list-col-grow min-w-0", children: [
@@ -8281,7 +8297,7 @@ ${markdown}` }
                   ] })
                 ] }),
                 /* @__PURE__ */ u$1("div", { className: "flex flex-col items-end gap-2", children: [
-                  /* @__PURE__ */ u$1("span", { className: `badge badge-sm badge-soft whitespace-nowrap ${badgeClass}`, children: hw.remainingText }),
+                  /* @__PURE__ */ u$1("span", { className: `badge badge-sm badge-soft whitespace-nowrap ${badgeClass}`, children: statusText }),
                   hw.url && /* @__PURE__ */ u$1(
                     "a",
                     {
@@ -8645,7 +8661,7 @@ ${markdown}` }
       if (urlMatch) {
         const curAssignId = urlMatch[1];
         const isExperimentPage = window.location.pathname.startsWith("/exp/");
-        let curDetail = isExperimentPage ? { deadlineTimestamp: 0, remainingHours: 9999, remainingText: "待定" } : parseAssignmentDetailHtml(document.documentElement.innerHTML);
+        let curDetail = isExperimentPage ? { title: void 0, deadline: void 0, deadlineTimestamp: 0, remainingHours: 9999, remainingText: "待定", status: "pending" } : parseAssignmentDetailHtml(document.documentElement.innerHTML);
         if (isExperimentPage) {
           const experimentDeadline = parseExperimentDeadlineFromDom(document);
           if (experimentDeadline) {
@@ -8684,7 +8700,7 @@ ${markdown}` }
           deadlineTimestamp: curDetail.deadlineTimestamp,
           remainingHours: curDetail.remainingHours,
           remainingText: curDetail.remainingText,
-          status: "pending",
+          status: curDetail.status,
           urgency: calculateUrgency(curDetail.remainingHours),
           url: finalUrl
         };
