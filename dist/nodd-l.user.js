@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NoDDL (Not Only DDL) - 武大一体化平台助手
 // @namespace    https://github.com/projectluojia/NoDDL
-// @version      1.0.24
+// @version      1.0.25
 // @author       projectluojia
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
@@ -7912,7 +7912,9 @@ ${markdown}` }
         );
         const cookieNames = cookies.map((item) => item.name).filter(Boolean);
         if (!sessionCookie) {
-          reject(new Error(`未找到课程平台登录会话（需要 ${PLATFORM_SESSION_COOKIE}；当前 Cookie：${cookieNames.join(", ") || "无"}）`));
+          reject(new Error(
+            `未找到 ${PLATFORM_SESSION_COOKIE}；它是 HttpOnly Cookie，当前脚本管理器未通过 GM_cookie 暴露它（当前 Cookie：${cookieNames.join(", ") || "无"}）`
+          ));
           return;
         }
         const cookie = cookies.map((item) => `${item.name}=${item.value}`).join("; ");
@@ -8092,7 +8094,8 @@ ${markdown}` }
         await publishCalendar(assignments, configured);
         showToast("自动同步已启用，每天会在服务端更新课程和日历");
       } catch (error) {
-        showToast(error instanceof Error ? error.message : "自动同步启用失败");
+        console.error("[NoDDL] 自动同步绑定失败", error);
+        showToast("自动同步绑定失败，详情已写入控制台");
       } finally {
         setAutoSyncBusy(false);
       }

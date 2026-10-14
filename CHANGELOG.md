@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.25 - 2026-10-15
+
+- Log automatic sync binding diagnostics to the console instead of exposing raw errors in the UI.
+
 ## 1.0.24 - 2026-10-15
 
 - Use the platform's actual `educg_session` cookie for automatic sync.

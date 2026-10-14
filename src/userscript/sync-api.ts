@@ -18,7 +18,9 @@ export function readCourseSessionCookie(): Promise<string> {
       );
       const cookieNames = cookies.map((item) => item.name).filter(Boolean);
       if (!sessionCookie) {
-        reject(new Error(`未找到课程平台登录会话（需要 ${PLATFORM_SESSION_COOKIE}；当前 Cookie：${cookieNames.join(', ') || '无'}）`));
+        reject(new Error(
+          `未找到 ${PLATFORM_SESSION_COOKIE}；它是 HttpOnly Cookie，当前脚本管理器未通过 GM_cookie 暴露它（当前 Cookie：${cookieNames.join(', ') || '无'}）`
+        ));
         return;
       }
 
