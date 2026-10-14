@@ -7,6 +7,7 @@ import {
   parseAssignmentDetailHtml,
   parseActiveCourseInfo,
   parseCourseListHtml,
+  parseExperimentAssignmentsHtml,
   parseProblemDetailHtml,
   parseSubmissionsHtml
 } from './parsers';
@@ -152,6 +153,7 @@ export class CourseGradingClient {
       throw new Error('未读取到课程列表，已停止同步');
     }
     const syncedAssignments: Assignment[] = [];
+    const syncedIds = new Set<string>();
 
     try {
       for (let i = 0; i < courses.length; i++) {
@@ -169,10 +171,23 @@ export class CourseGradingClient {
         const list = parseActiveAssignmentsHtml(indexHtml, activeCourse.name, activeCourse.id, true);
 
         for (const item of list) {
+          if (syncedIds.has(item.id)) throw new Error(`作业 ID 重复：${item.id}`);
+          syncedIds.add(item.id);
           await this.fillAssignmentDeadline(
             item,
             `${this.baseUrl}/assignment/index.jsp?courseID=${c.id}&assignID=${item.id}`
           );
+          syncedAssignments.push(item);
+        }
+
+        const experiments = parseExperimentAssignmentsHtml(
+          await this.http.get(`${this.baseUrl}/exp/index.jsp`, this.getAuthHeaders()),
+          c.id,
+          c.name
+        );
+        for (const item of experiments) {
+          if (syncedIds.has(item.id)) throw new Error(`作业 ID 重复：${item.id}`);
+          syncedIds.add(item.id);
           syncedAssignments.push(item);
         }
       }

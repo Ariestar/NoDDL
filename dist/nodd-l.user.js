@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NoDDL (Not Only DDL) - 武大一体化平台助手
 // @namespace    https://github.com/projectluojia/NoDDL
-// @version      1.0.18
+// @version      1.0.19
 // @author       projectluojia
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
@@ -6949,6 +6949,35 @@
     }
     return list;
   }
+  function parseExperimentAssignmentsHtml(html, courseId, courseName, nowMs = Date.now()) {
+    var _a;
+    const list = [];
+    const headingRe = /<h[3-6][^>]*>([\s\S]*?)<\/h[3-6]>([\s\S]*?)(?=<h[3-6][^>]*>|$)/gi;
+    let match;
+    while ((match = headingRe.exec(html)) !== null) {
+      const title = match[1].replace(/<[^>]+>/g, "").trim();
+      const block = match[2];
+      if (!title || !/截止时间/.test(block)) continue;
+      const id = (_a = block.match(/(?:href|action)=["'][^"']*assignID=([a-zA-Z0-9_-]+)/i)) == null ? void 0 : _a[1];
+      const text = block.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim();
+      const deadline = parseDeadlineBeijing(text, nowMs);
+      if (!id || deadline.timestamp <= 0) continue;
+      list.push({
+        id,
+        courseId,
+        courseName,
+        title,
+        deadline: deadline.normalized,
+        deadlineTimestamp: deadline.timestamp,
+        remainingHours: deadline.remainingHours,
+        remainingText: deadline.remainingText,
+        status: "pending",
+        urgency: deadline.urgency,
+        url: `/exp/index.jsp?assignID=${id}`
+      });
+    }
+    return list;
+  }
   function parseAssignmentDetailHtml(html, nowMs = Date.now()) {
     const h4Match = html.match(/<div[^>]*class=["'][^"']*bg-light[^"']*["'][^>]*>[\s\S]*?<h[3-5][^>]*>([\s\S]*?)<\/h[3-5]>/i) || html.match(/<h[3-5][^>]*>([\s\S]*?)<\/h[3-5]>\s*<p>[^<]*作业时间/i);
     let title = h4Match ? h4Match[1].replace(/<[^>]+>/g, "").trim() : void 0;
@@ -7152,6 +7181,7 @@
         throw new Error("未读取到课程列表，已停止同步");
       }
       const syncedAssignments = [];
+      const syncedIds = /* @__PURE__ */ new Set();
       try {
         for (let i2 = 0; i2 < courses.length; i2++) {
           const c2 = courses[i2];
@@ -7167,10 +7197,22 @@
           }
           const list = parseActiveAssignmentsHtml(indexHtml, activeCourse.name, activeCourse.id, true);
           for (const item of list) {
+            if (syncedIds.has(item.id)) throw new Error(`作业 ID 重复：${item.id}`);
+            syncedIds.add(item.id);
             await this.fillAssignmentDeadline(
               item,
               `${this.baseUrl}/assignment/index.jsp?courseID=${c2.id}&assignID=${item.id}`
             );
+            syncedAssignments.push(item);
+          }
+          const experiments = parseExperimentAssignmentsHtml(
+            await this.http.get(`${this.baseUrl}/exp/index.jsp`, this.getAuthHeaders()),
+            c2.id,
+            c2.name
+          );
+          for (const item of experiments) {
+            if (syncedIds.has(item.id)) throw new Error(`作业 ID 重复：${item.id}`);
+            syncedIds.add(item.id);
             syncedAssignments.push(item);
           }
         }
@@ -8457,7 +8499,7 @@ ${markdown}` }
     if (document.getElementById(HOST_ID)) return;
     const hostEl = document.createElement("div");
     hostEl.id = HOST_ID;
-    document.body.appendChild(hostEl);
+    document.documentElement.appendChild(hostEl);
     const shadowRoot = hostEl.shadowRoot || hostEl.attachShadow({ mode: "open" });
     const styleEl = document.createElement("style");
     styleEl.textContent = PANEL_STYLES;
@@ -8614,8 +8656,17 @@ ${markdown}` }
     if (urlMatch) {
       const curAssignId = urlMatch[1];
       const isExperimentPage = window.location.pathname.startsWith("/exp/");
-      let curDetail = isExperimentPage ? { title: void 0, deadline: void 0, deadlineTimestamp: 0, remainingHours: 9999, remainingText: "待定", status: "pending" } : parseAssignmentDetailHtml(document.documentElement.innerHTML);
+      const experimentAssignment = isExperimentPage ? parseExperimentAssignmentsHtml(document.documentElement.innerHTML, currentCourseId, currentCourseName || "云实验")[0] : void 0;
+      let curDetail = isExperimentPage ? experimentAssignment ? {
+        title: experimentAssignment.title,
+        deadline: experimentAssignment.deadline,
+        deadlineTimestamp: experimentAssignment.deadlineTimestamp,
+        remainingHours: experimentAssignment.remainingHours,
+        remainingText: experimentAssignment.remainingText,
+        status: experimentAssignment.status
+      } : { title: void 0, deadline: void 0, deadlineTimestamp: 0, remainingHours: 0, remainingText: "待定", status: "pending" } : parseAssignmentDetailHtml(document.documentElement.innerHTML);
       if (isExperimentPage) {
+        if (!experimentAssignment) throw new Error(`云实验 ${curAssignId} 缺少真实作业信息`);
         const experimentDeadline = parseExperimentDeadlineFromDom(document);
         if (experimentDeadline) {
           curDetail = {
@@ -8640,7 +8691,7 @@ ${markdown}` }
         if (bc) title = (_a = bc.textContent) == null ? void 0 : _a.trim();
       }
       if (!title) throw new Error(`作业 ${curAssignId} 缺少真实标题`);
-      const finalUrl = isExperimentPage ? `${window.location.pathname}${window.location.search}` : currentCourseId ? `/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}` : `/assignment/index.jsp?assignID=${curAssignId}`;
+      const finalUrl = isExperimentPage ? (experimentAssignment == null ? void 0 : experimentAssignment.url) || `${window.location.pathname}${window.location.search}` : currentCourseId ? `/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}` : `/assignment/index.jsp?assignID=${curAssignId}`;
       const item = {
         id: curAssignId,
         courseId: isExperimentPage ? "" : currentCourseId,

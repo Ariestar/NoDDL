@@ -16,7 +16,7 @@ export function mountNoDDLUI(
 
   const hostEl = document.createElement('div');
   hostEl.id = HOST_ID;
-  document.body.appendChild(hostEl);
+  document.documentElement.appendChild(hostEl);
 
   // 挂载至隔离 Shadow DOM，杜绝与宿主页面 Bootstrap CSS 冲突
   const shadowRoot = hostEl.shadowRoot || hostEl.attachShadow({ mode: 'open' });

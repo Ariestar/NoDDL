@@ -136,6 +136,44 @@ export function parseActiveAssignmentsHtml(
   return list;
 }
 
+export function parseExperimentAssignmentsHtml(
+  html: string,
+  courseId: string,
+  courseName: string,
+  nowMs = Date.now()
+): Assignment[] {
+  const list: Assignment[] = [];
+  const headingRe = /<h[3-6][^>]*>([\s\S]*?)<\/h[3-6]>([\s\S]*?)(?=<h[3-6][^>]*>|$)/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = headingRe.exec(html)) !== null) {
+    const title = match[1].replace(/<[^>]+>/g, '').trim();
+    const block = match[2];
+    if (!title || !/截止时间/.test(block)) continue;
+
+    const id = block.match(/(?:href|action)=["'][^"']*assignID=([a-zA-Z0-9_-]+)/i)?.[1];
+    const text = block.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+    const deadline = parseDeadlineBeijing(text, nowMs);
+    if (!id || deadline.timestamp <= 0) continue;
+
+    list.push({
+      id,
+      courseId,
+      courseName,
+      title,
+      deadline: deadline.normalized,
+      deadlineTimestamp: deadline.timestamp,
+      remainingHours: deadline.remainingHours,
+      remainingText: deadline.remainingText,
+      status: 'pending',
+      urgency: deadline.urgency,
+      url: `/exp/index.jsp?assignID=${id}`
+    });
+  }
+
+  return list;
+}
+
 /**
  * 解析希冀平台作业主卡片（包含作业标题、作业时间与满分）
  * 真实结构:

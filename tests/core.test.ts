@@ -7,7 +7,8 @@ import {
   parseActiveAssignmentsHtml,
   parseAssignmentDetailHtml,
   parseActiveCourseInfo,
-  parseTestCases
+  parseTestCases,
+  parseExperimentAssignmentsHtml
 } from '../src/core/parsers';
 import { HomeworkDB } from '../src/core/db';
 import { CourseGradingClient } from '../src/core/client';
@@ -217,6 +218,23 @@ test('云实验：不从其他区域的日期文本猜测截止时间', () => {
   assert.strictEqual(parseExperimentDeadlineFromDom(fakeDocument), undefined);
 });
 
+test('云实验：从实验列表读取真实标题、课程和截止时间', () => {
+  const html = `
+    <h4>括号匹配与表达式合法性检查 - C语言</h4>
+    <h5>第一次实验</h5>
+    <p>开始时间：2026-10-09 16:00:00 截止时间：2026-10-16 22:00:00</p>
+    <a href="index.jsp?assignID=612&guideID=5542">实验入口</a>
+  `;
+  const list = parseExperimentAssignmentsHtml(html, '186', '数据结构与算法', Date.UTC(2026, 9, 14, 12, 0, 0));
+
+  assert.equal(list.length, 1);
+  assert.equal(list[0].id, '612');
+  assert.equal(list[0].title, '第一次实验');
+  assert.equal(list[0].courseName, '数据结构与算法');
+  assert.equal(list[0].deadline, '2026-10-16 22:00:00');
+  assert.equal(list[0].url, '/exp/index.jsp?assignID=612');
+});
+
 test('云实验：保留原始实验入口链接', async () => {
   const db = new HomeworkDB(new MemoryStorage());
   await db.upsertAssignment({
@@ -302,6 +320,7 @@ test('全量同步：提交真实课程切换并刷新时间与完成状态', as
       gets.push(url);
       if (url.endsWith('/courselist.jsp') || url.includes('/courselist.jsp?courseID=184')) return courseHtml;
       if (url.includes('assignID=3548')) return detailHtml;
+      if (url.endsWith('/exp/index.jsp')) return '';
       if (url.endsWith('/assignment/index.jsp')) return assignmentHtml;
       throw new Error(`Unexpected GET ${url}`);
     },
@@ -341,6 +360,7 @@ test('全量同步：返回课程上下文不一致时拒绝写入错误课程',
       if (url.includes('/courselist.jsp?courseID=176')) {
         return '<span class="dropdown-item dropdown-item-course font-weight-bold" value="176">计算机系统导论</span>';
       }
+      if (url.endsWith('/exp/index.jsp')) return '';
       if (url.endsWith('/assignment/index.jsp')) {
         return '<span class="dropdown-item dropdown-item-course font-weight-bold" value="184">离散数学</span>';
       }

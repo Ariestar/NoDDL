@@ -1,5 +1,5 @@
 import { CourseGradingClient } from '../core/client';
-import { parseActiveAssignmentsHtml, parseAssignmentDetailHtml, parseActiveCourseInfo } from '../core/parsers';
+import { parseActiveAssignmentsHtml, parseAssignmentDetailHtml, parseActiveCourseInfo, parseExperimentAssignmentsHtml } from '../core/parsers';
 import { calculateUrgency } from '../core/time';
 import { BrowserHttpClient, BrowserStorage } from './browser-adapter';
 import { mountNoDDLUI, setupTestCaseCopyButtons, setupCodeAutoSave } from './ui';
@@ -60,12 +60,25 @@ async function initNoDDL() {
   if (urlMatch) {
       const curAssignId = urlMatch[1];
       const isExperimentPage = window.location.pathname.startsWith('/exp/');
+      const experimentAssignment = isExperimentPage
+        ? parseExperimentAssignmentsHtml(document.documentElement.innerHTML, currentCourseId, currentCourseName || '云实验')[0]
+        : undefined;
       let curDetail = isExperimentPage
-        ? { title: undefined, deadline: undefined, deadlineTimestamp: 0, remainingHours: 9999, remainingText: '待定', status: 'pending' as const }
+        ? experimentAssignment
+          ? {
+              title: experimentAssignment.title,
+              deadline: experimentAssignment.deadline,
+              deadlineTimestamp: experimentAssignment.deadlineTimestamp,
+              remainingHours: experimentAssignment.remainingHours,
+              remainingText: experimentAssignment.remainingText,
+              status: experimentAssignment.status
+            }
+          : { title: undefined, deadline: undefined, deadlineTimestamp: 0, remainingHours: 0, remainingText: '待定', status: 'pending' as const }
         : parseAssignmentDetailHtml(document.documentElement.innerHTML);
 
       // 云实验页直接从当前 DOM 的截止字段读取，不请求作业模块页面。
       if (isExperimentPage) {
+        if (!experimentAssignment) throw new Error(`云实验 ${curAssignId} 缺少真实作业信息`);
         const experimentDeadline = parseExperimentDeadlineFromDom(document);
         if (experimentDeadline) {
           curDetail = {
@@ -96,7 +109,7 @@ async function initNoDDL() {
       if (!title) throw new Error(`作业 ${curAssignId} 缺少真实标题`);
 
       const finalUrl = isExperimentPage
-        ? `${window.location.pathname}${window.location.search}`
+        ? experimentAssignment?.url || `${window.location.pathname}${window.location.search}`
         : currentCourseId
           ? `/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}`
           : `/assignment/index.jsp?assignID=${curAssignId}`;

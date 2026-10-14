@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.19 - 2026-10-14
+
+- Sync cloud experiments and keep the pet mounted through course switches.
+
 ## 1.0.18 - 2026-10-14
 
 - Keep submitted assignments visible and remove stale sync fallbacks.
