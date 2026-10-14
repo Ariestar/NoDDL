@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.18 - 2026-10-14
+
+- Keep submitted assignments visible and remove stale sync fallbacks.
+
 ## 1.0.17 - 2026-10-14
 
 - Keep the desktop pet on the top-level page only.

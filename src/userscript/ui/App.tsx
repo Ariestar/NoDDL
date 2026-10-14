@@ -99,6 +99,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       }
       showToast(`同步完成！共汇总 ${list.length} 项作业`);
     } catch {
+      setAssignments([]);
       showToast('同步未全部完成，请重试并检查课程登录和日历服务');
     } finally {
       setLoading(false);
@@ -254,13 +255,13 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     }
   };
 
-  const activeCount = assignments.filter((a) => a.status === 'pending' && a.remainingHours > 0).length;
-  const overdueCount = assignments.filter((a) => a.status === 'pending' && a.remainingHours <= 0).length;
-  const urgentCount = assignments.filter((a) => a.status === 'pending' && a.remainingHours > 0 && (a.urgency === 'critical' || a.urgency === 'urgent')).length;
+  const activeCount = assignments.filter((a) => a.remainingHours > 0).length;
+  const overdueCount = assignments.filter((a) => a.remainingHours <= 0).length;
+  const urgentCount = assignments.filter((a) => a.remainingHours > 0 && (a.urgency === 'critical' || a.urgency === 'urgent')).length;
 
   const filteredAssignments = assignments.filter((item) => {
-    if (filter === 'active') return item.status === 'pending' && item.remainingHours > 0;
-    if (filter === 'overdue') return item.status === 'pending' && item.remainingHours <= 0;
+    if (filter === 'active') return item.remainingHours > 0;
+    if (filter === 'overdue') return item.remainingHours <= 0;
     return true;
   });
 

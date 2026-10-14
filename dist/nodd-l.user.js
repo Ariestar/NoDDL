@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NoDDL (Not Only DDL) - 武大一体化平台助手
 // @namespace    https://github.com/projectluojia/NoDDL
-// @version      1.0.17
+// @version      1.0.18
 // @author       projectluojia
 // @description  武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补完：死线警报、代码防丢、样例复制与 AI珞 联动
 // @license      MIT
@@ -6642,15 +6642,13 @@
       this.storage = storage2;
     }
     async load() {
-      try {
-        const raw = await this.storage.get(STORE_STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed.version === 2 && parsed.courses && parsed.assignments) {
-            return parsed;
-          }
+      const raw = await this.storage.get(STORE_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.version !== 2 || !parsed.courses || !parsed.assignments) {
+          throw new Error("本地作业数据格式无效");
         }
-      } catch {
+        return parsed;
       }
       return {
         version: 2,
@@ -6667,18 +6665,16 @@
      * 注册或更新课程元数据（按 courseId 唯一索引，绝无重复课程）
      */
     async upsertCourse(id, name) {
-      if (!id) return;
+      if (!id || !name) throw new Error("课程缺少 ID 或名称");
       const store = await this.load();
-      const existing = store.courses[id];
-      const finalName = (!existing || existing.name === "当前课程") && name !== "当前课程" ? name : (existing == null ? void 0 : existing.name) || name;
       store.courses[id] = {
         id,
-        name: finalName,
+        name,
         updatedAt: Date.now()
       };
       for (const a2 of Object.values(store.assignments)) {
-        if (a2.courseId === id && a2.courseName !== finalName) {
-          a2.courseName = finalName;
+        if (a2.courseId === id && a2.courseName !== name) {
+          a2.courseName = name;
         }
       }
       await this.save(store);
@@ -6687,66 +6683,47 @@
      * 归一化插入或更新单项作业（以 assignId 为唯一主键）
      */
     async upsertAssignment(item) {
-      if (!item.id) return;
+      if (!item.id || !item.courseName || !item.url) {
+        throw new Error("作业缺少 ID、课程名称或链接");
+      }
       const store = await this.load();
-      const existing = store.assignments[item.id];
-      const courseId = item.courseId || (existing == null ? void 0 : existing.courseId) || "";
-      let courseName = item.courseName || (existing == null ? void 0 : existing.courseName) || "专业课程";
-      if (courseId && store.courses[courseId]) {
-        courseName = store.courses[courseId].name;
-      } else if (courseId && courseName !== "当前课程") {
+      const courseId = item.courseId || "";
+      const courseName = item.courseName;
+      if (courseId) {
         store.courses[courseId] = { id: courseId, name: courseName, updatedAt: Date.now() };
-      }
-      let finalDeadline = item.deadline;
-      let finalTimestamp = item.deadlineTimestamp;
-      let finalRemHours = item.remainingHours;
-      let finalRemText = item.remainingText;
-      let finalUrgency = item.urgency;
-      if (finalTimestamp === 0 && existing && existing.deadlineTimestamp > 0) {
-        finalDeadline = existing.deadline;
-        finalTimestamp = existing.deadlineTimestamp;
-        finalRemHours = existing.remainingHours;
-        finalRemText = existing.remainingText;
-        finalUrgency = existing.urgency;
-      }
-      let finalUrl = item.url || (existing == null ? void 0 : existing.url) || "";
-      if (!finalUrl || finalUrl.includes("/assignment/") && !finalUrl.includes("courseID") && courseId) {
-        finalUrl = courseId ? `/assignment/index.jsp?courseID=${courseId}&assignID=${item.id}` : `/assignment/index.jsp?assignID=${item.id}`;
       }
       store.assignments[item.id] = {
         id: item.id,
         courseId,
         courseName,
-        title: item.title || (existing == null ? void 0 : existing.title) || `作业 ${item.id}`,
-        deadline: finalDeadline,
-        deadlineTimestamp: finalTimestamp,
-        remainingHours: finalRemHours,
-        remainingText: finalRemText,
-        status: item.status || (existing == null ? void 0 : existing.status) || "pending",
-        urgency: finalUrgency,
-        url: finalUrl,
+        title: item.title,
+        deadline: item.deadline,
+        deadlineTimestamp: item.deadlineTimestamp,
+        remainingHours: item.remainingHours,
+        remainingText: item.remainingText,
+        status: item.status,
+        urgency: item.urgency,
+        url: item.url,
         updatedAt: Date.now()
       };
       await this.save(store);
     }
-    /**
-     * 批量归一化更新作业
-     */
-    async batchUpsertAssignments(items) {
-      for (const item of items) {
-        await this.upsertAssignment(item);
+    async replaceAssignments(items, courses) {
+      if (courses.some((course) => !course.id || !course.name) || items.some((item) => !item.id || !item.courseName || !item.url)) {
+        throw new Error("同步数据缺少课程或作业字段");
       }
-    }
-    async removeAssignmentsNotInCourse(courseId, assignmentIds) {
       const store = await this.load();
-      let changed = false;
-      for (const [id, assignment] of Object.entries(store.assignments)) {
-        if (assignment.courseId === courseId && !assignmentIds.has(id)) {
-          delete store.assignments[id];
-          changed = true;
-        }
-      }
-      if (changed) await this.save(store);
+      store.courses = Object.fromEntries(courses.map((course) => [course.id, {
+        id: course.id,
+        name: course.name,
+        updatedAt: Date.now()
+      }]));
+      store.assignments = Object.fromEntries(items.map((item) => [item.id, {
+        ...item,
+        courseId: item.courseId || "",
+        updatedAt: Date.now()
+      }]));
+      await this.save(store);
     }
     /**
      * 获取结构化数据库中全部聚合作业列表，并进行最佳实践排序
@@ -6759,13 +6736,10 @@
       const store = await this.load();
       const records = Object.values(store.assignments);
       const list = records.map((r2) => {
-        var _a;
-        const canonicalName = r2.courseId && ((_a = store.courses[r2.courseId]) == null ? void 0 : _a.name) ? store.courses[r2.courseId].name : r2.courseName && r2.courseName !== "当前课程" ? r2.courseName : "专业课程";
-        const url = r2.url.includes("/assignment/") && !r2.url.includes("courseID") && r2.courseId ? `/assignment/index.jsp?courseID=${r2.courseId}&assignID=${r2.id}` : r2.url;
         return {
           id: r2.id,
           courseId: r2.courseId,
-          courseName: canonicalName,
+          courseName: r2.courseName,
           title: r2.title,
           deadline: r2.deadline,
           deadlineTimestamp: r2.deadlineTimestamp,
@@ -6773,7 +6747,7 @@
           remainingText: r2.remainingText,
           status: r2.status,
           urgency: r2.urgency,
-          url
+          url: r2.url
         };
       });
       return list.sort((a2, b2) => {
@@ -7158,7 +7132,7 @@
       if (this.db) {
         return this.db.getAllAssignments();
       }
-      return allAssignments.filter((item) => item.status === "pending").sort((a2, b2) => {
+      return allAssignments.sort((a2, b2) => {
         if (a2.remainingHours > 0 && b2.remainingHours <= 0) return -1;
         if (a2.remainingHours <= 0 && b2.remainingHours > 0) return 1;
         if (a2.remainingHours > 0 && b2.remainingHours > 0) {
@@ -7172,7 +7146,7 @@
      * 【核心保障】爬取前记录当前用户所处课程 ID，依序抓取各门课后立即切回原课程，彻底杜绝串课
      */
     async safeSyncAllCourses(currentCourseId, onProgress) {
-      var _a;
+      var _a, _b;
       const courses = await this.getCourses();
       if (courses.length === 0) {
         throw new Error("未读取到课程列表，已停止同步");
@@ -7182,9 +7156,6 @@
         for (let i2 = 0; i2 < courses.length; i2++) {
           const c2 = courses[i2];
           if (onProgress) onProgress(`正在同步 [${i2 + 1}/${courses.length}] 《${c2.name}》...`);
-          if (this.db) {
-            await this.db.upsertCourse(c2.id, c2.name);
-          }
           await this.enterCourse(c2.id);
           const indexHtml = await this.http.get(
             `${this.baseUrl}/assignment/index.jsp`,
@@ -7201,12 +7172,12 @@
               `${this.baseUrl}/assignment/index.jsp?courseID=${c2.id}&assignID=${item.id}`
             );
             syncedAssignments.push(item);
-            if (this.db) {
-              await this.db.upsertAssignment(item);
-            }
           }
-          await ((_a = this.db) == null ? void 0 : _a.removeAssignmentsNotInCourse(c2.id, new Set(list.map((item) => item.id))));
         }
+        await ((_a = this.db) == null ? void 0 : _a.replaceAssignments(syncedAssignments, courses));
+      } catch (error) {
+        await ((_b = this.db) == null ? void 0 : _b.replaceAssignments([], courses));
+        throw error;
       } finally {
         if (currentCourseId) {
           if (onProgress) onProgress("正在恢复当前页面课程状态...");
@@ -7812,7 +7783,7 @@ ${markdown}` }
   }
   function createDeadlineCalendar(assignments, baseUrl) {
     const currentTime = Date.now();
-    const upcoming = assignments.filter((item) => item.status === "pending" && Number.isFinite(item.deadlineTimestamp) && item.deadlineTimestamp > currentTime).sort((a2, b2) => a2.deadlineTimestamp - b2.deadlineTimestamp);
+    const upcoming = assignments.filter((item) => Number.isFinite(item.deadlineTimestamp) && item.deadlineTimestamp > currentTime).sort((a2, b2) => a2.deadlineTimestamp - b2.deadlineTimestamp);
     if (upcoming.length === 0) return null;
     const now = formatIcsDate(currentTime);
     const lines = [
@@ -7950,6 +7921,7 @@ ${markdown}` }
         }
         showToast(`同步完成！共汇总 ${list.length} 项作业`);
       } catch {
+        setAssignments([]);
         showToast("同步未全部完成，请重试并检查课程登录和日历服务");
       } finally {
         setLoading(false);
@@ -8093,12 +8065,12 @@ ${markdown}` }
         setEmailBusy(false);
       }
     };
-    const activeCount = assignments.filter((a2) => a2.status === "pending" && a2.remainingHours > 0).length;
-    const overdueCount = assignments.filter((a2) => a2.status === "pending" && a2.remainingHours <= 0).length;
-    const urgentCount = assignments.filter((a2) => a2.status === "pending" && a2.remainingHours > 0 && (a2.urgency === "critical" || a2.urgency === "urgent")).length;
+    const activeCount = assignments.filter((a2) => a2.remainingHours > 0).length;
+    const overdueCount = assignments.filter((a2) => a2.remainingHours <= 0).length;
+    const urgentCount = assignments.filter((a2) => a2.remainingHours > 0 && (a2.urgency === "critical" || a2.urgency === "urgent")).length;
     const filteredAssignments = assignments.filter((item) => {
-      if (filter === "active") return item.status === "pending" && item.remainingHours > 0;
-      if (filter === "overdue") return item.status === "pending" && item.remainingHours <= 0;
+      if (filter === "active") return item.remainingHours > 0;
+      if (filter === "overdue") return item.remainingHours <= 0;
       return true;
     });
     const sortedAssignments = [...filteredAssignments].sort((a2, b2) => {
@@ -8616,87 +8588,75 @@ ${markdown}` }
     if (client.db && currentCourseId && currentCourseName) {
       await client.db.upsertCourse(currentCourseId, currentCourseName);
     }
-    try {
-      const domAssigns = parseActiveAssignmentsHtml(
-        document.documentElement.innerHTML,
-        currentCourseName,
-        currentCourseId
-      );
-      for (const item of domAssigns) {
-        if (item.deadlineTimestamp === 0) {
-          try {
-            const detailUrl = `${window.location.origin}${item.url}`;
-            const detailHtml = await http.get(detailUrl);
-            const detail = parseAssignmentDetailHtml(detailHtml);
-            if (detail.deadlineTimestamp > 0) {
-              item.deadline = detail.deadline;
-              item.deadlineTimestamp = detail.deadlineTimestamp;
-              item.remainingHours = detail.remainingHours;
-              item.remainingText = detail.remainingText;
-              item.urgency = calculateUrgency(detail.remainingHours);
-            }
-          } catch {
-          }
+    const domAssigns = parseActiveAssignmentsHtml(
+      document.documentElement.innerHTML,
+      currentCourseName,
+      currentCourseId
+    );
+    for (const item of domAssigns) {
+      if (item.deadlineTimestamp === 0) {
+        const detailUrl = `${window.location.origin}${item.url}`;
+        const detail = parseAssignmentDetailHtml(await http.get(detailUrl));
+        if (detail.deadlineTimestamp === 0) {
+          throw new Error(`作业 ${item.id} 缺少真实截止时间`);
         }
-        if (client.db) {
-          await client.db.upsertAssignment(item);
-        }
+        item.deadline = detail.deadline;
+        item.deadlineTimestamp = detail.deadlineTimestamp;
+        item.remainingHours = detail.remainingHours;
+        item.remainingText = detail.remainingText;
+        item.urgency = calculateUrgency(detail.remainingHours);
       }
-    } catch {
+      if (client.db) {
+        await client.db.upsertAssignment(item);
+      }
     }
-    try {
-      const urlMatch = window.location.href.match(/assignID=([a-zA-Z0-9_-]+)/i);
-      if (urlMatch) {
-        const curAssignId = urlMatch[1];
-        const isExperimentPage = window.location.pathname.startsWith("/exp/");
-        let curDetail = isExperimentPage ? { title: void 0, deadline: void 0, deadlineTimestamp: 0, remainingHours: 9999, remainingText: "待定", status: "pending" } : parseAssignmentDetailHtml(document.documentElement.innerHTML);
-        if (isExperimentPage) {
-          const experimentDeadline = parseExperimentDeadlineFromDom(document);
-          if (experimentDeadline) {
-            curDetail = {
-              ...curDetail,
-              deadline: experimentDeadline.normalized,
-              deadlineTimestamp: experimentDeadline.timestamp,
-              remainingHours: experimentDeadline.remainingHours,
-              remainingText: experimentDeadline.remainingText
-            };
-          }
-        } else if (curDetail.deadlineTimestamp === 0) {
-          try {
-            const mainUrl = currentCourseId ? `${window.location.origin}/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}` : `${window.location.origin}/assignment/index.jsp?assignID=${curAssignId}`;
-            const mainAssignHtml = await http.get(mainUrl);
-            const fetchedDetail = parseAssignmentDetailHtml(mainAssignHtml);
-            if (fetchedDetail.deadlineTimestamp > 0) {
-              curDetail = fetchedDetail;
-            }
-          } catch {
-          }
+    const urlMatch = window.location.href.match(/assignID=([a-zA-Z0-9_-]+)/i);
+    if (urlMatch) {
+      const curAssignId = urlMatch[1];
+      const isExperimentPage = window.location.pathname.startsWith("/exp/");
+      let curDetail = isExperimentPage ? { title: void 0, deadline: void 0, deadlineTimestamp: 0, remainingHours: 9999, remainingText: "待定", status: "pending" } : parseAssignmentDetailHtml(document.documentElement.innerHTML);
+      if (isExperimentPage) {
+        const experimentDeadline = parseExperimentDeadlineFromDom(document);
+        if (experimentDeadline) {
+          curDetail = {
+            ...curDetail,
+            deadline: experimentDeadline.normalized,
+            deadlineTimestamp: experimentDeadline.timestamp,
+            remainingHours: experimentDeadline.remainingHours,
+            remainingText: experimentDeadline.remainingText
+          };
         }
-        let title = curDetail.title;
-        if (!title) {
-          const bc = document.querySelector(".breadcrumb li a, .breadcrumb li:first-child");
-          if (bc) title = (_a = bc.textContent) == null ? void 0 : _a.trim();
+      } else if (curDetail.deadlineTimestamp === 0) {
+        const mainUrl = currentCourseId ? `${window.location.origin}/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}` : `${window.location.origin}/assignment/index.jsp?assignID=${curAssignId}`;
+        const fetchedDetail = parseAssignmentDetailHtml(await http.get(mainUrl));
+        if (fetchedDetail.deadlineTimestamp === 0) {
+          throw new Error(`作业 ${curAssignId} 缺少真实截止时间`);
         }
-        title = title || `作业 ${curAssignId}`;
-        const finalUrl = isExperimentPage ? `${window.location.pathname}${window.location.search}` : currentCourseId ? `/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}` : `/assignment/index.jsp?assignID=${curAssignId}`;
-        const item = {
-          id: curAssignId,
-          courseId: isExperimentPage ? "" : currentCourseId,
-          courseName: isExperimentPage ? "云实验" : currentCourseName,
-          title,
-          deadline: curDetail.deadline || "未设截止时间",
-          deadlineTimestamp: curDetail.deadlineTimestamp,
-          remainingHours: curDetail.remainingHours,
-          remainingText: curDetail.remainingText,
-          status: curDetail.status,
-          urgency: calculateUrgency(curDetail.remainingHours),
-          url: finalUrl
-        };
-        if (client.db) {
-          await client.db.upsertAssignment(item);
-        }
+        curDetail = fetchedDetail;
       }
-    } catch {
+      let title = curDetail.title;
+      if (!title) {
+        const bc = document.querySelector(".breadcrumb li a, .breadcrumb li:first-child");
+        if (bc) title = (_a = bc.textContent) == null ? void 0 : _a.trim();
+      }
+      if (!title) throw new Error(`作业 ${curAssignId} 缺少真实标题`);
+      const finalUrl = isExperimentPage ? `${window.location.pathname}${window.location.search}` : currentCourseId ? `/assignment/index.jsp?courseID=${currentCourseId}&assignID=${curAssignId}` : `/assignment/index.jsp?assignID=${curAssignId}`;
+      const item = {
+        id: curAssignId,
+        courseId: isExperimentPage ? "" : currentCourseId,
+        courseName: isExperimentPage ? "云实验" : currentCourseName,
+        title,
+        deadline: curDetail.deadline || "",
+        deadlineTimestamp: curDetail.deadlineTimestamp,
+        remainingHours: curDetail.remainingHours,
+        remainingText: curDetail.remainingText,
+        status: curDetail.status,
+        urgency: calculateUrgency(curDetail.remainingHours),
+        url: finalUrl
+      };
+      if (client.db) {
+        await client.db.upsertAssignment(item);
+      }
     }
     const allAssignments = client.db ? await client.db.getAllAssignments() : [];
     mountNoDDLUI(client, storage, allAssignments, http);
@@ -8728,7 +8688,7 @@ ${markdown}` }
       const emailToken = await service.storage.get("nodd_email_token") || "";
       if (emailToken && service.baseUrl) {
         const dueSoon = allAssignments.filter(
-          (item) => item.status === "pending" && item.deadlineTimestamp > Date.now() && item.remainingHours <= hoursThreshold
+          (item) => item.deadlineTimestamp > Date.now() && item.remainingHours <= hoursThreshold
         );
         if (dueSoon.length > 0) {
           callEmailApi(http, service.baseUrl, "alert", { assignments: dueSoon }, emailToken).catch(console.error);

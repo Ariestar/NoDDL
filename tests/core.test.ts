@@ -235,15 +235,13 @@ test('云实验：保留原始实验入口链接', async () => {
   assert.strictEqual((await db.getAllAssignments())[0].url, '/exp/index.jsp?assignID=612');
 });
 
-test('归一化结构存储：彻底杜绝重复课程，规范解析与排序', async () => {
+test('归一化结构存储：始终采用本次解析的课程与截止信息', async () => {
   const db = new HomeworkDB(new MemoryStorage());
 
-  // 1. 先插入一个临时占位课程 "当前课程"
+  // 1. 先写入一条错误的旧课程记录
   await db.upsertCourse('184', '当前课程');
-  // 随后识别出规范课程名称 "离散数学" 并更新
-  await db.upsertCourse('184', '离散数学');
 
-  // 2. 插入未包含 DDL 的侧边栏作业
+  // 2. 侧边栏解析到临时课程和未知 DDL
   await db.upsertAssignment({
     id: '3548',
     courseId: '184',
@@ -258,7 +256,7 @@ test('归一化结构存储：彻底杜绝重复课程，规范解析与排序',
     url: '/assignment/index.jsp?assignID=3548'
   });
 
-  // 3. 抓取到详情后补齐精确 DDL
+  // 3. 详情解析提供真实课程、标题和 DDL，必须覆盖旧数据
   const ts = Date.UTC(2026, 9, 11, 23, 59, 0) - 8 * 3600 * 1000;
   await db.upsertAssignment({
     id: '3548',
@@ -274,29 +272,13 @@ test('归一化结构存储：彻底杜绝重复课程，规范解析与排序',
     url: '/assignment/index.jsp?courseID=184&assignID=3548'
   });
 
-  // 4. 重复插入同一作业不应生成重复条目
-  await db.upsertAssignment({
-    id: '3548',
-    courseId: '184',
-    courseName: '当前课程',
-    title: '第四周作业',
-    deadline: '请查看详情',
-    deadlineTimestamp: 0,
-    remainingHours: 9999,
-    remainingText: '待定',
-    status: 'pending',
-    urgency: 'normal',
-    url: '/assignment/index.jsp?assignID=3548'
-  });
-
   const list = await db.getAllAssignments();
-  // 必须仅有一项
   assert.strictEqual(list.length, 1);
   const item = list[0];
   assert.strictEqual(item.id, '3548');
-  assert.strictEqual(item.courseName, '离散数学'); // 课程名称必须关联为规范名称
-  assert.strictEqual(item.deadline, '2026-10-11 23:59:00'); // 合法 DDL 得到保留
-  assert.strictEqual(item.url, '/assignment/index.jsp?courseID=184&assignID=3548'); // 链接必须带有 courseID
+  assert.strictEqual(item.courseName, '离散数学');
+  assert.strictEqual(item.deadline, '2026-10-11 23:59:00');
+  assert.strictEqual(item.url, '/assignment/index.jsp?courseID=184&assignID=3548');
 });
 
 test('全量同步：提交真实课程切换并刷新时间与完成状态', async () => {
@@ -368,6 +350,19 @@ test('全量同步：返回课程上下文不一致时拒绝写入错误课程',
   };
 
   const client = new CourseGradingClient({}, http, storage);
+  await client.db?.upsertAssignment({
+    id: 'stale-1',
+    courseId: '184',
+    courseName: '离散数学',
+    title: '旧错配作业',
+    deadline: '2026-10-01 23:59:00',
+    deadlineTimestamp: Date.UTC(2026, 9, 1, 15, 59),
+    remainingHours: 1,
+    remainingText: '剩 1 小时',
+    status: 'pending',
+    urgency: 'urgent',
+    url: '/assignment/index.jsp?courseID=184&assignID=stale-1'
+  });
   await assert.rejects(
     () => client.safeSyncAllCourses('176'),
     /课程上下文不一致/

@@ -132,16 +132,14 @@ export class CourseGradingClient {
       return this.db.getAllAssignments();
     }
 
-    return allAssignments
-      .filter(item => item.status === 'pending')
-      .sort((a, b) => {
+    return allAssignments.sort((a, b) => {
         if (a.remainingHours > 0 && b.remainingHours <= 0) return -1;
         if (a.remainingHours <= 0 && b.remainingHours > 0) return 1;
         if (a.remainingHours > 0 && b.remainingHours > 0) {
           return a.deadlineTimestamp - b.deadlineTimestamp;
         }
         return b.deadlineTimestamp - a.deadlineTimestamp;
-      });
+    });
   }
 
   /**
@@ -159,9 +157,6 @@ export class CourseGradingClient {
       for (let i = 0; i < courses.length; i++) {
         const c = courses[i];
         if (onProgress) onProgress(`正在同步 [${i + 1}/${courses.length}] 《${c.name}》...`);
-        if (this.db) {
-          await this.db.upsertCourse(c.id, c.name);
-        }
         await this.enterCourse(c.id);
         const indexHtml = await this.http.get(
           `${this.baseUrl}/assignment/index.jsp`,
@@ -179,13 +174,12 @@ export class CourseGradingClient {
             `${this.baseUrl}/assignment/index.jsp?courseID=${c.id}&assignID=${item.id}`
           );
           syncedAssignments.push(item);
-
-          if (this.db) {
-            await this.db.upsertAssignment(item);
-          }
         }
-        await this.db?.removeAssignmentsNotInCourse(c.id, new Set(list.map(item => item.id)));
       }
+      await this.db?.replaceAssignments(syncedAssignments, courses);
+    } catch (error) {
+      await this.db?.replaceAssignments([], courses);
+      throw error;
     } finally {
       // 关键安全重置：必须立刻切回用户当前所在的课程上下文！
       if (currentCourseId) {
