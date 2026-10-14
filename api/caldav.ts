@@ -1,3 +1,1 @@
-import handler from './caldav/[...path].js';
-
-export default handler;
+export { default } from '../src/server/caldav.js';

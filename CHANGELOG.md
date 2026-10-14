@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.40 - 2026-10-15
+
+- Share one CalDAV handler between the root and collection routes for Vercel runtime compatibility.
+
 ## 1.0.39 - 2026-10-15
 
 - Add a root CalDAV endpoint so mobile clients can validate the server address.
