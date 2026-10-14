@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NoDDL",
-  "version": "1.0.38",
+  "version": "1.0.39",
   "description": "武汉大学人工智能学院专业课平台助手与自动同步。",
   "permissions": ["cookies"],
   "host_permissions": [

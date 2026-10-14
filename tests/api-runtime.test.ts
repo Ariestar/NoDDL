@@ -77,6 +77,12 @@ test('compiled API handlers load in plain Node and bind an encrypted session', (
       const calendar = await readCalendarFeed(feedToken);
       assert.match(calendar, /BEGIN:VCALENDAR/);
       assert.match(calendar, /X-WR-CALNAME:课程作业截止/);
+      const { default: caldav } = await import(base + 'caldav.js');
+      const caldavResponse = response();
+      const credentials = Buffer.from('noddl:' + feedToken).toString('base64');
+      await caldav({ method: 'GET', url: '/api/caldav', headers: { authorization: 'Basic ' + credentials } }, caldavResponse);
+      assert.equal(caldavResponse.statusCode, 200, caldavResponse.body);
+      assert.match(caldavResponse.body, /BEGIN:VCALENDAR/);
       console.log('API runtime and encrypted binding passed');
     `], { env, encoding: 'utf8' });
     assert.match(result, /API runtime and encrypted binding passed/);

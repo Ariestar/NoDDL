@@ -12,7 +12,8 @@ function xml(value: string): string {
 function tokenFromRequest(request: ApiRequest): string {
   const pathname = new URL(request.url || '/', 'https://calendar.local').pathname;
   const marker = '/api/caldav/';
-  const rest = pathname.slice(pathname.indexOf(marker) + marker.length);
+  const markerIndex = pathname.indexOf(marker);
+  const rest = markerIndex >= 0 ? pathname.slice(markerIndex + marker.length) : '';
   const pathToken = decodeURIComponent(rest.split('/')[0] || '');
   if (pathToken) return pathToken;
 
