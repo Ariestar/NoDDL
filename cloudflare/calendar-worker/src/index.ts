@@ -36,6 +36,12 @@ function eventIndex(request: Request): number | null {
   return match ? Number(match[1]) : null;
 }
 
+function requestedEventIndexes(body: string): number[] | null {
+  if (!body.includes('calendar-multiget')) return null;
+  const indexes = [...body.matchAll(/\/event\/(\d+)\.ics/g)].map(match => Number(match[1]));
+  return indexes.length > 0 ? [...new Set(indexes)] : [];
+}
+
 async function feed(token: string): Promise<Response> {
   return fetch(`${FEED_ORIGIN}/api/calendar/feed?token=${encodeURIComponent(token)}`, {
     headers: { 'User-Agent': 'NoDDL-Calendar-Worker/1.0' }
@@ -97,10 +103,17 @@ export default {
     }
 
     const base = `${url.origin}${url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`}`;
-    const children = events.map((event, index) => {
+    const reportBody = request.method === 'REPORT' ? await request.text() : '';
+    const requestedIndexes = requestedEventIndexes(reportBody);
+    const responseIndexes = requestedIndexes || events.map((_, index) => index);
+    const children = responseIndexes.filter(index => events[index]).map(index => {
+      const event = events[index];
       const eventCalendar = singleCalendar(calendar, event);
       return `<D:response><D:href>${xml(`${base}event/${index}.ics`)}</D:href><D:propstat><D:prop><D:getetag>&quot;${calendarTag}-${index}&quot;</D:getetag><D:getcontenttype>text/calendar; component=&quot;VEVENT&quot;</D:getcontenttype><C:calendar-data>${xml(eventCalendar)}</C:calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>`;
     }).join('');
-    return xmlResponse(`<?xml version="1.0" encoding="utf-8" ?><D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/"><D:response><D:href>${xml(base)}</D:href><D:propstat><D:prop><D:displayname>课程作业截止</D:displayname><D:resourcetype><D:collection/><C:calendar/></D:resourcetype><D:getetag>&quot;${calendarTag}&quot;</D:getetag><CS:getctag>${calendarTag}</CS:getctag><C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set><C:supported-calendar-data><C:calendar-data content-type="text/calendar" version="2.0"/></C:supported-calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>${children}</D:multistatus>`);
+    const collection = request.method === 'PROPFIND'
+      ? `<D:response><D:href>${xml(base)}</D:href><D:propstat><D:prop><D:displayname>课程作业截止</D:displayname><D:resourcetype><D:collection/><C:calendar/></D:resourcetype><D:getetag>&quot;${calendarTag}&quot;</D:getetag><CS:getctag>${calendarTag}</CS:getctag><C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set><C:supported-calendar-data><C:calendar-data content-type="text/calendar" version="2.0"/></C:supported-calendar-data></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>`
+      : '';
+    return xmlResponse(`<?xml version="1.0" encoding="utf-8" ?><D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">${collection}${children}</D:multistatus>`);
   }
 };
