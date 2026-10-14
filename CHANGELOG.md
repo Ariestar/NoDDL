@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.61 - 2026-10-15
+
+- Move CalDAV reads to the Cloudflare Worker and remove the Vercel CalDAV handlers and temporary deployment hosts.
+
 ## 1.0.60 - 2026-10-15
 
 - Point CalDAV setup at the latest verified deployment host after Vercel system mitigation on older hosts.

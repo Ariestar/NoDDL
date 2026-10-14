@@ -61,9 +61,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const calendarBaseUrl = apiBaseUrl === 'https://mail.sair-club.com'
-    ? 'https://nodd-l-email-iz08oebd0-ariestars-projects.vercel.app'
-    : apiBaseUrl;
+  const calendarBaseUrl = 'https://nodd-calendar.1941137088.workers.dev';
 
   useEffect(() => {
     (async () => {
