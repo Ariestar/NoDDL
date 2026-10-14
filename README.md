@@ -145,13 +145,13 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 
 [![Deploy calendar edge to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Ariestar/NoDDL/tree/main/cloudflare/calendar-worker)
 
-点击按钮并登录 Cloudflare，Cloudflare 会把日历 Worker 部署到你的账号，并自动提供一个 `workers.dev` 地址，不需要购买域名。部署完成后，把下面的地址填入 Vivo 日历的服务器地址：
+点击按钮并登录 Cloudflare，Cloudflare 会把日历 Worker 部署到你的账号，并自动提供一个 `workers.dev` 地址，不需要购买域名。部署完成后，把下面的地址填入手机日历的服务器地址：
 
 ```text
 https://你的 Worker 名称.你的 Cloudflare 子域.workers.dev/api/caldav-server/
 ```
 
-Vivo 日历填写：
+手机日历填写：
 
 | 字段 | 填写内容 |
 | --- | --- |

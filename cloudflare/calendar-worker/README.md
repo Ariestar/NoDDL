@@ -8,7 +8,7 @@ This Worker is the public CalDAV edge for the phone calendar. It reads the publi
 
 Click the button above, sign in to Cloudflare, and choose a Worker name. Cloudflare deploys the Worker to your account and provides a `workers.dev` address; a custom domain is not required.
 
-Use this path as the Vivo calendar server address:
+Use this path as the phone calendar server address:
 
 ```text
 https://<your-worker>.<your-cloudflare-subdomain>.workers.dev/api/caldav-server/
