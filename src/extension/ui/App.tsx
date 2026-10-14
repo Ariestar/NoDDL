@@ -62,7 +62,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   };
 
   const calendarBaseUrl = apiBaseUrl === 'https://mail.sair-club.com'
-    ? 'https://nodd-l-email-git-main-ariestars-projects.vercel.app'
+    ? 'https://nodd-l-email.vercel.app'
     : apiBaseUrl;
 
   useEffect(() => {

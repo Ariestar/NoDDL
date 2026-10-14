@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.58 - 2026-10-15
+
+- Use the canonical Vercel domain for CalDAV clients instead of domains challenged by Vercel Firewall.
+
 ## 1.0.57 - 2026-10-15
 
 - Use the stable Vercel project domain for CalDAV clients that are challenged on the custom domain.
