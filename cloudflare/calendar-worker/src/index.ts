@@ -39,7 +39,7 @@ function eventIndex(request: Request): number | null {
 function requestedEventIndexes(body: string): number[] | null {
   if (!body.includes('calendar-multiget')) return null;
   const indexes = [...body.matchAll(/\/event\/(\d+)\.ics/g)].map(match => Number(match[1]));
-  return indexes.length > 0 ? [...new Set(indexes)] : [];
+  return indexes.length > 0 ? [...new Set(indexes)] : null;
 }
 
 async function feed(token: string): Promise<Response> {
