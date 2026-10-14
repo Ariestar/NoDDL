@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.38 - 2026-10-15
+
+- Use the tokenized CalDAV endpoint as the mobile calendar server address.
+
 ## 1.0.37 - 2026-10-15
 
 - Make automatic sync switchable while keeping it enabled by default.
