@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Remove an unused CLI copy script and a one-use UI barrel export.
+
 ## 1.0.32 - 2026-10-15
 
 - Route extension API calls through the service worker to avoid page CORS restrictions.
