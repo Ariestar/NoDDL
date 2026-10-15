@@ -63,7 +63,9 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 - `RESEND_API_KEY`：启用邮箱提醒时需要
 - `RESEND_FROM`：可选，默认使用 `onboarding@resend.dev`
 
-部署完成后，把 Worker 地址填入扩展设置的“服务地址”，例如：
+部署工作流会自动启用 `workers.dev` 路由，并在 GitHub Actions 运行结果中生成 `NoDDL-extension-self-hosted` 构建包。下载这个构建包并加载后，扩展已经写入你的 Worker 地址，不需要再手动填写服务地址。
+
+如果只下载通用 Release 扩展，才需要在“高级设置”中填入 Worker 地址，例如：
 
 ```text
 https://你的 Worker 名称.你的 Cloudflare 子域.workers.dev

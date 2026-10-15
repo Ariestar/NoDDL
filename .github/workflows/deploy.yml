@@ -37,3 +37,45 @@ jobs:
       - name: Deploy Worker and apply D1 migrations
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' }}
         run: pnpm deploy
+
+      - name: Enable workers.dev and resolve Worker URL
+        id: worker
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/nodd/subdomain"
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --data '{"enabled":true}' \
+            "$endpoint" >/dev/null
+          status="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "$endpoint")"
+          enabled="$(jq --raw-output --exit-status '.result.enabled' <<<"$status")"
+          subdomain="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain" \
+            | jq --raw-output --exit-status '.result.subdomain')"
+          test "$enabled" = true
+          echo "base_url=https://nodd.${subdomain}.workers.dev" >> "$GITHUB_OUTPUT"
+
+      - name: Build self-hosted extension
+        if: ${{ steps.worker.outputs.base_url != '' }}
+        env:
+          VITE_API_BASE_URL: ${{ steps.worker.outputs.base_url }}
+        run: pnpm build:extension
+
+      - name: Package self-hosted extension
+        if: ${{ steps.worker.outputs.base_url != '' }}
+        run: zip -r NoDDL-extension-self-hosted.zip extension
+
+      - name: Upload self-hosted extension
+        if: ${{ steps.worker.outputs.base_url != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoDDL-extension-self-hosted
+          path: NoDDL-extension-self-hosted.zip
+          if-no-files-found: error
