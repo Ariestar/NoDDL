@@ -1,0 +1,41 @@
+name: Release Chrome extension
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.13.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --allow-build esbuild
+
+      - name: Build extension
+        run: pnpm build:extension
+
+      - name: Package extension
+        run: zip -r "NoDDL-extension-${GITHUB_REF_NAME}.zip" extension
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" "NoDDL-extension-${GITHUB_REF_NAME}.zip" --generate-notes --title "$GITHUB_REF_NAME"
