@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.69 - 2026-10-15
+
+- Generate and preserve the Worker session encryption key during deployment.
+
 ## 1.0.68 - 2026-10-15
 
 - Remove the unused manual cron secret from the Cloudflare deployment.
