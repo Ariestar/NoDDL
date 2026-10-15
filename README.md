@@ -14,12 +14,7 @@
 按照 [Chrome 扩展安装说明](extension/README.md) 加载 `extension` 目录。
 
 ### 主要功能
-访问 `http://115.156.107.145/` 后自动启用：
-* **死线倒计时横幅**：顶部常驻显示最近截止作业倒计时，支持展开未完成列表。
-* **测试用例复制**：在题目页所有 `<pre>` 样例右上角注入「📋 复制样例」按钮。
-* **代码自动暂存**：编辑框输入自动保存到本地，误关网页可一键「💾 恢复自动暂存代码」。
-* **推送配置**：横幅右上角点击「⚙️ 推送设置」，填入 PushPlus Token 或 Bark URL。
-*(本地开发调试构建产物位于 `extension/nodd-extension.js`)*
+访问 `http://115.156.107.145/` 后自动启用。
 
 ---
 
@@ -51,6 +46,7 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 
 ## ☁️ 一键部署到 Cloudflare
 
+[![Fork on GitHub](https://img.shields.io/badge/Fork_on_GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Ariestar/NoDDL/fork)
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/)
 
 先将仓库 Fork 到自己的 GitHub 账户。点击按钮后选择 **Continue with GitHub**，再选择自己的 NoDDL Fork 和 `main` 分支。这样由 Cloudflare 的 GitHub 授权连接读取仓库，避免匿名仓库预检的 GitHub API 限流。Cloudflare Worker 现在同时提供课程 API、自动同步、Feed 和 CalDAV。部署脚本会自动创建 D1 数据库并生成加密密钥；首次部署后，在 Worker 设置中填写：
