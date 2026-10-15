@@ -13,9 +13,10 @@
 NoDDL 只支持自托管。每个用户都使用自己的 Cloudflare Worker、D1 数据库和加密密钥，课程会话不会进入共享服务。
 
 1. [Fork 仓库](https://github.com/Ariestar/NoDDL/fork) 到自己的 GitHub 账户。
-2. 按下面的“自托管到 Cloudflare”流程部署 Worker。
-3. 从 Fork 的 Actions 下载 `NoDDL-extension-self-hosted`，解压后打开 `chrome://extensions`，启用“开发者模式”，选择“加载已解压的扩展程序”，选中其中的 `extension` 目录。
-4. 登录课程平台，扩展会自动绑定课程会话。
+2. 打开 Fork 的 **Actions** 页面，点击 **I understand my workflows, enable them**。
+3. 按下面的“自托管到 Cloudflare”流程部署 Worker。
+4. 从 Fork 的 Actions 下载 `NoDDL-extension-self-hosted`，解压后打开 `chrome://extensions`，启用“开发者模式”，选择“加载已解压的扩展程序”，选中其中的 `extension` 目录。
+5. 登录课程平台，扩展会自动绑定课程会话。
 
 ## 💻 1. Chrome 扩展说明
 
@@ -56,15 +57,16 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 ## ☁️ 自托管到 Cloudflare
 
 [![Fork on GitHub](https://img.shields.io/badge/Fork_on_GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Ariestar/NoDDL/fork)
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Ariestar/NoDDL)
 
 按下面流程完成自己的 Worker 和数据存储：
 
 1. 将仓库 [Fork 到自己的 GitHub 账户](https://github.com/Ariestar/NoDDL/fork)。
-2. 点击上面的 Cloudflare 按钮，选择 **Continue with GitHub**，再选择自己的 Fork 和 `main` 分支。
-3. 等待 Fork 中的 **Deploy to Cloudflare** 工作流完成。工作流会自动创建 D1、生成加密密钥、启用 `workers.dev` 并部署 Worker。
-4. 打开 Fork 的 **Actions** 页面，进入最新一次部署运行，下载构建产物 `NoDDL-extension-self-hosted`。
-5. 解压构建产物，在 `chrome://extensions` 中加载其中的 `extension` 目录。
+2. 打开 Fork 的 **Actions** 页面，点击 **I understand my workflows, enable them**。这是 GitHub 对新 Fork 的安全要求，仓库代码无法代替用户开启 Actions。
+3. 点击上面的 Cloudflare 按钮，选择 **Continue with GitHub**，再选择自己的 Fork 和 `main` 分支。
+4. Cloudflare 会向 Fork 发送部署事件；如果你是在启用 Actions 之前点击的按钮，打开 Fork 的 **Actions → Deploy to Cloudflare → Run workflow** 手动补触发一次。
+5. 等待部署完成。工作流会自动创建 D1、生成加密密钥、启用 `workers.dev`、部署 Worker 并构建自托管扩展。
+6. 在最新一次运行中下载 `NoDDL-extension-self-hosted`，解压后在 `chrome://extensions` 中加载其中的 `extension` 目录。
 
 邮件提醒的可选配置：
 

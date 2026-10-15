@@ -4,7 +4,7 @@ This MV3 extension contains the NoDDL page assistant and reads the platform's Ht
 
 ## Download and install
 
-Deploy your own Worker first, then download the `NoDDL-extension-self-hosted` artifact from your Fork's latest successful **Deploy to Cloudflare** workflow. The build contains your Worker URL and never uses a shared public service.
+Deploy your own Worker first, then download the `NoDDL-extension-self-hosted` artifact from your Fork's latest successful **Deploy to Cloudflare** workflow. New Forks must first enable workflows from the **Actions** page. The build contains your Worker URL and never uses a shared public service.
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
