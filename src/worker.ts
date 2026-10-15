@@ -21,6 +21,12 @@ interface Env {
   EMAIL_CODE_SECRET?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM?: string;
+  CF_OAUTH_CLIENT_ID?: string;
+  CF_OAUTH_CLIENT_SECRET?: string;
+  CF_OAUTH_REDIRECT_URI?: string;
+  CF_OAUTH_SCOPE?: string;
+  OAUTH_STATE_SECRET?: string;
+  NODDL_RELEASE_WEBHOOK_SECRET?: string;
 }
 
 interface StoredAccount {
@@ -346,8 +352,157 @@ async function syncAll(env: Env): Promise<void> {
   }
 }
 
+const CF_OAUTH_AUTH = 'https://dash.cloudflare.com/oauth2/auth';
+const CF_OAUTH_TOKEN = 'https://dash.cloudflare.com/oauth2/token';
+const CF_API = 'https://api.cloudflare.com/client/v4';
+const OAUTH_COOKIE = 'nodd_oauth_state';
+
+function required(value: string | undefined, name: string): string {
+  if (!value) throw new Error(`${name} is not configured`);
+  return value;
+}
+
+function oauthSecret(env: Env): string {
+  const secret = required(env.OAUTH_STATE_SECRET, 'OAUTH_STATE_SECRET');
+  if (secret.length < 32) throw new Error('OAUTH_STATE_SECRET must contain at least 32 characters');
+  return secret;
+}
+
+function escapeHtml(value: string): string {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
+function oauthPage(status: number, title: string, messageText: string, headers: Record<string, string> = {}): Response {
+  return new Response(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(title)}</title><main style="font:16px system-ui;max-width:36rem;margin:8rem auto;padding:0 1rem"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(messageText)}</p></main>`, {
+    status,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', ...headers }
+  });
+}
+
+function oauthCookie(request: Request): string {
+  return request.headers.get('Cookie')?.split(';').map(item => item.trim()).find(item => item.startsWith(`${OAUTH_COOKIE}=`))?.slice(OAUTH_COOKIE.length + 1) || '';
+}
+
+function parseWorkerUrl(value: string): { url: string; name: string } {
+  const url = new URL(value);
+  if (url.protocol !== 'https:' || !url.hostname.endsWith('.workers.dev') || url.pathname !== '/' || url.search || url.hash) throw new Error('Worker 地址必须是 workers.dev 根地址');
+  const parts = url.hostname.split('.');
+  if (parts.length < 3 || !parts[0]) throw new Error('Worker 地址无效');
+  return { url: url.origin, name: parts[0] };
+}
+
+async function verifyHmac(secret: string, value: string, signature: string): Promise<boolean> {
+  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+  return crypto.subtle.verify('HMAC', key, fromBase64url(signature) as BufferSource, encoder.encode(value));
+}
+
+async function verifyOAuthState(value: string, secret: string): Promise<{ worker: { url: string; name: string }; verifier: string }> {
+  const [encoded, signature] = value.split('.');
+  if (!encoded || !signature || !(await verifyHmac(secret, encoded, signature))) throw new Error('OAuth state is invalid');
+  const payload = JSON.parse(new TextDecoder().decode(fromBase64url(encoded))) as { worker?: { url?: string; name?: string }; verifier?: string; expiresAt?: number };
+  if (!payload.expiresAt || payload.expiresAt < Date.now() || !payload.verifier || !payload.worker?.url || !payload.worker.name) throw new Error('OAuth state is expired');
+  return { worker: { url: payload.worker.url, name: payload.worker.name }, verifier: payload.verifier };
+}
+
+async function cloudflareApi<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${CF_API}${path}`, { ...options, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(options.headers || {}) } });
+  const body = await response.json() as { success?: boolean; errors?: Array<{ message?: string }>; result?: T };
+  if (!response.ok || body.success === false || body.result === undefined) throw new Error(body.errors?.map(error => error.message || 'Cloudflare API error').join('; ') || `Cloudflare API HTTP ${response.status}`);
+  return body.result;
+}
+
+async function findWorker(token: string, name: string): Promise<{ id: string; name: string }> {
+  const accounts = await cloudflareApi<Array<{ id: string }>>('/accounts?per_page=100', token);
+  const matches: Array<{ id: string; name: string }> = [];
+  for (const account of accounts) {
+    const scripts = await cloudflareApi<Array<{ id?: string }>>(`/accounts/${account.id}/workers/scripts`, token);
+    if (scripts.some(script => script.id === name)) matches.push({ id: account.id, name });
+  }
+  if (matches.length === 0) throw new Error(`Cloudflare 中未找到 Worker ${name}`);
+  if (matches.length > 1) throw new Error(`Cloudflare 中有多个同名 Worker ${name}，无法安全判断所属账户`);
+  return matches[0];
+}
+
+async function deployHook(token: string, accountId: string, workerName: string): Promise<string> {
+  const path = `/accounts/${accountId}/builds/workers/${encodeURIComponent(workerName)}/deploy_hooks`;
+  const existing = await cloudflareApi<Array<{ deploy_hook_name?: string; branch?: string; deploy_hook_uuid?: string }>>(path, token);
+  const current = existing.find(item => item.deploy_hook_name === 'NoDDL automatic updates' && item.branch === 'main');
+  if (current?.deploy_hook_uuid) return current.deploy_hook_uuid;
+  const created = await cloudflareApi<{ deploy_hook_uuid?: string }>(path, token, { method: 'POST', body: JSON.stringify({ branch: 'main', deploy_hook_name: 'NoDDL automatic updates' }) });
+  if (!created.deploy_hook_uuid) throw new Error('Cloudflare 未返回 Deploy Hook');
+  return created.deploy_hook_uuid;
+}
+
+async function saveOAuthRegistration(env: Env, value: { workerUrl: string; workerName: string; accountId: string; hookUrl: string }): Promise<void> {
+  await env.DB.prepare(`INSERT INTO oauth_registrations(worker_url, worker_name, account_id, hook_url, updated_at) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(worker_url) DO UPDATE SET worker_name = excluded.worker_name, account_id = excluded.account_id, hook_url = excluded.hook_url, updated_at = excluded.updated_at`)
+    .bind(value.workerUrl, value.workerName, value.accountId, await encrypt(value.hookUrl, oauthSecret(env)), Date.now()).run();
+}
+
+async function listOAuthRegistrations(env: Env): Promise<Array<{ workerName: string; hookUrl: string }>> {
+  const rows = await env.DB.prepare('SELECT worker_name, hook_url FROM oauth_registrations').all<{ worker_name: string; hook_url: string }>();
+  return Promise.all(rows.results.map(async row => ({ workerName: row.worker_name, hookUrl: await decrypt(row.hook_url, oauthSecret(env)) })));
+}
+
+async function oauthRoute(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'GET') return oauthPage(405, 'NoDDL 自动更新', '只支持 GET 请求');
+  const url = new URL(request.url);
+  const secret = oauthSecret(env);
+  if (!url.searchParams.has('code') && !url.searchParams.has('error')) {
+    const worker = parseWorkerUrl(url.searchParams.get('worker') || '');
+    const verifier = randomToken();
+    const challenge = base64url(await sha256(verifier));
+    const encoded = base64url(encoder.encode(JSON.stringify({ worker, verifier, expiresAt: Date.now() + 10 * 60 * 1000 })));
+    const state = `${encoded}.${await hmac(secret, encoded)}`;
+    const target = new URL(CF_OAUTH_AUTH);
+    target.searchParams.set('client_id', required(env.CF_OAUTH_CLIENT_ID, 'CF_OAUTH_CLIENT_ID'));
+    target.searchParams.set('redirect_uri', required(env.CF_OAUTH_REDIRECT_URI, 'CF_OAUTH_REDIRECT_URI'));
+    target.searchParams.set('response_type', 'code');
+    target.searchParams.set('scope', required(env.CF_OAUTH_SCOPE, 'CF_OAUTH_SCOPE'));
+    target.searchParams.set('state', state);
+    target.searchParams.set('code_challenge', challenge);
+    target.searchParams.set('code_challenge_method', 'S256');
+    return new Response(null, { status: 302, headers: { Location: target.toString(), 'Set-Cookie': `${OAUTH_COOKIE}=${state}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/api/oauth` } });
+  }
+
+  const queryState = url.searchParams.get('state') || '';
+  const cookieState = oauthCookie(request);
+  if (!queryState || queryState !== cookieState) throw new Error('OAuth state mismatch');
+  const state = await verifyOAuthState(queryState, secret);
+  const clearCookie = `${OAUTH_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Path=/api/oauth`;
+  if (url.searchParams.has('error')) return oauthPage(400, 'NoDDL 自动更新未开启', url.searchParams.get('error_description') || 'Cloudflare 拒绝了授权', { 'Set-Cookie': clearCookie });
+  const tokenResponse = await fetch(CF_OAUTH_TOKEN, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'authorization_code', code: url.searchParams.get('code') || '', client_id: required(env.CF_OAUTH_CLIENT_ID, 'CF_OAUTH_CLIENT_ID'), client_secret: required(env.CF_OAUTH_CLIENT_SECRET, 'CF_OAUTH_CLIENT_SECRET'), redirect_uri: required(env.CF_OAUTH_REDIRECT_URI, 'CF_OAUTH_REDIRECT_URI'), code_verifier: state.verifier })
+  });
+  const token = await tokenResponse.json() as { access_token?: string; error_description?: string };
+  if (!tokenResponse.ok || !token.access_token) throw new Error(token.error_description || 'Cloudflare OAuth 换取 Token 失败');
+  const worker = await findWorker(token.access_token, state.worker.name);
+  const hookId = await deployHook(token.access_token, worker.id, worker.name);
+  await saveOAuthRegistration(env, { workerUrl: state.worker.url, workerName: worker.name, accountId: worker.id, hookUrl: `${CF_API}/workers/builds/deploy_hooks/${hookId}` });
+  return oauthPage(200, 'NoDDL 自动更新已开启', `Worker ${state.worker.url} 已完成授权。以后官方发布新版本时，该 Worker 会自动部署。`, { 'Set-Cookie': clearCookie });
+}
+
+async function releaseDispatch(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') return json({ error: 'Method Not Allowed' }, 405);
+  if (request.headers.get('Authorization') !== `Bearer ${required(env.NODDL_RELEASE_WEBHOOK_SECRET, 'NODDL_RELEASE_WEBHOOK_SECRET')}`) return json({ error: 'Unauthorized' }, 401);
+  const body = await request.json() as { tag?: unknown };
+  if (typeof body.tag !== 'string' || !/^v\d+\.\d+\.\d+$/.test(body.tag)) return json({ error: 'Invalid release tag' }, 400);
+  const registrations = await listOAuthRegistrations(env);
+  const results = await Promise.allSettled(registrations.map(async registration => {
+    const response = await fetch(registration.hookUrl, { method: 'POST' });
+    if (!response.ok) throw new Error(`${registration.workerName}: HTTP ${response.status}`);
+    return registration.workerName;
+  }));
+  const failed = results.filter(result => result.status === 'rejected').map(result => String(result.reason));
+  return json({ tag: body.tag, triggered: results.length - failed.length, failed }, failed.length ? 502 : 200);
+}
+
 async function api(request: Request, env: Env, path: string): Promise<Response> {
   if (path === '/api/health' && request.method === 'GET') return json({ ok: true });
+  if (path === '/api/oauth') return oauthRoute(request, env);
+  if (path === '/api/release-dispatch') return releaseDispatch(request, env);
   if (path === '/api/calendar/feed' && request.method === 'GET') {
     const token = new URL(request.url).searchParams.get('token') || '';
     return new Response(calendarText(await readFeed(env, token)), { headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'no-cache' } });

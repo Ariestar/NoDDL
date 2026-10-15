@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add one-click Cloudflare OAuth setup for automatic self-hosted updates.
 - Remove a one-use UI barrel export.
 
 ## 1.0.72 - 2026-10-16

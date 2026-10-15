@@ -78,7 +78,7 @@ https://你的 Worker 名称.你的 Cloudflare 子域.workers.dev
 
 扩展会自动绑定课程会话；每天北京时间 02:00 由 Cloudflare Cron 抓取全部课程、作业和云实验并更新日历 Feed。手机日历使用扩展生成的服务器地址、账户名 `noddl` 和 Feed Token。
 
-克隆仓库会每天检查 `Ariestar/NoDDL` 的最新 Release。发现新版本时，`Deploy NoDDL release` 工作流只下载官方 Worker 构建包并部署，始终保留你自己的 `wrangler.toml`，不会修改你的源码、创建分支或 PR。首次使用需要在仓库的 Actions Secrets 中添加 `CLOUDFLARE_API_TOKEN` 和 `CLOUDFLARE_ACCOUNT_ID`；之后更新由你的仓库自动完成。首次部署完成后，建议在 Cloudflare Workers Builds 中关闭 Git 推送触发，避免它和 Release 部署同时运行。
+部署完成后，在扩展的“自动同步”卡片中点击“开启自动更新”，登录 Cloudflare 并授权一次。NoDDL 会自动为你的 Worker 配置 Release 更新触发器；之后官方发布新版本时，Cloudflare Workers Builds 会自动拉取并部署，用户仓库不会收到同步 PR，也不需要填写 Cloudflare API Token、Account ID 或 Deploy Hook。
 
 邮件提醒使用 Resend 作为发信服务，其余运行时数据都保存在 Cloudflare D1。
 

@@ -56,6 +56,7 @@ jobs:
           cp -R src/core "$staging/src/core"
           cp -R migrations "$staging/migrations"
           mkdir -p "$staging/scripts"
+          cp scripts/deploy-release.mjs "$staging/scripts/deploy-release.mjs"
           cp scripts/ensure-sync-key.mjs "$staging/scripts/ensure-sync-key.mjs"
           cp package.json pnpm-lock.yaml tsconfig.json "$staging/"
           tar -czf "NoDDL-worker-v${{ steps.package.outputs.version }}.tar.gz" -C "$staging" .
@@ -67,8 +68,22 @@ jobs:
         run: |
           extension_artifact="NoDDL-extension-${TAG}.zip"
           worker_artifact="NoDDL-worker-${TAG}.tar.gz"
+          worker_latest_artifact="NoDDL-worker-latest.tar.gz"
+          cp "$worker_artifact" "$worker_latest_artifact"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$extension_artifact" "$worker_artifact" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$TAG" "$extension_artifact" "$worker_artifact" "$worker_latest_artifact" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$TAG" "$extension_artifact" "$worker_artifact" --repo "$GITHUB_REPOSITORY" --generate-notes --title "$TAG"
+            gh release create "$TAG" "$extension_artifact" "$worker_artifact" "$worker_latest_artifact" --repo "$GITHUB_REPOSITORY" --generate-notes --title "$TAG"
           fi
+
+      - name: Trigger self-hosted updates
+        if: env.RELEASE_WEBHOOK_SECRET != ''
+        env:
+          RELEASE_WEBHOOK_SECRET: ${{ secrets.NODDL_RELEASE_WEBHOOK_SECRET }}
+          RELEASE_TAG: v${{ steps.package.outputs.version }}
+        run: |
+          curl --fail-with-body --silent --show-error \
+            -X POST "https://mail.sair-club.com/api/release-dispatch" \
+            -H "Authorization: Bearer $RELEASE_WEBHOOK_SECRET" \
+            -H "Content-Type: application/json" \
+            --data "{\"tag\":\"$RELEASE_TAG\"}"

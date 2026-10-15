@@ -4,5 +4,4 @@ node_modules/
 pnpm-workspace.yaml
 .env
 .env.*
-.vercel/
 !.env.example

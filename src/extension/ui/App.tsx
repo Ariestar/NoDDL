@@ -16,6 +16,8 @@ import { AUTO_SYNC_TOKEN_KEY, bindAutomaticSync, getAutomaticSyncStatus, setAuto
 import { readCourseSessionCookie } from '../session-bridge';
 import petImage from './assets/nodd-pet.png';
 
+const AUTO_UPDATE_SETUP_URL = 'https://mail.sair-club.com/api/oauth';
+
 interface AppProps {
   client: CourseGradingClient;
   storage: BrowserStorage;
@@ -175,6 +177,11 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
     showToast('日历文件已导出');
+  };
+
+  const enableAutomaticUpdates = () => {
+    if (!apiBaseUrl) return;
+    window.open(`${AUTO_UPDATE_SETUP_URL}?worker=${encodeURIComponent(apiBaseUrl)}`, '_blank', 'noopener,noreferrer');
   };
 
   const publishCalendar = async (sourceAssignments: Assignment[], configured: ServiceConfig): Promise<number> => {
@@ -536,19 +543,22 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                   <div className="card-body gap-3 p-4">
                     <div className="flex items-center justify-between gap-2">
                       <h2 className="card-title text-base">自动同步</h2>
-                      <label className="flex items-center gap-2 text-sm font-medium">
-                        <span>{autoSyncToken ? '已开启' : apiBaseUrl ? '绑定中' : '未配置'}</span>
-                        <input
-                          type="checkbox"
-                          className="toggle toggle-primary"
-                          checked={autoSyncEnabled}
-                          disabled={!apiBaseUrl || autoSyncBusy}
-                          aria-label="自动同步"
-                          onChange={(event) => {
-                            void toggleAutomaticSync((event.currentTarget as HTMLInputElement).checked);
-                          }}
-                        />
-                      </label>
+                      <div className="flex items-center gap-2">
+                        <button className="btn btn-outline btn-xs" disabled={!apiBaseUrl} onClick={enableAutomaticUpdates}>开启自动更新</button>
+                        <label className="flex items-center gap-2 text-sm font-medium">
+                          <span>{autoSyncToken ? '已开启' : apiBaseUrl ? '绑定中' : '未配置'}</span>
+                          <input
+                            type="checkbox"
+                            className="toggle toggle-primary"
+                            checked={autoSyncEnabled}
+                            disabled={!apiBaseUrl || autoSyncBusy}
+                            aria-label="自动同步"
+                            onChange={(event) => {
+                              void toggleAutomaticSync((event.currentTarget as HTMLInputElement).checked);
+                            }}
+                          />
+                        </label>
+                      </div>
                     </div>
                     <p className="text-xs text-base-content/60">
                       扩展打开后自动绑定课程会话；服务端每天抓取全部课程、作业和云实验，日历订阅也会随之更新。
