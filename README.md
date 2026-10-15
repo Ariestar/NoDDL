@@ -56,7 +56,9 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Ariestar/NoDDL)
 
-使用 Deploy 按钮时，Cloudflare 会自动创建你的 Git 仓库、配置 Workers Builds、创建 D1 并部署 Worker。后续向仓库 `main` 分支推送代码时，Cloudflare 会自动重新部署，不需要 GitHub Actions。
+使用 Deploy 按钮时，Cloudflare 会要求授权一个 GitHub 或 GitLab 账号，因为它会先把模板克隆到你的账号，再配置 Workers Builds、创建 D1 并部署 Worker。后续向仓库 `main` 分支推送代码时，Cloudflare 会自动重新部署，不需要 GitHub Actions。这是 Cloudflare Deploy Button 的固定流程，不能通过仓库配置取消 Git 授权。
+
+如果不想绑定 Git 账号，就不能使用这个按钮；需要改用 Wrangler 或 Cloudflare API 上传，并单独完成 Cloudflare 登录、D1 初始化和密钥配置。
 
 如果你登录的 GitHub 账号就是 `Ariestar`，请在 Cloudflare Workers & Pages 中选择“导入现有 Git 仓库”，直接选择 `Ariestar/NoDDL`；Deploy 按钮用于把公开模板克隆到其他账号，不能克隆到已经存在的同名仓库。
 
