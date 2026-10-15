@@ -46,14 +46,29 @@ jobs:
       - name: Package extension
         run: zip -r "NoDDL-extension-v${{ steps.package.outputs.version }}.zip" extension
 
+      - name: Package Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          staging="$RUNNER_TEMP/noddl-worker"
+          mkdir -p "$staging/src"
+          cp src/worker.ts "$staging/src/worker.ts"
+          cp -R src/core "$staging/src/core"
+          cp -R migrations "$staging/migrations"
+          mkdir -p "$staging/scripts"
+          cp scripts/ensure-sync-key.mjs "$staging/scripts/ensure-sync-key.mjs"
+          cp package.json pnpm-lock.yaml tsconfig.json "$staging/"
+          tar -czf "NoDDL-worker-v${{ steps.package.outputs.version }}.tar.gz" -C "$staging" .
+
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: v${{ steps.package.outputs.version }}
         run: |
-          artifact="NoDDL-extension-${TAG}.zip"
+          extension_artifact="NoDDL-extension-${TAG}.zip"
+          worker_artifact="NoDDL-worker-${TAG}.tar.gz"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$artifact" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$TAG" "$extension_artifact" "$worker_artifact" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$TAG" "$artifact" --repo "$GITHUB_REPOSITORY" --generate-notes --title "$TAG"
+            gh release create "$TAG" "$extension_artifact" "$worker_artifact" --repo "$GITHUB_REPOSITORY" --generate-notes --title "$TAG"
           fi
