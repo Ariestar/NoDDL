@@ -44,7 +44,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          endpoint="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/nodd/subdomain"
+          worker_name="$(node <<'NODE'
+          const fs = require('node:fs');
+          const config = fs.readFileSync('wrangler.toml', 'utf8');
+          const match = config.match(/^\s*name\s*=\s*["']([^"']+)["']\s*$/m);
+          if (!match) {
+            console.error('wrangler.toml must define a Worker name');
+            process.exit(1);
+          }
+          process.stdout.write(match[1]);
+          NODE
+          )"
+          endpoint="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${worker_name}/subdomain"
           curl --fail-with-body --silent --show-error \
             --request POST \
             --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
@@ -60,7 +71,7 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain" \
             | jq --raw-output --exit-status '.result.subdomain')"
           test "$enabled" = true
-          echo "base_url=https://nodd.${subdomain}.workers.dev" >> "$GITHUB_OUTPUT"
+          echo "base_url=https://${worker_name}.${subdomain}.workers.dev" >> "$GITHUB_OUTPUT"
 
       - name: Build self-hosted extension
         if: ${{ steps.worker.outputs.base_url != '' }}
