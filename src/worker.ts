@@ -21,7 +21,6 @@ interface Env {
   EMAIL_CODE_SECRET?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM?: string;
-  CRON_SECRET?: string;
 }
 
 interface StoredAccount {
@@ -335,19 +334,16 @@ async function syncAccount(env: Env, row: StoredAccount): Promise<void> {
   await saveAccount(env, { ...row, assignments: list, updatedAt: Date.now(), lastSyncAt: Date.now(), lastError: undefined });
 }
 
-async function syncAll(env: Env): Promise<{ total: number; succeeded: number; failed: number }> {
+async function syncAll(env: Env): Promise<void> {
   const rows = await env.DB.prepare('SELECT * FROM accounts WHERE enabled = 1').all<Record<string, unknown>>();
-  let succeeded = 0;
   for (const row of rows.results) {
     const current = await readAccount(env, String(row.token));
     try {
       await syncAccount(env, current);
-      succeeded += 1;
     } catch (error) {
       await saveAccount(env, { ...current, updatedAt: Date.now(), lastError: message(error) });
     }
   }
-  return { total: rows.results.length, succeeded, failed: rows.results.length - succeeded };
 }
 
 async function api(request: Request, env: Env, path: string): Promise<Response> {
@@ -381,10 +377,6 @@ async function api(request: Request, env: Env, path: string): Promise<Response> 
   }
   if (path === '/api/sync/assignments' && request.method === 'GET') return json({ assignments: (await readAccount(env, bearer(request))).assignments });
   if (path.startsWith('/api/email/')) return emailRoute(request, env, path.slice('/api/email/'.length));
-  if (path === '/api/cron/sync' && request.method === 'GET') {
-    if (!env.CRON_SECRET || request.headers.get('Authorization') !== `Bearer ${env.CRON_SECRET}`) return new Response('Unauthorized', { status: 401 });
-    return json(await syncAll(env));
-  }
   return json({ error: 'Not found' }, 404);
 }
 

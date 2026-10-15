@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.68 - 2026-10-15
+
+- Remove the unused manual cron secret from the Cloudflare deployment.
+
 ## 1.0.67 - 2026-10-15
 
 - Move the API, automatic sync, calendar feed, and CalDAV service to Cloudflare Workers and D1.

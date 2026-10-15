@@ -126,7 +126,6 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 Cloudflare Worker 现在同时提供课程 API、自动同步、Feed 和 CalDAV。部署向导会创建 D1 数据库；首次部署后，在 Worker 设置中填写：
 
 - `SYNC_ENCRYPTION_KEY`：至少 32 位随机字符串
-- `CRON_SECRET`：至少 32 位随机字符串
 - `EMAIL_CODE_SECRET`：至少 32 位随机字符串（启用邮箱提醒时需要）
 - `RESEND_API_KEY`：启用邮箱提醒时需要
 - `RESEND_FROM`：可选，默认使用 `onboarding@resend.dev`
