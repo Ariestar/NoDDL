@@ -58,6 +58,8 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 
 Cloudflare 会自动创建你的 Git 仓库、配置 Workers Builds、创建 D1 并部署 Worker。后续向仓库 `main` 分支推送代码时，Cloudflare 会自动重新部署，不需要 GitHub Actions。
 
+如果你登录的 GitHub 账号就是 `Ariestar`，请在 Cloudflare Workers & Pages 中选择“导入现有 Git 仓库”，直接选择 `Ariestar/NoDDL`；Deploy 按钮用于把公开模板克隆到其他账号，不能克隆到已经存在的同名仓库。
+
 部署完成后，在扩展的“高级设置”中填入 Cloudflare 显示的 Worker 地址：
 
 ```text
