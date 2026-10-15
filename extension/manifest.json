@@ -1,13 +1,12 @@
 {
   "manifest_version": 3,
   "name": "NoDDL",
-  "version": "1.0.66",
+  "version": "1.0.67",
   "description": "武汉大学人工智能学院专业课平台助手与自动同步。",
   "permissions": ["cookies"],
   "host_permissions": [
     "http://115.156.107.145/*",
-    "https://*.vercel.app/*",
-    "https://mail.sair-club.com/*"
+    "https://*.workers.dev/*"
   ],
   "background": {
     "service_worker": "service-worker.js"

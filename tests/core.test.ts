@@ -449,7 +449,7 @@ test('日历同步保留已过期课程 DDL', () => {
     url: '/assignment/index.jsp?assignID=past-1'
   }], 'http://115.156.107.145');
 
-  assert.match(calendar || '', /SUMMARY:操作系统 - 进程管理实验 截止/);
+  assert.match(calendar, /SUMMARY:操作系统 - 进程管理实验 截止/);
 });
 
 test('日历截止时间使用时间点并提前十五分钟提醒', () => {
@@ -467,8 +467,8 @@ test('日历截止时间使用时间点并提前十五分钟提醒', () => {
     url: '/assignment/index.jsp?assignID=deadline-1'
   }], 'http://115.156.107.145');
 
-  assert.match(calendar || '', /DTSTART:20261022T075800Z/);
-  assert.match(calendar || '', /DTEND:20261022T075900Z/);
-  assert.match(calendar || '', /TRIGGER:-P1D/);
-  assert.match(calendar || '', /TRIGGER:-PT15M/);
+  assert.match(calendar, /DTSTART:20261022T075800Z/);
+  assert.match(calendar, /DTEND:20261022T075900Z/);
+  assert.match(calendar, /TRIGGER:-P1D/);
+  assert.match(calendar, /TRIGGER:-PT15M/);
 });

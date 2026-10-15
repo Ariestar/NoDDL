@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.67 - 2026-10-15
+
+- Move the API, automatic sync, calendar feed, and CalDAV service to Cloudflare Workers and D1.
+
 ## 1.0.66 - 2026-10-15
 
 - End deadline events at the cutoff instead of extending past it.

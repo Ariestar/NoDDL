@@ -33,12 +33,10 @@ function foldIcsLine(line: string, encoder: TextEncoder): string {
   return parts.join('\r\n');
 }
 
-export function createDeadlineCalendar(assignments: Assignment[], baseUrl: string): string | null {
+export function createDeadlineCalendar(assignments: Assignment[], baseUrl: string): string {
   const upcoming = assignments
     .filter(item => Number.isFinite(item.deadlineTimestamp) && item.deadlineTimestamp > 0)
     .sort((a, b) => a.deadlineTimestamp - b.deadlineTimestamp);
-
-  if (upcoming.length === 0) return null;
 
   const now = formatIcsDate(Date.now());
   const lines = [
@@ -79,17 +77,4 @@ export function createDeadlineCalendar(assignments: Assignment[], baseUrl: strin
   lines.push('END:VCALENDAR');
   const encoder = new TextEncoder();
   return `${lines.map(line => foldIcsLine(line, encoder)).join('\r\n')}\r\n`;
-}
-
-export function createEmptyCalendar(): string {
-  return [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Course Deadline Calendar//ZH',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
-    'X-WR-CALNAME:课程作业截止',
-    'END:VCALENDAR',
-    ''
-  ].join('\r\n');
 }

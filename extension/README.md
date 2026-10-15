@@ -9,4 +9,4 @@ This MV3 extension contains the NoDDL page assistant and reads the platform's Ht
 3. Click **Load unpacked** and select this `extension` directory.
 4. Reload `http://115.156.107.145/`.
 
-The extension only requests cookie access for the course platform and Vercel API origins. It returns only `educg_session` to the assistant runtime.
+The extension only requests cookie access for the course platform. API requests go to the configured Cloudflare Worker, and only `educg_session` is returned to the assistant runtime.

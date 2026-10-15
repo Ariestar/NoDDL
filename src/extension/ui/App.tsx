@@ -8,6 +8,8 @@ import { parseActiveCourseInfo } from '../../core/parsers';
 import {
   callEmailApi,
   getServiceConfig,
+  isServiceUrl,
+  API_BASE_URL_STORAGE_KEY,
   type ServiceConfig
 } from '../email-api';
 import { AUTO_SYNC_TOKEN_KEY, bindAutomaticSync, getAutomaticSyncStatus, setAutomaticSyncEnabled } from '../sync-api';
@@ -40,6 +42,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
   const [emailToken, setEmailToken] = useState('');
   const [calendarFeedToken, setCalendarFeedToken] = useState('');
   const [service, setService] = useState<ServiceConfig | null>(null);
+  const [serviceUrl, setServiceUrl] = useState('');
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [autoSyncBusy, setAutoSyncBusy] = useState(false);
   const [autoSyncToken, setAutoSyncToken] = useState('');
@@ -61,8 +64,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const calendarBaseUrl = 'https://nodd-calendar.1941137088.workers.dev';
-
   useEffect(() => {
     (async () => {
       const token = (await storage.get('nodd_pushplus_token')) || '';
@@ -82,6 +83,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       setEmailAddress(savedEmail);
       setEmailToken(savedEmailToken);
       setService(configured);
+      setServiceUrl(configured.baseUrl);
       setCalendarFeedToken(savedCalendarFeedToken);
       setAutoSyncToken(savedAutoSyncToken);
       setThreshold(th);
@@ -100,6 +102,15 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
       showToast(`同步失败：${error instanceof Error ? error.message : String(error)}`);
     });
   }, []);
+
+  const saveServiceUrl = async () => {
+    if (!isServiceUrl(serviceUrl)) {
+      showToast('请输入有效的 HTTPS 服务地址');
+      return;
+    }
+    await storage.set(API_BASE_URL_STORAGE_KEY, serviceUrl.trim().replace(/\/+$/, ''));
+    window.location.reload();
+  };
 
   // 一键全量同步所有课程（带安全 Session 恢复）
   const syncAllCourses = async (configured = service) => {
@@ -155,11 +166,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
 
   const exportCalendar = () => {
     const calendar = createDeadlineCalendar(assignments, window.location.origin);
-    if (!calendar) {
-      showToast('当前没有可导出的作业');
-      return;
-    }
-
     const url = URL.createObjectURL(new Blob([calendar], { type: 'text/calendar;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url;
@@ -515,6 +521,17 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
               <div className="space-y-3">
                 <section className="card border border-primary/20 bg-base-100 shadow-sm">
                   <div className="card-body gap-3 p-4">
+                    <h2 className="card-title text-base">服务地址</h2>
+                    <p className="text-xs text-base-content/60">使用默认服务，或填入你自己部署的 Cloudflare Worker 地址。</p>
+                    <div className="flex gap-2">
+                      <input className="input input-sm min-w-0 flex-1" value={serviceUrl} placeholder="https://你的 Worker.workers.dev" onInput={(event) => setServiceUrl((event.currentTarget as HTMLInputElement).value)} />
+                      <button className="btn btn-primary btn-sm" onClick={() => void saveServiceUrl()}>保存</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="card border border-primary/20 bg-base-100 shadow-sm">
+                  <div className="card-body gap-3 p-4">
                     <div className="flex items-center justify-between gap-2">
                       <h2 className="card-title text-base">自动同步</h2>
                       <label className="flex items-center gap-2 text-sm font-medium">
@@ -549,7 +566,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                       <>
                         <label className="grid gap-1.5 text-sm">
                           <span className="font-medium text-base-content/70">CalDAV 服务器地址</span>
-                          <input className="input input-sm" readOnly value={`${calendarBaseUrl}/api/caldav-server/`} />
+                          <input className="input input-sm" readOnly value={`${apiBaseUrl}/api/caldav-server/`} />
                         </label>
                         <label className="grid gap-1.5 text-sm">
                           <span className="font-medium text-base-content/70">账户名称</span>

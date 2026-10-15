@@ -1,6 +1,6 @@
 import type { HttpClient, StorageAdapter } from '../core/types';
 
-export const DEFAULT_API_BASE_URL = normalizeApiBaseUrl(import.meta.env?.VITE_EMAIL_API_BASE_URL || '');
+export const DEFAULT_API_BASE_URL = normalizeApiBaseUrl(import.meta.env?.VITE_API_BASE_URL || 'https://nodd.1941137088.workers.dev');
 export const API_BASE_URL_STORAGE_KEY = 'nodd_api_base_url';
 
 export function normalizeApiBaseUrl(value: string): string {
@@ -21,8 +21,7 @@ export function normalizeApiBaseUrl(value: string): string {
 export async function getServiceConfig(storage: StorageAdapter) {
   const saved = await storage.get(API_BASE_URL_STORAGE_KEY);
   const baseUrl = saved === null ? DEFAULT_API_BASE_URL : normalizeApiBaseUrl(saved);
-  // Existing unscoped credentials belong only to the original build-time service.
-  const prefix = !baseUrl ? 'disabled:' : baseUrl === DEFAULT_API_BASE_URL ? '' : `${baseUrl}:`;
+  const prefix = baseUrl ? `${baseUrl}:` : 'disabled:';
   const scopedStorage: StorageAdapter = {
     get: key => storage.get(`${prefix}${key}`),
     set: (key, value) => storage.set(`${prefix}${key}`, value),
@@ -32,6 +31,10 @@ export async function getServiceConfig(storage: StorageAdapter) {
 }
 
 export type ServiceConfig = Awaited<ReturnType<typeof getServiceConfig>>;
+
+export function isServiceUrl(value: string): boolean {
+  return normalizeApiBaseUrl(value) !== '';
+}
 
 export async function callEmailApi(
   http: HttpClient,

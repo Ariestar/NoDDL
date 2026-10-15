@@ -1,6 +1,6 @@
 {
   "name": "@projectluojia/nodd-l",
-  "version": "1.0.66",
+  "version": "1.0.67",
   "description": "NoDDL (Not Only DDL) - 武汉大学人工智能学院一体化专业课平台 (115.156.107.145) 体验补全与 Agent 工具包",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -27,6 +27,7 @@
     "build": "pnpm build:package && pnpm build:extension",
     "build:package": "tsup",
     "build:extension": "vite build --config vite.extension.config.ts",
+    "deploy": "npx wrangler deploy && npx wrangler d1 migrations apply DB --remote",
     "test": "tsx --test tests/**/*.test.ts"
   },
   "keywords": [
@@ -50,7 +51,6 @@
     "@types/crypto-js": "^4.2.2",
     "@types/node": "^22.5.0",
     "daisyui": "5.7.47",
-    "playwright-core": "^1.64.0",
     "tailwindcss": "4.3.3",
     "tsup": "^8.3.0",
     "tsx": "^4.23.15",

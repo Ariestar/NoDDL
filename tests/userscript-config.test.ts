@@ -20,15 +20,15 @@ class MemoryStorage implements StorageAdapter {
 }
 
 test('service URLs accept only HTTPS roots', () => {
-  assert.equal(normalizeApiBaseUrl('https://student.vercel.app///'), 'https://student.vercel.app');
-  assert.equal(normalizeApiBaseUrl('https://student.vercel.app/api'), '');
-  assert.equal(normalizeApiBaseUrl('http://student.vercel.app'), '');
-  assert.equal(normalizeApiBaseUrl('https://user:password@student.vercel.app'), '');
+  assert.equal(normalizeApiBaseUrl('https://student.workers.dev///'), 'https://student.workers.dev');
+  assert.equal(normalizeApiBaseUrl('https://student.workers.dev/api'), '');
+  assert.equal(normalizeApiBaseUrl('http://student.workers.dev'), '');
+  assert.equal(normalizeApiBaseUrl('https://user:password@student.workers.dev'), '');
 });
 
 test('custom service credentials use an isolated storage namespace', async () => {
   const storage = new MemoryStorage();
-  await storage.set('nodd_api_base_url', 'https://student.vercel.app');
+  await storage.set('nodd_api_base_url', 'https://student.workers.dev');
   const service = await getServiceConfig(storage);
 
   await service.storage.set('nodd_calendar_feed_token', 'custom-token');

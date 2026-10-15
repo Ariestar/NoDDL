@@ -1,0 +1,11 @@
+name = "nodd"
+main = "src/worker.ts"
+compatibility_date = "2026-10-15"
+
+[triggers]
+crons = ["0 18 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nodd"
+migrations_dir = "migrations"
