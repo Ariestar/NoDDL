@@ -1,4 +1,4 @@
-name = "nodd"
+name = "noddl"
 main = "src/worker.ts"
 compatibility_date = "2026-10-15"
 workers_dev = true
@@ -8,5 +8,5 @@ crons = ["0 18 * * *"]
 
 [[d1_databases]]
 binding = "DB"
-database_name = "nodd"
+database_name = "noddl"
 migrations_dir = "migrations"

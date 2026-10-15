@@ -2,8 +2,9 @@ name: Release Chrome extension
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -35,10 +36,22 @@ jobs:
       - name: Build extension
         run: pnpm build:extension
 
+      - name: Read package version
+        id: package
+        shell: bash
+        run: echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+
       - name: Package extension
-        run: zip -r "NoDDL-extension-${GITHUB_REF_NAME}.zip" extension
+        run: zip -r "NoDDL-extension-v${{ steps.package.outputs.version }}.zip" extension
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" "NoDDL-extension-${GITHUB_REF_NAME}.zip" --generate-notes --title "$GITHUB_REF_NAME"
+          TAG: v${{ steps.package.outputs.version }}
+        run: |
+          artifact="NoDDL-extension-${TAG}.zip"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$artifact" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" "$artifact" --repo "$GITHUB_REPOSITORY" --generate-notes --title "$TAG"
+          fi
