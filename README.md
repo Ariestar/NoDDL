@@ -57,15 +57,23 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 [![Fork on GitHub](https://img.shields.io/badge/Fork_on_GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Ariestar/NoDDL/fork)
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/)
 
-只有需要独立部署、独立数据和独立域名时才需要这一步。先将仓库 Fork 到自己的 GitHub 账户，点击按钮后选择 **Continue with GitHub**，再选择自己的 NoDDL Fork 和 `main` 分支。Cloudflare Worker 会提供课程 API、自动同步、Feed 和 CalDAV。首次部署时，Cloudflare 可能要求为账户启用一次 `workers.dev` 子域名；使用默认 `workers.dev` 地址即可，不需要另外购买域名。部署完成后，再在扩展的“高级设置”中填写自己的 Worker 地址：
+只有需要独立部署和独立数据时才需要这一步。按下面流程操作：
 
-- `EMAIL_CODE_SECRET`：至少 32 位随机字符串（启用邮箱提醒时需要）
+1. 将仓库 [Fork 到自己的 GitHub 账户](https://github.com/Ariestar/NoDDL/fork)。
+2. 点击上面的 Cloudflare 按钮，选择 **Continue with GitHub**，再选择自己的 Fork 和 `main` 分支。
+3. 等待 Fork 中的 **Deploy to Cloudflare** 工作流完成。工作流会自动创建 D1、生成加密密钥、启用 `workers.dev` 并部署 Worker。
+4. 打开 Fork 的 **Actions** 页面，进入最新一次部署运行，下载构建产物 `NoDDL-extension-self-hosted`。
+5. 解压构建产物，在 `chrome://extensions` 中加载其中的 `extension` 目录。
+
+邮件提醒的可选配置：
+
+- `EMAIL_CODE_SECRET`：至少 32 位随机字符串
 - `RESEND_API_KEY`：启用邮箱提醒时需要
 - `RESEND_FROM`：可选，默认使用 `onboarding@resend.dev`
 
-部署工作流会自动启用 `workers.dev` 路由，并在 GitHub Actions 运行结果中生成 `NoDDL-extension-self-hosted` 构建包。下载这个构建包并加载后，扩展已经写入你的 Worker 地址，不需要再手动填写服务地址。
+上面三个变量只在启用邮件提醒时需要；课程同步、自动同步和日历不需要手动填写密钥或域名。自托管构建包已经写入你的 Worker 地址，不需要再打开扩展设置填写服务地址。
 
-如果只下载通用 Release 扩展，才需要在“高级设置”中填入 Worker 地址，例如：
+如果只下载通用 Release 扩展，它仍然默认使用官方 Worker；切换到自托管 Worker 时，才需要在扩展的“高级设置”中填入地址，例如：
 
 ```text
 https://你的 Worker 名称.你的 Cloudflare 子域.workers.dev
