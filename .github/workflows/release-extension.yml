@@ -39,7 +39,9 @@ jobs:
       - name: Read package version
         id: package
         shell: bash
-        run: echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Package extension
         run: zip -r "NoDDL-extension-v${{ steps.package.outputs.version }}.zip" extension
