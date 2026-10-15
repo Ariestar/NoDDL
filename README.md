@@ -78,6 +78,8 @@ https://你的 Worker 名称.你的 Cloudflare 子域.workers.dev
 
 扩展会自动绑定课程会话；每天北京时间 02:00 由 Cloudflare Cron 抓取全部课程、作业和云实验并更新日历 Feed。手机日历使用扩展生成的服务器地址、账户名 `noddl` 和 Feed Token。
 
+克隆仓库会每天自动检查 `Ariestar/NoDDL` 的更新。发现新版本时，`Sync upstream` 工作流会创建同步 PR，并保留你自己的 `wrangler.toml`；合并 PR 后，Cloudflare Workers Builds 会重新部署 Worker，扩展 Release 工作流会重新发布构建包。
+
 邮件提醒使用 Resend 作为发信服务，其余运行时数据都保存在 Cloudflare D1。
 
 ---
