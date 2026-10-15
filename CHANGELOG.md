@@ -4,6 +4,10 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.71 - 2026-10-15
+
+- Require a self-hosted Worker and remove the shared public service default.
+
 ## 1.0.70 - 2026-10-15
 
 - Make the hosted service the default path and move self-hosting to optional advanced settings.
