@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const configuredApiUrl = env.VITE_API_BASE_URL || 'https://nodd.1941137088.workers.dev';
+  const configuredApiUrl = env.VITE_API_BASE_URL || '';
 
   return {
     plugins: [preact(), tailwindcss()],

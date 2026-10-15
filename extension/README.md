@@ -4,11 +4,11 @@ This MV3 extension contains the NoDDL page assistant and reads the platform's Ht
 
 ## Download and install
 
-For regular use, download the [latest extension release](https://github.com/Ariestar/NoDDL/releases/latest) and unzip it. The extension already points to the official NoDDL service, so no Cloudflare deployment or service URL configuration is required.
+Deploy your own Worker first, then download the `NoDDL-extension-self-hosted` artifact from your Fork's latest successful **Deploy to Cloudflare** workflow. The build contains your Worker URL and never uses a shared public service.
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked** and select this `extension` directory.
 4. Reload `http://115.156.107.145/`.
 
-The extension only requests cookie access for the course platform. API requests go to the configured Cloudflare Worker, and only `educg_session` is returned to the assistant runtime.
+The extension only requests cookie access for the course platform. API requests go to your configured Cloudflare Worker, and only `educg_session` is returned to the assistant runtime.

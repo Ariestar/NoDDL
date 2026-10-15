@@ -36,3 +36,9 @@ test('custom service credentials use an isolated storage namespace', async () =>
   assert.equal(await service.storage.get('nodd_calendar_feed_token'), 'custom-token');
   assert.equal(await storage.get('nodd_calendar_feed_token'), null);
 });
+
+test('service configuration has no public default', async () => {
+  const service = await getServiceConfig(new MemoryStorage());
+
+  assert.equal(service.baseUrl, '');
+});

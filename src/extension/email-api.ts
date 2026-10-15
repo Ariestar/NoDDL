@@ -1,6 +1,6 @@
 import type { HttpClient, StorageAdapter } from '../core/types';
 
-export const DEFAULT_API_BASE_URL = normalizeApiBaseUrl(import.meta.env?.VITE_API_BASE_URL || 'https://nodd.1941137088.workers.dev');
+export const BUILD_API_BASE_URL = normalizeApiBaseUrl(import.meta.env?.VITE_API_BASE_URL || '');
 export const API_BASE_URL_STORAGE_KEY = 'nodd_api_base_url';
 
 export function normalizeApiBaseUrl(value: string): string {
@@ -20,7 +20,7 @@ export function normalizeApiBaseUrl(value: string): string {
 
 export async function getServiceConfig(storage: StorageAdapter) {
   const saved = await storage.get(API_BASE_URL_STORAGE_KEY);
-  const baseUrl = saved === null ? DEFAULT_API_BASE_URL : normalizeApiBaseUrl(saved);
+  const baseUrl = saved === null ? BUILD_API_BASE_URL : normalizeApiBaseUrl(saved);
   const prefix = baseUrl ? `${baseUrl}:` : 'disabled:';
   const scopedStorage: StorageAdapter = {
     get: key => storage.get(`${prefix}${key}`),
