@@ -8,76 +8,6 @@
 
 ---
 
-## 💡 为什么叫 NoDDL？
-
-* **No DDL**：拒绝死线压迫，在最后一秒前搞定作业。
-* **Not Only DDL**：仿照 NoSQL（Not Only SQL）命名，它**不仅是死线提醒**，还包含：
-  * 📋 **样例测试用例一键复制**：在题目描述中一键复制输入输出样例。
-  * 💾 **代码防丢实时暂存**：自动保存编辑框代码至本地存储，误关标签页一键恢复。
-  * 🔄 **评测状态追踪**：自动获取判题与测试点结果。
-  * 🔔 **全渠道消息推送**：支持微信（PushPlus）、iOS（Bark）与自定义 Webhook。
-
----
-
-## 📦 项目结构
-
-```text
-NoDDL/
-├── ailuo.toml                # ailuo 包清单 (isolated executor 组件)
-├── package.json
-├── tsconfig.json
-├── tsup.config.ts            # 构建 NPM / TS 工具库与 CLI
-├── vite.extension.config.ts  # 构建 Chrome 扩展 content script
-│
-├── src/
-│   ├── core/                 # 【公用底层核心逻辑】
-│   │   ├── types.ts          # 统一数据结构
-│   │   ├── crypto.ts         # 平台 AES 密码加解密
-│   │   ├── parser.ts         # 页面表格与题目用例解析
-│   │   ├── ddl.ts            # 死线计算与告警文本格式化
-│   │   ├── client.ts         # CourseGradingClient (HTTP 请求与业务封装)
-│   │   └── index.ts          # core 统一导出
-│   │
-│   ├── cli.ts                # 【命令行入口 / ailuo 包入口】
-│   │
-│   └── extension/            # 【Chrome 扩展 content script】
-│       ├── index.ts          # 浏览器环境启动与生命周期
-│       ├── ui.ts             # 顶部横幅、样例复制、代码暂存
-│       └── browser-adapter.ts# Chrome fetch 与本地存储封装
-│
-└── dist/
-    ├── index.js / index.cjs  # 产物 1：TS / JS 工具包（供外部直接 import）
-    └── cli.cjs               # 产物 2：独立 CLI 工具 / ailuo entrypoint
-```
-
----
-
-## 🛠️ 构建与打包
-
-### 1. 安装与测试
-```bash
-pnpm install
-pnpm test
-```
-
-### 2. 编译
-```bash
-pnpm build
-```
-
-产物生成：
-* **`extension/nodd-extension.js`**：Chrome 扩展 content script。
-* **`dist/index.js` & `dist/index.d.ts`**：作为 npm / TS 库被外部代码引用。
-* **`cli.cjs`**：包的直接执行入口。
-
-### 3. 打包为 ailuo 包
-```bash
-# 使用 ailuo-pm 直接打包为 .tgz
-ailuo-pm pack . dist
-```
-
----
-
 ## 💻 1. Chrome 扩展功能说明
 
 ### 一键安装
@@ -139,6 +69,59 @@ https://你的 Worker 名称.你的 Cloudflare 子域.workers.dev
 扩展会自动绑定课程会话；每天北京时间 02:00 由 Cloudflare Cron 抓取全部课程、作业和云实验并更新日历 Feed。手机日历使用扩展生成的服务器地址、账户名 `noddl` 和 Feed Token。
 
 邮件提醒使用 Resend 作为发信服务，其余运行时数据都保存在 Cloudflare D1。
+
+---
+
+## 📦 项目结构
+
+```text
+NoDDL/
+├── ailuo.toml                # ailuo 包清单 (isolated executor 组件)
+├── package.json
+├── tsconfig.json
+├── tsup.config.ts            # 构建 NPM / TS 工具库与 CLI
+├── vite.extension.config.ts  # 构建 Chrome 扩展 content script
+│
+├── src/
+│   ├── core/                 # 【公用底层核心逻辑】
+│   │   ├── types.ts          # 统一数据结构
+│   │   ├── crypto.ts         # 平台 AES 密码加解密
+│   │   ├── parser.ts         # 页面表格与题目用例解析
+│   │   ├── ddl.ts            # 死线计算与告警文本格式化
+│   │   ├── client.ts         # CourseGradingClient (HTTP 请求与业务封装)
+│   │   └── index.ts          # core 统一导出
+│   │
+│   ├── cli.ts                # 【命令行入口 / ailuo 包入口】
+│   │
+│   └── extension/            # 【Chrome 扩展 content script】
+│       ├── index.ts          # 浏览器环境启动与生命周期
+│       ├── ui.ts             # 顶部横幅、样例复制、代码暂存
+│       └── browser-adapter.ts# Chrome fetch 与本地存储封装
+│
+└── dist/
+    ├── index.js / index.cjs  # 产物 1：TS / JS 工具包（供外部直接 import）
+    └── cli.cjs               # 产物 2：独立 CLI 工具 / ailuo entrypoint
+```
+
+---
+
+## 🛠️ 构建与打包
+
+### 1. 安装与测试
+```bash
+pnpm install
+pnpm test
+```
+
+### 2. 编译
+```bash
+pnpm build
+```
+
+产物生成：
+* **`extension/nodd-extension.js`**：Chrome 扩展 content script。
+* **`dist/index.js` & `dist/index.d.ts`**：作为 npm / TS 库被外部代码引用。
+* **`cli.cjs`**：包的直接执行入口。
 
 ---
 
