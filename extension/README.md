@@ -2,7 +2,9 @@
 
 This MV3 extension contains the NoDDL page assistant and reads the platform's HttpOnly `educg_session` cookie through Chrome's native Cookies API. It does not store passwords or add a page UI.
 
-## Install locally
+## Download and install
+
+For regular use, download the [latest extension release](https://github.com/Ariestar/NoDDL/releases/latest) and unzip it. The extension already points to the official NoDDL service, so no Cloudflare deployment or service URL configuration is required.
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.

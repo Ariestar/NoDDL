@@ -8,10 +8,18 @@
 
 ---
 
-## 💻 1. Chrome 扩展功能说明
+## 🚀 快速开始（普通用户）
 
-### 一键安装
-按照 [Chrome 扩展安装说明](extension/README.md) 加载 `extension` 目录。
+1. 在 [最新 Release](https://github.com/Ariestar/NoDDL/releases/latest) 下载 `NoDDL-extension-*.zip` 并解压。
+2. 打开 `chrome://extensions`，启用“开发者模式”，选择“加载已解压的扩展程序”，选中解压后的 `extension` 目录。
+3. 登录课程平台，扩展会自动使用 NoDDL 服务并绑定课程会话。
+
+普通用户不需要 Fork 仓库、部署 Cloudflare 或填写服务地址。扩展内置官方服务地址，自动同步和日历订阅会直接使用它。
+
+## 💻 1. Chrome 扩展说明
+
+### 本地加载
+按照 [Chrome 扩展安装说明](extension/README.md) 加载 `extension` 目录。Chrome 只有通过 Chrome Web Store 安装才能跳过开发者模式；GitHub Release 提供的是可审查、可本地加载的构建包。
 
 ### 主要功能
 访问 `http://115.156.107.145/` 后自动启用。
@@ -44,12 +52,12 @@ node cli.cjs detail --id "problem_101" --cookie "educg_session=xxxx"
 node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 ```
 
-## ☁️ 一键部署到 Cloudflare
+## ☁️ 自托管到 Cloudflare（可选）
 
 [![Fork on GitHub](https://img.shields.io/badge/Fork_on_GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Ariestar/NoDDL/fork)
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/)
 
-先将仓库 Fork 到自己的 GitHub 账户。点击按钮后选择 **Continue with GitHub**，再选择自己的 NoDDL Fork 和 `main` 分支。这样由 Cloudflare 的 GitHub 授权连接读取仓库，避免匿名仓库预检的 GitHub API 限流。Cloudflare Worker 现在同时提供课程 API、自动同步、Feed 和 CalDAV。部署脚本会自动创建 D1 数据库并生成加密密钥；首次部署后，在 Worker 设置中填写：
+只有需要独立部署、独立数据和独立域名时才需要这一步。先将仓库 Fork 到自己的 GitHub 账户，点击按钮后选择 **Continue with GitHub**，再选择自己的 NoDDL Fork 和 `main` 分支。Cloudflare Worker 会提供课程 API、自动同步、Feed 和 CalDAV。首次部署时，Cloudflare 可能要求为账户启用一次 `workers.dev` 子域名；使用默认 `workers.dev` 地址即可，不需要另外购买域名。部署完成后，再在扩展的“高级设置”中填写自己的 Worker 地址：
 
 - `EMAIL_CODE_SECRET`：至少 32 位随机字符串（启用邮箱提醒时需要）
 - `RESEND_API_KEY`：启用邮箱提醒时需要

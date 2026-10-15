@@ -519,16 +519,18 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
 
             {activeTab === 'settings' && (
               <div className="space-y-3">
-                <section className="card border border-primary/20 bg-base-100 shadow-sm">
-                  <div className="card-body gap-3 p-4">
-                    <h2 className="card-title text-base">服务地址</h2>
-                    <p className="text-xs text-base-content/60">使用默认服务，或填入你自己部署的 Cloudflare Worker 地址。</p>
+                <details className="nodd-settings-details collapse collapse-arrow rounded-box border border-base-300 bg-base-100">
+                  <summary className="collapse-title flex min-h-0 cursor-pointer items-center justify-between gap-2 px-4 py-3 font-medium">
+                    <span>高级设置</span>
+                  </summary>
+                  <div className="collapse-content space-y-3 border-t border-base-300">
+                    <p className="text-xs text-base-content/60">默认使用 NoDDL 服务。只有自托管 Cloudflare Worker 时才需要修改服务地址。</p>
                     <div className="flex gap-2">
                       <input className="input input-sm min-w-0 flex-1" value={serviceUrl} placeholder="https://你的 Worker.workers.dev" onInput={(event) => setServiceUrl((event.currentTarget as HTMLInputElement).value)} />
                       <button className="btn btn-primary btn-sm" onClick={() => void saveServiceUrl()}>保存</button>
                     </div>
                   </div>
-                </section>
+                </details>
 
                 <section className="card border border-primary/20 bg-base-100 shadow-sm">
                   <div className="card-body gap-3 p-4">
@@ -551,8 +553,6 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                     <p className="text-xs text-base-content/60">
                       扩展打开后自动绑定课程会话；服务端每天抓取全部课程、作业和云实验，日历订阅也会随之更新。
                     </p>
-                    <span className="text-xs text-base-content/60">
-                    </span>
                   </div>
                 </section>
 

@@ -4,6 +4,11 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.70 - 2026-10-15
+
+- Make the hosted service the default path and move self-hosting to optional advanced settings.
+- Add a direct release-based extension setup guide.
+
 ## 1.0.69 - 2026-10-15
 
 - Generate and preserve the Worker session encryption key during deployment.
