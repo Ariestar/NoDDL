@@ -524,7 +524,7 @@ export function App({ client, storage, http, initialAssignments }: AppProps) {
                     <span>高级设置</span>
                   </summary>
                   <div className="collapse-content space-y-3 border-t border-base-300">
-                    <p className="text-xs text-base-content/60">扩展只连接你自己部署的 Cloudflare Worker。自托管构建包会自动填入地址；通用包需要在这里填写。</p>
+                    <p className="text-xs text-base-content/60">扩展只连接你自己部署的 Cloudflare Worker。请在这里填写 Worker 地址。</p>
                     <div className="flex gap-2">
                       <input className="input input-sm min-w-0 flex-1" value={serviceUrl} placeholder="https://你的 Worker.workers.dev" onInput={(event) => setServiceUrl((event.currentTarget as HTMLInputElement).value)} />
                       <button className="btn btn-primary btn-sm" onClick={() => void saveServiceUrl()}>保存</button>

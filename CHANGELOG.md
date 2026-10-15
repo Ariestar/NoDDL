@@ -4,6 +4,11 @@
 
 - Remove a one-use UI barrel export.
 
+## 1.0.72 - 2026-10-16
+
+- Use Cloudflare Workers Builds for self-hosted deployment without GitHub Actions.
+- Require the extension to use a user-provided self-hosted Worker URL.
+
 ## 1.0.71 - 2026-10-15
 
 - Require a self-hosted Worker and remove the shared public service default.
