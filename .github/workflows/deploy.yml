@@ -35,5 +35,5 @@ jobs:
         run: pnpm install --frozen-lockfile --allow-build esbuild
 
       - name: Deploy Worker and apply D1 migrations
-        if: ${{ github.event_name == 'repository_dispatch' || (env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '') }}
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' }}
         run: pnpm deploy
