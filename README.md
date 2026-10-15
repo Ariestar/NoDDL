@@ -53,7 +53,7 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/)
 
-点击按钮后选择 **Continue with GitHub**，再选择 `Ariestar/NoDDL` 的 `main` 分支。这样由 Cloudflare 的 GitHub 授权连接读取仓库，避免匿名仓库预检的 GitHub API 限流。Cloudflare Worker 现在同时提供课程 API、自动同步、Feed 和 CalDAV。部署脚本会自动创建 D1 数据库并生成加密密钥；首次部署后，在 Worker 设置中填写：
+先将仓库 Fork 到自己的 GitHub 账户。点击按钮后选择 **Continue with GitHub**，再选择自己的 NoDDL Fork 和 `main` 分支。这样由 Cloudflare 的 GitHub 授权连接读取仓库，避免匿名仓库预检的 GitHub API 限流。Cloudflare Worker 现在同时提供课程 API、自动同步、Feed 和 CalDAV。部署脚本会自动创建 D1 数据库并生成加密密钥；首次部署后，在 Worker 设置中填写：
 
 - `EMAIL_CODE_SECRET`：至少 32 位随机字符串（启用邮箱提醒时需要）
 - `RESEND_API_KEY`：启用邮箱提醒时需要
