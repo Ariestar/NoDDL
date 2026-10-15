@@ -66,13 +66,13 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 https://你的 Worker 名称.你的 Cloudflare 子域.workers.dev
 ```
 
-邮件提醒的可选配置：
+部署向导不需要填写 Resend。只有主动启用邮件提醒时，才在 Cloudflare Worker 的“Variables & Secrets”中添加下面的可选配置：
 
 - `EMAIL_CODE_SECRET`：至少 32 位随机字符串
 - `RESEND_API_KEY`：启用邮箱提醒时需要
 - `RESEND_FROM`：可选，默认使用 `onboarding@resend.dev`
 
-上面三个变量只在启用邮件提醒时需要；课程同步、自动同步和日历不需要额外密钥。Release 扩展不包含公共服务地址，只连接你填写的自托管 Worker。
+上面三个变量只在启用邮件提醒时需要；课程同步、自动同步和日历不需要额外密钥。仓库不再提供 `.env.example`，避免 Cloudflare Deploy 按钮把可选邮件变量误识别为必填项。Release 扩展不包含公共服务地址，只连接你填写的自托管 Worker。
 
 扩展会自动绑定课程会话；每天北京时间 02:00 由 Cloudflare Cron 抓取全部课程、作业和云实验并更新日历 Feed。手机日历使用扩展生成的服务器地址、账户名 `noddl` 和 Feed Token。
 
