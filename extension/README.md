@@ -4,7 +4,7 @@ This MV3 extension contains the NoDDL page assistant and reads the platform's Ht
 
 ## Download and install
 
-Deploy your own Worker with the **Deploy to Cloudflare** button, then download the [latest extension release](https://github.com/Ariestar/NoDDL/releases/latest). The release contains no public service address; enter your own Worker URL in the extension's advanced settings.
+If you own the source repository, import `Ariestar/NoDDL` from Cloudflare Workers & Pages. Otherwise, use the **Deploy to Cloudflare** button to clone the public template into your account. Then download the [latest extension release](https://github.com/Ariestar/NoDDL/releases/latest). The release contains no public service address; enter your own Worker URL in the extension's advanced settings.
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.

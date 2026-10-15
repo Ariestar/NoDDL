@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --allow-build esbuild
 
+      - name: Run tests
+        run: pnpm test
+
       - name: Build extension
         run: pnpm build:extension
 

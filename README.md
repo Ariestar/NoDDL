@@ -12,7 +12,7 @@
 
 NoDDL 只支持自托管。每个用户都使用自己的 Cloudflare Worker、D1 数据库和加密密钥，课程会话不会进入共享服务。
 
-1. 点击下面的 **Deploy to Cloudflare**，登录自己的 Cloudflare 和 GitHub 账户，直接创建并部署仓库。
+1. 如果你是仓库所有者，请在 Cloudflare Workers & Pages 中选择“导入现有 Git 仓库”，连接 GitHub 后选择 `Ariestar/NoDDL`；其他用户可以点击下面的 **Deploy to Cloudflare**，把公开模板克隆到自己的账号并部署。
 2. 在 [最新 Release](https://github.com/Ariestar/NoDDL/releases/latest) 下载扩展并解压。
 3. 打开 `chrome://extensions`，启用“开发者模式”，加载解压后的 `extension` 目录；登录课程平台后，在设置中填入你自己的 Worker 地址。
 
@@ -56,7 +56,7 @@ node cli.cjs push --threshold 48 --pushplus "YOUR_TOKEN"
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Ariestar/NoDDL)
 
-Cloudflare 会自动创建你的 Git 仓库、配置 Workers Builds、创建 D1 并部署 Worker。后续向仓库 `main` 分支推送代码时，Cloudflare 会自动重新部署，不需要 GitHub Actions。
+使用 Deploy 按钮时，Cloudflare 会自动创建你的 Git 仓库、配置 Workers Builds、创建 D1 并部署 Worker。后续向仓库 `main` 分支推送代码时，Cloudflare 会自动重新部署，不需要 GitHub Actions。
 
 如果你登录的 GitHub 账号就是 `Ariestar`，请在 Cloudflare Workers & Pages 中选择“导入现有 Git 仓库”，直接选择 `Ariestar/NoDDL`；Deploy 按钮用于把公开模板克隆到其他账号，不能克隆到已经存在的同名仓库。
 
