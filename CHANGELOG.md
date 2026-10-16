@@ -3,8 +3,11 @@
 ## Unreleased
 
 - Read cloud experiments from the course-scoped AJAX endpoint during sync.
-- Add one-click Cloudflare OAuth setup for automatic self-hosted updates.
 - Remove a one-use UI barrel export.
+
+## 1.2.4 - 2026-10-16
+
+- Remove the misleading automatic update action from the extension settings.
 
 ## 1.0.72 - 2026-10-16
 

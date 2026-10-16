@@ -13,4 +13,4 @@ If you own the source repository, import `Ariestar/NoDDL` from Cloudflare Worker
 
 The extension only requests cookie access for the course platform. API requests go to your configured Cloudflare Worker, and only `educg_session` is returned to the assistant runtime.
 
-After entering your Worker URL, open the settings panel and click **开启自动更新** once. Cloudflare authorization creates the update trigger for your own Worker; later releases are deployed automatically without GitHub Actions secrets.
+After entering your Worker URL, the extension binds the current course session automatically when you open a course page. Background sync and the CalDAV calendar use that same Worker URL.
