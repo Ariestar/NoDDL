@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Parse all cloud experiments from the course homepage cards during full sync.
+- Read cloud experiments from the course-scoped AJAX endpoint during sync.
 - Add one-click Cloudflare OAuth setup for automatic self-hosted updates.
 - Remove a one-use UI barrel export.
 

@@ -129,6 +129,16 @@ export class CourseGradingClient {
       }
     }
 
+    const experiments = parseExperimentAssignmentsHtml(
+      await this.http.get(`${this.baseUrl}/exp/mainActiveEXPs.jsp`, this.getAuthHeaders()),
+      courseId,
+      courseName
+    );
+    for (const item of experiments) {
+      allAssignments.push(item);
+      if (this.db) await this.db.upsertAssignment(item);
+    }
+
     if (this.db) {
       return this.db.getAllAssignments();
     }
@@ -181,7 +191,7 @@ export class CourseGradingClient {
         }
 
         const experiments = parseExperimentAssignmentsHtml(
-          await this.http.get(`${this.baseUrl}/main.jsp`, this.getAuthHeaders()),
+          await this.http.get(`${this.baseUrl}/exp/mainActiveEXPs.jsp`, this.getAuthHeaders()),
           c.id,
           c.name
         );

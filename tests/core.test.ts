@@ -348,12 +348,19 @@ test('全量同步：提交真实课程切换并刷新时间与完成状态', as
     </div>
     <table><tr><td>初次提交时间: 2026-10-11 23:21:06</td></tr></table>
   `;
+  const experimentHtml = `
+    <div class="main-zy">
+      <div class="main-box"><span class="main-type">云实验</span><p class="main-title">第一次实验</p></div>
+      <div class="main-time">起止时间：2026-10-09 16:00:00 - 2026-10-16 22:00:00</div>
+      <a href="exp/index.jsp?assignID=612">进入云实验</a>
+    </div>
+  `;
   const http: HttpClient = {
     async get(url) {
       gets.push(url);
       if (url.endsWith('/courselist.jsp') || url.includes('/courselist.jsp?courseID=184')) return courseHtml;
       if (url.includes('assignID=3548')) return detailHtml;
-      if (url.endsWith('/main.jsp')) return '';
+      if (url.endsWith('/exp/mainActiveEXPs.jsp')) return experimentHtml;
       if (url.endsWith('/assignment/index.jsp')) return assignmentHtml;
       throw new Error(`Unexpected GET ${url}`);
     },
@@ -376,11 +383,52 @@ test('全量同步：提交真实课程切换并刷新时间与完成状态', as
   });
   const list = await client.safeSyncAllCourses('184');
 
-  assert.equal(list.length, 1);
-  assert.equal(list[0].title, '第四周作业');
-  assert.equal(list[0].deadline, '2026-10-19 23:59:00');
-  assert.equal(list[0].status, 'submitted');
+  assert.equal(list.length, 2);
+  assert.equal(list.find(item => item.id === '3548')?.title, '第四周作业');
+  assert.equal(list.find(item => item.id === '3548')?.deadline, '2026-10-19 23:59:00');
+  assert.equal(list.find(item => item.id === '3548')?.status, 'submitted');
+  assert.equal(list.find(item => item.id === '612')?.courseName, '离散数学');
   assert.ok(gets.includes('http://115.156.107.145/courselist.jsp?courseID=184'));
+});
+
+test('全量同步：云实验只读取切换后课程的 AJAX 数据源', async () => {
+  let currentCourse = '';
+  const experimentHtml = `
+    <div class="main-zy">
+      <div class="main-box"><span class="main-type">云实验</span><p class="main-title">第一次实验</p></div>
+      <div class="main-time">起止时间：2026-10-09 16:00:00 - 2026-10-16 22:00:00</div>
+      <a href="exp/index.jsp?assignID=612">进入云实验</a>
+    </div>
+    <div class="main-zy">
+      <div class="main-box"><span class="main-type">云实验</span><p class="main-title">栈与队列【综合实验】</p></div>
+      <div class="main-time">起止时间：2026-10-16 16:30:00 - 2026-10-17 23:59:00</div>
+      <a href="exp/index.jsp?assignID=614">进入云实验</a>
+    </div>
+  `;
+  const http: HttpClient = {
+    async get(url) {
+      const courseChange = url.match(/courselist\.jsp\?courseID=(\d+)/);
+      if (courseChange) {
+        currentCourse = courseChange[1];
+        return `<span class="dropdown-item dropdown-item-course font-weight-bold" value="${currentCourse}">${currentCourse === '186' ? '数据结构与算法' : '离散数学'}</span>`;
+      }
+      if (url.endsWith('/courselist.jsp')) {
+        return '<span class="dropdown-item dropdown-item-course" value="184">离散数学</span><span class="dropdown-item dropdown-item-course" value="186">数据结构与算法</span>';
+      }
+      if (url.endsWith('/assignment/index.jsp')) {
+        return `<span class="dropdown-item dropdown-item-course font-weight-bold" value="${currentCourse}">${currentCourse === '186' ? '数据结构与算法' : '离散数学'}</span>`;
+      }
+      if (url.endsWith('/exp/mainActiveEXPs.jsp')) return currentCourse === '186' ? experimentHtml : '';
+      throw new Error(`Unexpected GET ${url}`);
+    },
+    async post() { throw new Error('全量同步不应使用 POST 切课'); }
+  };
+
+  const client = new CourseGradingClient({}, http, new MemoryStorage());
+  const list = await client.safeSyncAllCourses('184');
+
+  assert.deepEqual(list.map(item => item.id), ['612', '614']);
+  assert.ok(list.every(item => item.courseId === '186' && item.courseName === '数据结构与算法'));
 });
 
 test('全量同步：返回课程上下文不一致时拒绝写入错误课程', async () => {
@@ -393,7 +441,7 @@ test('全量同步：返回课程上下文不一致时拒绝写入错误课程',
       if (url.includes('/courselist.jsp?courseID=176')) {
         return '<span class="dropdown-item dropdown-item-course font-weight-bold" value="176">计算机系统导论</span>';
       }
-      if (url.endsWith('/main.jsp')) return '';
+      if (url.endsWith('/exp/mainActiveEXPs.jsp')) return '';
       if (url.endsWith('/assignment/index.jsp')) {
         return '<span class="dropdown-item dropdown-item-course font-weight-bold" value="184">离散数学</span>';
       }

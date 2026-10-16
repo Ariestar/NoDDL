@@ -56,7 +56,8 @@ async function initNoDDL() {
     }
   }
 
-  for (const item of parseExperimentAssignmentsHtml(document.documentElement.innerHTML, currentCourseId, currentCourseName)) {
+  const experimentHtml = await http.get(`${window.location.origin}/exp/mainActiveEXPs.jsp`);
+  for (const item of parseExperimentAssignmentsHtml(experimentHtml, currentCourseId, currentCourseName)) {
     if (client.db) await client.db.upsertAssignment(item);
   }
 
@@ -155,7 +156,6 @@ async function initNoDDL() {
 
   // 7. 针对即将到期作业进行通知
   if (allAssignments.length > 0) {
-    const mostUrgent = allAssignments.find(a => a.remainingHours > 0 && (a.urgency === 'critical' || a.urgency === 'urgent'));
     const pushplusToken = (await storage.get('nodd_pushplus_token')) || '';
     const barkUrl = (await storage.get('nodd_bark_url')) || '';
     const smsWebhookUrl = (await storage.get('nodd_sms_webhook_url')) || '';
