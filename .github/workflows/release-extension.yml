@@ -12,6 +12,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_WEBHOOK_SECRET: ${{ secrets.NODDL_RELEASE_WEBHOOK_SECRET }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -79,7 +81,6 @@ jobs:
       - name: Trigger self-hosted updates
         if: env.RELEASE_WEBHOOK_SECRET != ''
         env:
-          RELEASE_WEBHOOK_SECRET: ${{ secrets.NODDL_RELEASE_WEBHOOK_SECRET }}
           RELEASE_TAG: v${{ steps.package.outputs.version }}
         run: |
           curl --fail-with-body --silent --show-error \
