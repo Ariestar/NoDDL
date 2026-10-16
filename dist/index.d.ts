@@ -49,7 +49,6 @@ interface PushConfig {
 interface PlatformConfig {
     baseUrl?: string;
     sessionCookie?: string;
-    push?: PushConfig;
 }
 interface HttpClient {
     get(url: string, headers?: Record<string, string>): Promise<string>;
@@ -125,7 +124,8 @@ declare function parseCourseListHtml(html: string): Course[];
  * <span class="text-muted"><strong><i class="fas fa-history"></i> 历史作业</strong></span>
  * <div class="list-group list-group-flush">...</div>
  */
-declare function parseActiveAssignmentsHtml(html: string, courseName?: string, defaultCourseId?: string): Assignment[];
+declare function parseActiveAssignmentsHtml(html: string, courseName?: string, defaultCourseId?: string, includeHistory?: boolean): Assignment[];
+declare function parseExperimentAssignmentsHtml(html: string, courseId: string, courseName: string, nowMs?: number): Assignment[];
 /**
  * 解析希冀平台作业主卡片（包含作业标题、作业时间与满分）
  * 真实结构:
@@ -140,6 +140,7 @@ declare function parseAssignmentDetailHtml(html: string, nowMs?: number): {
     deadlineTimestamp: number;
     remainingHours: number;
     remainingText: string;
+    status: Assignment['status'];
 };
 /**
  * 解析题目输入输出用例
@@ -192,10 +193,7 @@ declare class HomeworkDB {
      * 归一化插入或更新单项作业（以 assignId 为唯一主键）
      */
     upsertAssignment(item: Assignment): Promise<void>;
-    /**
-     * 批量归一化更新作业
-     */
-    batchUpsertAssignments(items: Assignment[]): Promise<void>;
+    replaceAssignments(items: Assignment[], courses: Course[]): Promise<void>;
     /**
      * 获取结构化数据库中全部聚合作业列表，并进行最佳实践排序
      * 排序逻辑：
@@ -215,6 +213,7 @@ declare class CourseGradingClient {
     setSessionCookie(cookie: string): void;
     getSessionCookie(): string;
     private getAuthHeaders;
+    private fillAssignmentDeadline;
     /**
      * 登录平台（自动使用固定 AES 密钥加密）
      */
@@ -233,7 +232,7 @@ declare class CourseGradingClient {
     /**
      * 只读读取当前活跃课程的作业列表（不篡改 Session 状态）
      */
-    getPendingAssignments(hoursThreshold?: number): Promise<Assignment[]>;
+    getPendingAssignments(): Promise<Assignment[]>;
     /**
      * 全量安全同步所有课程的作业并持久化存入数据库
      * 【核心保障】爬取前记录当前用户所处课程 ID，依序抓取各门课后立即切回原课程，彻底杜绝串课
@@ -257,4 +256,6 @@ declare class CourseGradingClient {
     }>;
 }
 
-export { type Assignment, type AssignmentRecord, COURSE_GRADING_SECRET_KEY, type Course, CourseGradingClient, type CourseRecord, FetchHttpClient, HomeworkDB, type HttpClient, type NormalizedStoreData, type ParsedDeadline, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, extractDeadlineFromText, formatRemainingTime, parseActiveAssignmentsHtml, parseActiveCourseInfo, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };
+declare const PLATFORM_SESSION_COOKIE = "educg_session";
+
+export { type Assignment, type AssignmentRecord, COURSE_GRADING_SECRET_KEY, type Course, CourseGradingClient, type CourseRecord, FetchHttpClient, HomeworkDB, type HttpClient, type NormalizedStoreData, PLATFORM_SESSION_COOKIE, type ParsedDeadline, type PlatformConfig, type ProblemDetail, type PushConfig, type StorageAdapter, type SubmissionResult, type SubmissionStatus, type TestCase, type UrgencyLevel, calculateUrgency, decryptPassword, encryptPassword, extractDeadlineFromText, formatRemainingTime, parseActiveAssignmentsHtml, parseActiveCourseInfo, parseAssignmentDetailHtml, parseCourseListHtml, parseDeadlineBeijing, parseExperimentAssignmentsHtml, parseProblemDetailHtml, parseSubmissionsHtml, parseTestCases };

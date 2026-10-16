@@ -247,6 +247,23 @@ test('云实验：从实验列表读取真实标题、课程和截止时间', ()
   assert.equal(list[0].url, '/exp/index.jsp?assignID=612');
 });
 
+test('云实验：列表中的多个起止时间实验全部解析并取结束时间', () => {
+  const html = `
+    <h4>数据结构与算法</h4>
+    <h5>第一次实验</h5>
+    <p>起止时间：2026-10-09 16:00:00 - 2026-10-16 22:00:00</p>
+    <a href="index.jsp?assignID=612">实验入口</a>
+    <h5>栈与队列【综合实验】</h5>
+    <p>起止时间：2026-10-16 16:30:00 - 2026-10-17 23:59:00</p>
+    <a href="index.jsp?assignID=614">实验入口</a>
+  `;
+  const list = parseExperimentAssignmentsHtml(html, '186', '数据结构与算法', Date.UTC(2026, 9, 15, 12, 0, 0) - 8 * 3600000);
+
+  assert.deepEqual(list.map(item => item.id), ['612', '614']);
+  assert.deepEqual(list.map(item => item.title), ['第一次实验', '栈与队列【综合实验】']);
+  assert.deepEqual(list.map(item => item.deadline), ['2026-10-16 22:00:00', '2026-10-17 23:59:00']);
+});
+
 test('云实验：保留原始实验入口链接', async () => {
   const db = new HomeworkDB(new MemoryStorage());
   await db.upsertAssignment({

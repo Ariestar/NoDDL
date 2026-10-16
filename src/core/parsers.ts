@@ -144,18 +144,20 @@ export function parseExperimentAssignmentsHtml(
   nowMs = Date.now()
 ): Assignment[] {
   const list: Assignment[] = [];
+  const seen = new Set<string>();
   const headingRe = /<h[3-6][^>]*>([\s\S]*?)<\/h[3-6]>([\s\S]*?)(?=<h[3-6][^>]*>|$)/gi;
   let match: RegExpExecArray | null;
 
   while ((match = headingRe.exec(html)) !== null) {
     const title = match[1].replace(/<[^>]+>/g, '').trim();
     const block = match[2];
-    if (!title || !/截止时间/.test(block)) continue;
+    if (!title || !/(?:截止时间|起止时间)/.test(block)) continue;
 
     const id = block.match(/(?:href|action)=["'][^"']*assignID=([a-zA-Z0-9_-]+)/i)?.[1];
     const text = block.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
     const deadline = parseDeadlineBeijing(text, nowMs);
-    if (!id || deadline.timestamp <= 0) continue;
+    if (!id || seen.has(id) || deadline.timestamp <= 0) continue;
+    seen.add(id);
 
     list.push({
       id,

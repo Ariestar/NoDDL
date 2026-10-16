@@ -56,13 +56,19 @@ export function extractDeadlineFromText(text: string): string {
     return xijiTagMatch[1].trim();
   }
 
-  // 2. 标签内的结束日期: <b>...</b> 至 <b>YYYY-MM-DD HH:mm...</b>
+  // 2. 云实验列表使用“起止时间：开始 - 结束”，结束时间是唯一的 DDL。
+  const experimentRangeMatch = text.match(/(?:起止时间|作业时间)[：:\s]*\d{4}[-/.]\d{1,2}[-/.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\s*[-–—]\s*(\d{4}[-/.]\d{1,2}[-/.]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?))/i);
+  if (experimentRangeMatch && experimentRangeMatch[1]) {
+    return experimentRangeMatch[1].trim();
+  }
+
+  // 3. 标签内的结束日期: <b>...</b> 至 <b>YYYY-MM-DD HH:mm...</b>
   const tagRangeMatch = text.match(/<b[^>]*>[^<]*<\/b>\s*(?:至|到|~)\s*<b[^>]*>([\d\-/年月日. :]+)<\/b>/i);
   if (tagRangeMatch && tagRangeMatch[1]) {
     return tagRangeMatch[1].trim();
   }
 
-  // 3. 时间范围（如 "2026-09-09 12:50:00 至 2026-10-15 00:00:00"），严格取结束时间
+  // 4. 时间范围（如 "2026-09-09 12:50:00 至 2026-10-15 00:00:00"），严格取结束时间
   const rangeParts = text.split(/\s*(?:至|到|~)\s*/);
   if (rangeParts.length > 1) {
     const candidate = rangeParts[rangeParts.length - 1].trim();
@@ -70,13 +76,13 @@ export function extractDeadlineFromText(text: string): string {
     if (dateM) return dateM[0].trim();
   }
 
-  // 4. 显式前缀: "截止时间：..."
+  // 5. 显式前缀: "截止时间：..."
   const kwMatch = text.match(/(?:截止|结束)(?:时间|日期)?[:：\s]*([\d\-/年月日. :]+)/i);
   if (kwMatch && kwMatch[1]) {
     return kwMatch[1].trim();
   }
 
-  // 5. 独立标准日期字符串
+  // 6. 独立标准日期字符串
   const exactDateMatch = text.trim().match(/^(\d{4}[-/.年]\d{1,2}[-/.月]\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)$/);
   if (exactDateMatch && exactDateMatch[1]) {
     return exactDateMatch[1].trim();

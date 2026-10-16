@@ -62,7 +62,8 @@ async function initNoDDL() {
       const curAssignId = urlMatch[1];
       const isExperimentPage = window.location.pathname.startsWith('/exp/');
       const experimentAssignment = isExperimentPage
-        ? parseExperimentAssignmentsHtml(document.documentElement.innerHTML, currentCourseId, currentCourseName || '云实验')[0]
+        ? parseExperimentAssignmentsHtml(document.documentElement.innerHTML, currentCourseId, currentCourseName || '云实验')
+            .find(item => item.id === curAssignId)
         : undefined;
       let curDetail = isExperimentPage
         ? experimentAssignment
