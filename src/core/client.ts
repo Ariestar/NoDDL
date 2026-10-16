@@ -181,7 +181,7 @@ export class CourseGradingClient {
         }
 
         const experiments = parseExperimentAssignmentsHtml(
-          await this.http.get(`${this.baseUrl}/exp/index.jsp`, this.getAuthHeaders()),
+          await this.http.get(`${this.baseUrl}/main.jsp`, this.getAuthHeaders()),
           c.id,
           c.name
         );

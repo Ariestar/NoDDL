@@ -56,14 +56,35 @@ async function initNoDDL() {
     }
   }
 
+  for (const item of parseExperimentAssignmentsHtml(document.documentElement.innerHTML, currentCourseId, currentCourseName)) {
+    if (client.db) await client.db.upsertAssignment(item);
+  }
+
   // 4. 若当前处于作业/题目提交页（如 fileUploadList.jsp 或 programList.jsp）
   const urlMatch = window.location.href.match(/assignID=([a-zA-Z0-9_-]+)/i);
   if (urlMatch) {
       const curAssignId = urlMatch[1];
       const isExperimentPage = window.location.pathname.startsWith('/exp/');
       const experimentAssignment = isExperimentPage
-        ? parseExperimentAssignmentsHtml(document.documentElement.innerHTML, currentCourseId, currentCourseName || '云实验')
-            .find(item => item.id === curAssignId)
+        ? (() => {
+            const activeLink = document.querySelector<HTMLAnchorElement>('a.list-group-item.active');
+            const title = activeLink?.textContent?.replace(/\s+/g, ' ').trim();
+            const deadline = parseExperimentDeadlineFromDom(document);
+            if (!title || !deadline) return undefined;
+            return {
+              id: curAssignId,
+              courseId: currentCourseId,
+              courseName: currentCourseName || '云实验',
+              title,
+              deadline: deadline.normalized,
+              deadlineTimestamp: deadline.timestamp,
+              remainingHours: deadline.remainingHours,
+              remainingText: deadline.remainingText,
+              status: 'pending' as const,
+              urgency: deadline.urgency,
+              url: `/exp/index.jsp?assignID=${curAssignId}`
+            };
+          })()
         : undefined;
       let curDetail = isExperimentPage
         ? experimentAssignment
@@ -81,16 +102,7 @@ async function initNoDDL() {
       // 云实验页直接从当前 DOM 的截止字段读取，不请求作业模块页面。
       if (isExperimentPage) {
         if (!experimentAssignment) throw new Error(`云实验 ${curAssignId} 缺少真实作业信息`);
-        const experimentDeadline = parseExperimentDeadlineFromDom(document);
-        if (experimentDeadline) {
-          curDetail = {
-            ...curDetail,
-            deadline: experimentDeadline.normalized,
-            deadlineTimestamp: experimentDeadline.timestamp,
-            remainingHours: experimentDeadline.remainingHours,
-            remainingText: experimentDeadline.remainingText
-          };
-        }
+        curDetail = experimentAssignment;
       } else if (curDetail.deadlineTimestamp === 0) {
         // 普通作业页未展示起止时间时，抓取作业主卡片。
         const mainUrl = currentCourseId
